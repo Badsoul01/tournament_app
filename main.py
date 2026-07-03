@@ -1,5 +1,5 @@
 
-
+import random
 from bs4 import BeautifulSoup
 import requests
 from flask import Flask,render_template,request,session,redirect
@@ -46,11 +46,7 @@ def rozrazeni():
     all_tables = session.get('tables',{"A":[],"B":[]})
     free_players = session.get('players',[])
 
-    generated_matches = {"A":[],"B":[]}
-
-    for group_name, players_list in all_tables.items():
-        generated_matches[group_name]= list(combinations(players_list,2))
-
+    generated_matches = session.get("matches",{"A":[],"B":[]})
 
     return render_template("players.html",
                            players=free_players,
@@ -70,6 +66,23 @@ def add_player():
 
     return  redirect("/rozrazeni")
 
+@app.route("/generate_tournament", methods=["POST"])
+def generate_tournament():
+    all_tables = session.get("tables",{"A":[],"B":[]})
+    new_match_order = {"A":[],"B":[]}
+
+    for g_name,p_list in all_tables.items():
+        doubles = list(combinations(p_list,2))
+        random.shuffle(doubles)
+        new_match_order[g_name]=doubles
+
+    session["matches"] = new_match_order
+
+    return redirect("/rozrazeni")
+
+
+
+
 @app.route("/add_custom_player", methods=["POST"])
 def add_custom_player():
     player_name = request.form.get("player_name").strip()
@@ -84,4 +97,4 @@ def add_custom_player():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True,host="0.0.0.0")
