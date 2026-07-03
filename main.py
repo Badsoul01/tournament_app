@@ -1,11 +1,12 @@
-from doctest import debug
+
+
 from bs4 import BeautifulSoup
 import requests
-from flask import Flask,render_template,request
-
-
+from flask import Flask,render_template,request,session,redirect
+from itertools import combinations
 
 app = Flask(__name__)
+app.secret_key = "ultra_tajny_klic"
 
 @app.route("/")
 def home():
@@ -34,10 +35,42 @@ def scrape():
     if not players:
         return "<H3> na této URL nebyli nalezeni žádní účastníci. Zkontroluj odkaz.</h3>"
 
-    return  render_template("players.html",players=players)
+    session['players'] = players
+    session['tables'] = {"A":[],"B":[]}
+
+    return  redirect("/rozrazeni")
 
 
-    return f"<h3> úspěšně přijato! Na pozadí budeme seškrabávat URL </h3> {url_z_formuláře}"
+@app.route("/rozrazeni")
+def rozrazeni():
+    all_tables = session.get('tables',{"A":[],"B":[]})
+    free_players = session.get('players',[])
+
+    generated_matches = {"A":[],"B":[]}
+
+    for group_name, players_list in all_tables.items():
+        generated_matches[group_name]= list(combinations(players_list,2))
+
+
+    return render_template("players.html",
+                           players=free_players,
+                           tables=all_tables,
+                           matches=generated_matches)
+
+@app.route("/add_player",methods=["POST"])
+def add_player():
+    player_name = request.form.get("player_name")
+    group = request.form.get("group")
+
+    session['tables'][group].append(player_name)
+    session['players'].remove(player_name)
+
+    session['players'] = session['players']
+    session['tables'] = session['tables']
+
+    return  redirect("/rozrazeni")
+
+
 
 if __name__ == "__main__":
     app.run(debug=True)
