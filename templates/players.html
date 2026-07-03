@@ -1,10 +1,67 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="cs">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seznam hráčů</title>
 </head>
 <body>
-$END$
+  <h1>Načtění hráči</h1>
+  <p>Celkem nalezeno hráčů: {{ players|length }}</p>
+
+  <form action="/add_custom_player" method="POST">
+    <input type="text" name="custom_name" required>
+    <button type="submit">Přidat hráče</button>
+  </form>
+
+  <ul>
+    {% for player in players %}
+    <li>
+      <strong>{{player}}</strong>
+      <form action="/add_player" method="post" style="display: inline;">
+        <input type="hidden" name="player_name" value="{{player}}">
+
+        <button type="submit" name="group" value="A">A</button>
+        <button type="submit" name="group" value="B">B</button>
+
+      </form>
+
+    </li>
+    {% endfor %}
+
+  </ul>
+
+  <h3>Tabulka A</h3>
+  <ul>
+    {% for player in tables['A'] %}
+      <li>{{player}}</li>
+    {% endfor %}
+  </ul>
+  <h3>Tabulka B</h3>
+  <ul>
+    {% for player in tables['B'] %}
+    <li>{{player}}</li>
+    {% endfor %}
+  </ul>
+
+  <hr>
+  <h2> Rozpis zápasů</h2>
+
+  <h3> Zápasy Skupiny A</h3>
+  <ul>
+    {% for match in matches['A'] %}
+    <li>{{match[0]}} vs {{match[1]}}</li>
+    {% endfor %}
+  </ul>
+
+  <h3>Zápasy Skupiny B</h3>
+  <ul>
+    {% for match in matches['B'] %}
+    <li>{{match[0]}} vs {{match[1]}}</li>
+    {% endfor %}
+  </ul>
+
+  <br>
+<a href="/">← Zpět na zadání URL</a>
 </body>
 </html>
