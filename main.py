@@ -70,6 +70,17 @@ def add_player():
 
     return  redirect("/rozrazeni")
 
+@app.route("/add_custom_player", methods=["POST"])
+def add_custom_player():
+    player_name = request.form.get("player_name").strip()
+    if player_name:
+        actual_players = session.get('players',[])
+
+        actual_players.append(player_name)
+
+        session['players'] = actual_players
+
+    return redirect("/rozrazeni")
 
 
 if __name__ == "__main__":
