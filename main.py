@@ -58,7 +58,8 @@ def rozrazeni():
     return render_template("players.html",
                            players=free_players,
                            tables=all_tables,
-                           matches=generated_matches)
+                           matches=generated_matches,
+                           played_matches=played_matches)
 
 @app.route("/add_player",methods=["POST"])
 def add_player():
