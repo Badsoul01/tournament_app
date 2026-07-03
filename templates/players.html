@@ -8,12 +8,15 @@
 <body>
   <h1>Řízení turnaje</h1>
 
-  <p>Celkem nalezeno hráčů: {{ players|length }}</p>
 
-   <form action="/add_custom_player" method="POST">
-      <input type="text" name="player_name" required>
+
+  <!-- 1. FORMULÁŘ: PŘIDÁNÍ HRÁČE -->
+  <form action="/add_custom_player" method="POST" style="margin-bottom: 10px;">
+      <input type="text" name="player_name" required placeholder="Jméno hráče">
       <button type="submit">Přidat hráče</button>
   </form>
+
+  <!-- 2. FORMULÁŘ: NASTAVENÍ SKUPIN (Zavřený ihned na konci bloku!) -->
   <form action="/setup_groups" method="POST" style="margin-bottom: 20px; background: #f8f9fa; padding: 10px; border: 1px solid #ddd;">
       <label for="num_groups"><strong>Nastavit počet skupin pro turnaj:</strong></label>
       <select name="num_groups" id="num_groups" style="padding: 5px; margin: 0 10px;">
@@ -27,80 +30,155 @@
       <button type="submit">Potvrdit a resetovat rozřazení</button>
   </form>
 
-
-  <ul>
-    <h3>Načtění hráči</h3>
+  <!-- 3. SEZNAM VOLNÝCH HRÁČŮ -->
+  <h3>Načtení hráči</h3>
+  <ul style="list-style-type: none; padding-left: 0;">
     {% for player in players %}
-        <li>
-          <form action="/delete_player" method="post" style="display:inline; margin-left: 15px;">
+        <li style="margin-bottom: 8px;">
+          <!-- Tlačítko smazat vlevo -->
+          <form action="/delete_player" method="post" style="display:inline; margin-right: 10px;">
             <input type="hidden" name="player_name" value="{{player}}">
-            <button type="submit" style="padding: 2px 6px; background-color: #ffffff; color: #ff0000; border: none; cursor: pointer;">
+            <button type="submit" style="padding: 2px 6px; background-color: #ffffff; color: #ff0000; border: 1px solid #ff0000; border-radius: 4px; cursor: pointer;">
               ❌
             </button>
           </form>
 
-          {{player}}
+          <span style="font-size: 16px; font-weight: bold; min-width: 150px; display: inline-block;">{{player}}</span>
+
+          <!-- Tlačítka skupin -->
           <form action="/add_player" method="post" style="display: inline;">
                 <input type="hidden" name="player_name" value="{{player}}">
-
                 {% for group_name in tables.keys() %}
-                  <button type="submit" name="group" value="{{ group_name }}" style="margin-left: 5px; padding: 2px 8px;">
+                  <button type="submit" name="group" value="{{ group_name }}" style="margin-left: 5px; padding: 2px 8px; cursor: pointer;">
                     {{group_name}}
                   </button>
                 {% endfor %}
           </form>
-
-
-
         </li>
     {% endfor %}
   </ul>
+<hr>
 
-
-
-  <hr>
-  {% for group_name,player_list in tables.items() %}
-      <h2> Tabulka {{group_name}}</h2>
-      <ul>
-        {% for player in player_list %}
-            <li>
-              <form action="/delete_player" method="post" style="display:inline; margin-left: 15px;">
-                <input type="hidden" name="player_name" value="{{player}}">
-                <button type="submit" style="padding: 2px 6px; background-color: #ffffff; color: #ff0000; border: none; cursor: pointer;">
-                  ❌
-                </button>
-              {{player}}
-              </form>
-
-
-            </li>
-        {% endfor %}
-      </ul>
-  {% endfor %}
-
-
-
+<!-- SEKCE PRO ŘÍZENÍ TURNAJE -->
+ </form>
   <form action="generate_tournament" method="POST">
     <button type="submit" style="padding: 10px 20px; background-color:#28a745; color: white; border: none; font-weight: bold;">
         🎲 Vygenerovat zápasy
       </button>
   </form>
 
-  <hr>
-  <h2> Rozpis zápasů</h2>
+<h2>Pořadí a zápasy ve skupinách</h2>
 
-  {% for group_name, match_list in matches.items() %}
-      <h3>Zápasy Skupiny {{group_name}}</h3>
-      <ul>
-        {% for match in match_list %}
-            <li>{{match[0]}} vs {{match[1]}}</li>
-        {% else %}
-        <li>Zatím žádné zápasy </li>
-        {% endfor %}
-      </ul>
-  {% endfor %}
+{% for group_name, player_dict in tables.items() %}
+    <div style="background: #ffffff; border: 2px solid #333; margin-bottom: 30px; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
 
-  <br>
-<a href="/">← Zpět na zadání URL</a>
+        <h2 style="margin-top: 0; background: #333; color: #fff; padding: 8px 12px; border-radius: 4px;">
+            SKUPINA {{ group_name }}
+        </h2>
+
+        <!-- FLEXBOX KONTEJNER: Rozdělí obrazovku na dva sloupce -->
+        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+
+            <!-- LEVÝ SLOUPEC: PRŮBĚŽNÁ TABULKA -->
+            <div style="flex: 1; min-width: 320px;">
+                <h3 style="margin-top: 0; color: #555;">Průběžná tabulka</h3>
+                <table border="1" cellpadding="6" style="width: 100%; border-collapse: collapse; text-align: center;">
+                    <thead style="background: #f2f2f2;">
+                        <tr>
+                            <th style="text-align: left;">Hráč</th>
+                            <th>Body </th>
+                            <th>Sety skóre</th>
+                            <th>Míčky skóre</th>
+                            <th>Míčky +/-</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player, stats in player_dict.items() | sort(attribute='1.body', reverse=true) %}
+                        <tr>
+                            <td style="text-align: left;"><strong>{{ player }}</strong></td>
+                            <td style="background: #eef9ef; font-weight: bold; color: #28a745;">{{ stats.body }}</td>
+                            <td>{{ stats.sety_w }}:{{ stats.sety_l }}</td>
+                            <td>{{ stats.micky_w }}:{{ stats.micky_l }}</td>
+                            <td>
+                                {% set diff = stats.micky_w - stats.micky_l %}
+                                {% if diff > 0 %}+{{ diff }}{% else %}{{ diff }}{% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" style="font-style: italic; color: #888;">Žádní hráči v této skupině.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- PRAVÝ SLOUPEC: ROZPIS ZÁPASŮ -->
+            <div style="flex: 1; min-width: 320px; border-left: 1px solid #ccc; padding-left: 25px;">
+                <h3 style="margin-top: 0; color: #555;">Zápasy k odehrání</h3>
+
+                {% if matches[group_name] %}
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                        {% for match in matches[group_name] %}
+                            <li style="background: #f9f9f9; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                                <form action="/record_score" method="POST" style="display: flex; flex-direction: column; gap: 8px;">
+                                    <input type="hidden" name="group" value="{{ group_name }}">
+                                    <input type="hidden" name="match_id" value="{{ match.id }}">
+
+                                    <!-- Jména a sety -->
+                                    <div style="display: flex; align-items: center; justify-content: space-between; font-weight: bold;">
+                                        <span style="flex: 1; text-align: right; padding-right: 10px;">{{ match.p1 }}</span>
+                                        <input type="number" name="s1" placeholder="Sety" required style="width: 50px; text-align: center; padding: 4px;" min="0">
+                                        <span style="padding: 0 5px;">:</span>
+                                        <input type="number" name="s2" placeholder="Sety" required style="width: 50px; text-align: center; padding: 4px;" min="0">
+                                        <span style="flex: 1; text-align: left; padding-left: 10px;">{{ match.p2 }}</span>
+                                    </div>
+
+                                    <!-- Míčky a potvrzení -->
+                                    <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed #ddd; padding-top: 8px; font-size: 13px; color: #666;">
+                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            <span>Míčky:</span>
+                                            <input type="number" name="m1" placeholder="{{ match.p1 }}" required style="width: 55px; padding: 2px;" min="0">
+                                            <span>:</span>
+                                            <input type="number" name="m2" placeholder="{{ match.p2 }}" required style="width: 55px; padding: 2px;" min="0">
+                                        </div>
+                                        <button type="submit" style="background: #007bff; color: white; border: none; padding: 5px 12px; font-weight: bold; border-radius: 4px; cursor: pointer;">
+                                            Uložit 💾
+                                        </button>
+                                    </div>
+                                </form>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p style="color: #28a745; font-weight: bold; italic: true; margin: 0;">
+                        🎉 Žádné aktivní zápasy. Buď vygeneruj turnaj, nebo je vše odehráno!
+                    </p>
+                {% endif %}
+
+                <!-- SEKCE PRO ODEHRANÉ ZÁPASY -->
+                {% if played_matches and played_matches[group_name] %}
+                    <h4 style="margin-top: 20px; margin-bottom: 5px; color: #777;">Odehrané zápasy v této skupině:</h4>
+                    <ul style="font-size: 13px; color: #444; background: #f0f0f0; padding: 10px 15px; border-radius: 6px; margin: 0; list-style-type: square;">
+                        {% for pm in played_matches[group_name] %}
+                            <li style="margin-bottom: 4px;">
+                                <strong>{{ pm.p1 }}</strong> vs <strong>{{ pm.p2 }}</strong> &nbsp;&rarr;&nbsp;
+                                <span style="background: #fff; padding: 1px 6px; border-radius: 3px; font-weight: bold;">{{ pm.s1 }} : {{ pm.s2 }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+            </div> <!-- Konec pravého sloupce -->
+
+        </div> <!-- Konec flexboxu -->
+
+    </div> <!-- Konec kontejneru skupiny -->
+{% endfor %}
+
+
+
+
+  <a href="/">← Zpět na zadání URL</a>
 </body>
 </html>
