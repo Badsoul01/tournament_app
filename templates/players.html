@@ -32,6 +32,13 @@
     <h3>Načtění hráči</h3>
     {% for player in players %}
         <li>
+          <form action="/delete_player" method="post" style="display:inline; margin-left: 15px;">
+            <input type="hidden" name="player_name" value="{{player}}">
+            <button type="submit" style="padding: 2px 6px; background-color: #ffffff; color: #ff0000; border: none; cursor: pointer;">
+              ❌
+            </button>
+          </form>
+
           {{player}}
           <form action="/add_player" method="post" style="display: inline;">
                 <input type="hidden" name="player_name" value="{{player}}">
@@ -42,6 +49,9 @@
                   </button>
                 {% endfor %}
           </form>
+
+
+
         </li>
     {% endfor %}
   </ul>
@@ -53,7 +63,17 @@
       <h2> Tabulka {{group_name}}</h2>
       <ul>
         {% for player in player_list %}
-            <li>{{player}}</li>
+            <li>
+              <form action="/delete_player" method="post" style="display:inline; margin-left: 15px;">
+                <input type="hidden" name="player_name" value="{{player}}">
+                <button type="submit" style="padding: 2px 6px; background-color: #ffffff; color: #ff0000; border: none; cursor: pointer;">
+                  ❌
+                </button>
+              {{player}}
+              </form>
+
+
+            </li>
         {% endfor %}
       </ul>
   {% endfor %}

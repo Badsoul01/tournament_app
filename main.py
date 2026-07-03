@@ -120,6 +120,25 @@ def setup_groups():
 
     return redirect("/rozrazeni")
 
+@app.route("/delete_player", methods=["POST"])
+def delete_player():
+    player_name = request.form.get("player_name")
+
+    players = session.get("players",[])
+    tables = session.get("tables",{})
+
+    if player_name in players:
+        players.remove(player_name)
+
+    for group_name,p_list in tables.items():
+        if player_name in p_list:
+            p_list.remove(player_name)
+
+    session["players"] = players
+    session["tables"] =tables
+    session.modified = True
+
+    return redirect("/rozrazeni")
 
 
 
