@@ -42,18 +42,18 @@ def scrape():
         return "<H3> na této URL nebyli nalezeni žádní účastníci. Zkontroluj odkaz.</h3>"
 
     session["players"] = players
-    session["tables"] = {"A":[]}
-    session["matches"] = {"A":[]}
+    session["tables"] = {"A": {}}
+    session["matches"] = {"A":{}}
 
     return  redirect("/rozrazeni")
 
 
 @app.route("/rozrazeni")
 def rozrazeni():
-    all_tables = session.get('tables',{"A":[],"B":[]})
+    all_tables = session.get('tables',{"A":{}})
     free_players = session.get('players',[])
-
-    generated_matches = session.get("matches",{"A":[],"B":[]})
+    generated_matches = session.get("matches",{})
+    played_matches = session.get("played_matches",{})
 
     return render_template("players.html",
                            players=free_players,
@@ -69,15 +69,19 @@ def add_player():
     players = session.get("players",[])
 
     if group in tables and player_name in players:
-        tables[group].append(player_name)
+        tables[group][player_name]={
+            "body":0,
+            "sety_w":0,
+            "sety_l":0,
+            "micky_w":0,
+            "micky_l":0
+        }
         players.remove(player_name)
 
         session['tables'] = tables
         session['players'] = players
+        session.modified= True
 
-
-
-    session.modified= True
 
     return  redirect("/rozrazeni")
 
@@ -86,14 +90,83 @@ def generate_tournament():
     all_tables = session.get("tables",{"A":[],"B":[]})
     new_match_order = {"A":[],"B":[]}
 
-    for g_name,p_list in all_tables.items():
+    for g_name,p_dict in all_tables.items():
+        p_list = list(p_dict.keys())
         doubles = list(combinations(p_list,2))
         random.shuffle(doubles)
-        new_match_order[g_name]=doubles
 
-    session["matches"] = new_match_order
+        match_objects= []
+        for idx,pair in enumerate(doubles):
+            match_objects.append({
+                "id": f"{g_name}_{idx}",
+                "p1":pair[0],
+                "p2":pair[1]
+            })
+        new_match_order[g_name] = match_objects
+
+    session["matches"]= new_match_order
+    session["played_matches"] = {g:[] for g in all_tables.keys()}
+    session.modified = True
 
     return redirect("/rozrazeni")
+
+@app.route("/record_score",methods=["POST"])
+def record_score():
+    group = request.form.get("group")
+    match_id = request.form.get("match_id")
+
+    try:
+        s1 = int(request.form.get("s1",0))
+        s2 = int(request.form.get("s2",0))
+        m1 = int(request.form.get("m1",0))
+        m2 = int(request.form.get("m2",0))
+    except ValueError:
+        return "Zadej platná čísla pro sety a míčky!",400
+
+    matches = session.get("matches",{})
+    played_matches = session.get("played_matches",{})
+    tables = session.get("tables",{})
+
+    active_matches = matches.get(group,[])
+    current_match = None
+
+    for m in active_matches:
+        if m["id"] == match_id:
+            current_match = m
+            break
+
+    if current_match:
+        p1,p2 = current_match["p1"], current_match["p2"]
+
+        tables[group][p1]["body"] +=s1
+        tables[group][p1]["sety_w"] +=s1
+        tables[group][p1]["sety_l"] +=s2
+        tables[group][p1]["micky_w"] += m1
+        tables[group][p1]["micky_l"] += m2
+
+        tables[group][p2]["body"] += s2
+        tables[group][p2]["sety_w"] += s2
+        tables[group][p2]["sety_l"] += s1
+        tables[group][p2]["micky_w"] += m2
+        tables[group][p2]["micky_l"] += m1
+
+        current_match["s1"]= s1
+        current_match["s2"]= s2
+
+        played_matches[group].append(current_match)
+        active_matches.remove(current_match)
+
+        session["tables"]= tables
+        session["matches"]=matches
+        session["played_matches"]=played_matches
+        session.modified= True
+
+    return redirect("/rozrazeni")
+
+
+
+
+
 
 @app.route("/setup_groups",methods=["POST"])
 def setup_groups():
@@ -104,20 +177,26 @@ def setup_groups():
 
     all_players = session.get("players",[])
     tables = session.get("tables",{})
-    for p_list in tables.values():
-        all_players.extend(p_list)
 
-    session["players"] =list(set(all_players))
+    for group_content in tables.values():
+        if isinstance(group_content,dict):
+            all_players.extend(group_content.keys())
+        else:
+            all_players.extend(group_content)
+
+    session["players"] = list(set(all_players))
 
     new_tables = {}
-
     for i in range(num_groups):
         letter = chr(65+i)
-        new_tables[letter]=[]
+        new_tables[letter]={}
 
     session["tables"] = new_tables
-    session["matches"] = {letter:[] for letter in new_tables.keys()}
+    session["matches"]= {letter:[] for letter in new_tables.keys()}
+    session["played_matches"]={letter:[] for letter in new_tables.keys()}
 
+
+    session.modified = True
     return redirect("/rozrazeni")
 
 @app.route("/delete_player", methods=["POST"])
