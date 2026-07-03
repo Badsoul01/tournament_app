@@ -41,8 +41,9 @@ def scrape():
     if not players:
         return "<H3> na této URL nebyli nalezeni žádní účastníci. Zkontroluj odkaz.</h3>"
 
-    session['players'] = players
-    session['tables'] = {"A":[],"B":[]}
+    session["players"] = players
+    session["tables"] = {"A":[]}
+    session["matches"] = {"A":[]}
 
     return  redirect("/rozrazeni")
 
@@ -64,11 +65,19 @@ def add_player():
     player_name = request.form.get("player_name")
     group = request.form.get("group")
 
-    session['tables'][group].append(player_name)
-    session['players'].remove(player_name)
+    tables = session.get("tables",{})
+    players = session.get("players",[])
 
-    session['players'] = session['players']
-    session['tables'] = session['tables']
+    if group in tables and player_name in players:
+        tables[group].append(player_name)
+        players.remove(player_name)
+
+        session['tables'] = tables
+        session['players'] = players
+
+
+
+    session.modified= True
 
     return  redirect("/rozrazeni")
 
@@ -83,6 +92,31 @@ def generate_tournament():
         new_match_order[g_name]=doubles
 
     session["matches"] = new_match_order
+
+    return redirect("/rozrazeni")
+
+@app.route("/setup_groups",methods=["POST"])
+def setup_groups():
+    try:
+        num_groups = int(request.form.get("num_groups",1))
+    except ValueError:
+        num_groups=1
+
+    all_players = session.get("players",[])
+    tables = session.get("tables",{})
+    for p_list in tables.values():
+        all_players.extend(p_list)
+
+    session["players"] =list(set(all_players))
+
+    new_tables = {}
+
+    for i in range(num_groups):
+        letter = chr(65+i)
+        new_tables[letter]=[]
+
+    session["tables"] = new_tables
+    session["matches"] = {letter:[] for letter in new_tables.keys()}
 
     return redirect("/rozrazeni")
 

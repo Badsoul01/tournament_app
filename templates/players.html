@@ -6,46 +6,60 @@
     <title>Seznam hráčů</title>
 </head>
 <body>
-  <h1>Načtění hráči</h1>
+  <h1>Řízení turnaje</h1>
+
   <p>Celkem nalezeno hráčů: {{ players|length }}</p>
 
-  <form action="/add_custom_player" method="POST">
-    <input type="text" name="player_name" required>
-    <button type="submit">Přidat hráče</button>
+   <form action="/add_custom_player" method="POST">
+      <input type="text" name="player_name" required>
+      <button type="submit">Přidat hráče</button>
+  </form>
+  <form action="/setup_groups" method="POST" style="margin-bottom: 20px; background: #f8f9fa; padding: 10px; border: 1px solid #ddd;">
+      <label for="num_groups"><strong>Nastavit počet skupin pro turnaj:</strong></label>
+      <select name="num_groups" id="num_groups" style="padding: 5px; margin: 0 10px;">
+        <option value="1">Skupina (A)</option>
+        <option value="2">Skupina (A,B)</option>
+        <option value="3">Skupina (A,B,C)</option>
+        <option value="4">Skupina (A,B,C,D)</option>
+        <option value="5">Skupina (A,B,C,D,E)</option>
+        <option value="6">Skupina (A,B,C,D,E,F)</option>
+      </select>
+      <button type="submit">Potvrdit a resetovat rozřazení</button>
   </form>
 
+
   <ul>
+    <h3>Načtění hráči</h3>
     {% for player in players %}
-    <li>
-      <strong>{{player}}</strong>
-      <form action="/add_player" method="post" style="display: inline;">
-        <input type="hidden" name="player_name" value="{{player}}">
+        <li>
+          {{player}}
+          <form action="/add_player" method="post" style="display: inline;">
+                <input type="hidden" name="player_name" value="{{player}}">
 
-        <button type="submit" name="group" value="A">A</button>
-        <button type="submit" name="group" value="B">B</button>
-
-      </form>
-
-    </li>
-    {% endfor %}
-
-  </ul>
-
-  <h3>Tabulka A</h3>
-  <ul>
-    {% for player in tables['A'] %}
-      <li>{{player}}</li>
+                {% for group_name in tables.keys() %}
+                  <button type="submit" name="group" value="{{ group_name }}" style="margin-left: 5px; padding: 2px 8px;">
+                    {{group_name}}
+                  </button>
+                {% endfor %}
+          </form>
+        </li>
     {% endfor %}
   </ul>
-  <h3>Tabulka B</h3>
-  <ul>
-    {% for player in tables['B'] %}
-    <li>{{player}}</li>
-    {% endfor %}
-  </ul>
+
+
 
   <hr>
-  <h2>Řízení turnaje</h2>
+  {% for group_name,player_list in tables.items() %}
+      <h2> Tabulka {{group_name}}</h2>
+      <ul>
+        {% for player in player_list %}
+            <li>{{player}}</li>
+        {% endfor %}
+      </ul>
+  {% endfor %}
+
+
+
   <form action="generate_tournament" method="POST">
     <button type="submit" style="padding: 10px 20px; background-color:#28a745; color: white; border: none; font-weight: bold;">
         🎲 Vygenerovat a zamíchat zápasy
@@ -55,19 +69,16 @@
   <hr>
   <h2> Rozpis zápasů</h2>
 
-  <h3> Zápasy Skupiny A</h3>
-  <ul>
-    {% for match in matches['A'] %}
-    <li>{{match[0]}} vs {{match[1]}}</li>
-    {% endfor %}
-  </ul>
-
-  <h3>Zápasy Skupiny B</h3>
-  <ul>
-    {% for match in matches['B'] %}
-    <li>{{match[0]}} vs {{match[1]}}</li>
-    {% endfor %}
-  </ul>
+  {% for group_name, match_list in matches.items() %}
+      <h3>Zápasy Skupiny {{group_name}}</h3>
+      <ul>
+        {% for match in match_list %}
+            <li>{{match[0]}} vs {{match[1]}}</li>
+        {% else %}
+        <li>Zatím žádné zápasy </li>
+        {% endfor %}
+      </ul>
+  {% endfor %}
 
   <br>
 <a href="/">← Zpět na zadání URL</a>
