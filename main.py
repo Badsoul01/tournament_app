@@ -88,10 +88,11 @@ def add_player():
 
 @app.route("/generate_tournament", methods=["POST"])
 def generate_tournament():
-    all_tables = session.get("tables",{"A":[],"B":[]})
-    new_match_order = {"A":[],"B":[]}
+    all_tables = session.get("tables",{})
+    new_match_order = {}
 
     for g_name,p_dict in all_tables.items():
+        new_match_order[g_name]=[]
         p_list = list(p_dict.keys())
         doubles = list(combinations(p_list,2))
         random.shuffle(doubles)
