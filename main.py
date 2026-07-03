@@ -14,7 +14,13 @@ def home():
 
 @app.route("/scrape", methods=["POST"])
 def scrape():
-    url = request.form.get("url").strip()
+    url = request.form.get("url","").strip()
+    if url.endswith("/"):
+        url=url[:-1]
+
+    if not url.endswith("/ucastnici"):
+        url = f"{url}/ucastnici"
+
     players =[]
     try:
         r =requests.get(url,timeout=10)
@@ -85,7 +91,7 @@ def generate_tournament():
 
 @app.route("/add_custom_player", methods=["POST"])
 def add_custom_player():
-    player_name = request.form.get("player_name").strip()
+    player_name = request.form.get("player_name","").strip()
     if player_name:
         actual_players = session.get('players',[])
 
