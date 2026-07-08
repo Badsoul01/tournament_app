@@ -1,0 +1,77 @@
+from player import Player
+
+class Match:
+
+    def __init__(self, player_a:Player,player_b:Player,match_format:str, tournament_stage:str,match_id=None):
+        self.player_A = player_a
+        self.player_B = player_b
+        self.match_format = match_format
+        self.tournament_stage = tournament_stage
+        self.match_id = match_id
+        self.is_finished = False
+
+
+    def evaluate_match(self,played_sets:list[tuple]):
+        player_a = {
+            "games_win":0,
+            "games_lost":0,
+            "balls_win":0,
+            "balls_lost":0,
+            "points":0
+        }
+        player_b = {
+            "games_win": 0,
+            "games_lost": 0,
+            "balls_win": 0,
+            "balls_lost": 0,
+            "points":0
+        }
+
+        for balls_a,balls_b in played_sets:
+            player_a["balls_win"]+=balls_a
+            player_a["balls_lost"] +=balls_b
+            player_b["balls_win"] += balls_b
+            player_b["balls_lost"] += balls_a
+
+            if balls_a > balls_b:
+                player_a["game_win"] += 1
+                player_b["game_lost"] += 1
+            else:
+                player_a["game_lost"] +=1
+                player_b["game_win"] +=1
+
+        if player_a["game_win"]>player_b["game_win"]:
+            player_a["points"] +=3
+
+        elif player_a["game_win"] == player_b["game_win"]:
+            player_a["points"] +=1
+            player_b["points"] +=1
+
+        else:
+            player_b["points"] +=3
+
+        self.player_A.write_result(tournament_stage=self.tournament_stage,
+                                   balls_win=player_a["balls_win"],
+                                   balls_lost=player_a["balls_lost"],
+                                   games_win=player_a["games_win"],
+                                   games_lost=player_a["games_lost"],
+                                   points=player_a["points"]
+                                   )
+        self.player_B.write_result(tournament_stage=self.tournament_stage,
+                                   balls_win=player_b["balls_win"],
+                                   balls_lost=player_b["balls_lost"],
+                                   games_win=player_b["games_win"],
+                                   games_lost=player_b["games_lost"],
+                                   points=player_b["points"]
+                                   )
+        self.is_finished = True
+
+        return self.is_finished
+
+
+
+
+
+
+
+
