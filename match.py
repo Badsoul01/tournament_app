@@ -34,16 +34,16 @@ class Match:
             player_b["balls_lost"] += balls_a
 
             if balls_a > balls_b:
-                player_a["game_win"] += 1
-                player_b["game_lost"] += 1
+                player_a["games_win"] += 1
+                player_b["games_lost"] += 1
             else:
-                player_a["game_lost"] +=1
-                player_b["game_win"] +=1
+                player_a["games_lost"] +=1
+                player_b["games_win"] +=1
 
-        if player_a["game_win"]>player_b["game_win"]:
+        if player_a["games_win"]>player_b["games_win"]:
             player_a["points"] +=3
 
-        elif player_a["game_win"] == player_b["game_win"]:
+        elif player_a["games_win"] == player_b["games_win"]:
             player_a["points"] +=1
             player_b["points"] +=1
 
