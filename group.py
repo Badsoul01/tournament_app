@@ -1,7 +1,5 @@
 import random
 import itertools
-from tokenize import group
-
 from player import Player
 from match import Match
 
