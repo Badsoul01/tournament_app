@@ -57,7 +57,7 @@ class Match:
         else:
             player_b["points"] +=3
             self.winner = player_b
-            self.losser = player_b
+            self.losser = player_a
 
         self.player_A.write_result(tournament_stage=self.tournament_stage,
                                    balls_win=player_a["balls_win"],
@@ -76,11 +76,3 @@ class Match:
         self.is_finished = True
 
         return self.is_finished
-
-
-
-
-
-
-
-

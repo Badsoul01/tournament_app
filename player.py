@@ -45,5 +45,8 @@ class Player:
             difference_of_balls = self.playoff["balls_win"] - self.playoff["balls_lost"]
             difference_of_games = self.playoff["games_win"] - self.playoff["games_lost"]
 
-        return difference_of_balls,difference_of_games
+        return {
+            "Balls":difference_of_balls,
+            "Games":difference_of_games
+        }
 

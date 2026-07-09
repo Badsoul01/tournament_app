@@ -30,8 +30,8 @@ class Group:
             players,
             key=lambda p:(
                 p.group["points"],
-                p.difference_of_score(self.tournament_stage)[1],
-                p.difference_of_score(self.tournament_stage)[0]
+                p.difference_of_score("Group")["Games"],
+                p.difference_of_score("Group")["Balls"]
             ),
             reverse=True
         )
@@ -39,3 +39,6 @@ class Group:
         return sorted_players
 
 
+    def are_all_matches_played(self,group_name):
+        """Vratí True,pokud jsou všechny zápasy ve skupině dohrané."""
+        return all(match.is_finished for match in self.group_matches[group_name])

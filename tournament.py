@@ -16,7 +16,7 @@ class Tournament:
         #pravidla pro postup a vyřazení
         self.advancing_per_group = settings_from_web.get("advancing_per_group",2)
         self.non_advancing_action = settings_from_web.get("non_advancing_action","KO")
-        self.playoff_lossers_action = settings_from_web.get("playoff_lossers_action","KO")
+        self.playoff_losers_action = settings_from_web.get("playoff_losers_action", "KO")
 
         # ---- Objekty ----
 
@@ -125,6 +125,12 @@ class Tournament:
         ranking = []
         if self.main_playoff and self.main_playoff.winner:
             ranking.append(self.main_playoff.winner.name)
+
+        for key in sorted(self.placement_playoff.keys()):
+            p = self.placement_playoff[key]
+            if p.winner:
+                ranking.append(p.winner.name)
+
         return ranking
 
-    
+

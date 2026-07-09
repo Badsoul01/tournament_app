@@ -4,13 +4,12 @@ from match import Match
 class Playoff:
 
     def __init__(self,qualified_players:list,match_format:str):
-        self.tournament_stage = "playoff"
+        self.tournament_stage = "Playoff"
         self.players = qualified_players
         self.match_format = match_format
         self.waiting_room = []
         self.round_one_players = []
-        self.advancing_players = []
-        self.eliminated_players = []
+        self.eliminated_players = {}
         self.current_round_number = 1
         self.rounds = {}
         self.winner = None
@@ -57,7 +56,7 @@ class Playoff:
         advancing_players = []
         self.eliminated_players[self.current_round_number] = []
         for match in played_matches:
-            if match.winner is not None:
+            if match.is_finished and  match.winner is not None:
                 advancing_players.append(match.winner)
                 self.eliminated_players[self.current_round_number].append(match.losser)
 
