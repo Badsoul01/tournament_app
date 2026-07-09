@@ -8,7 +8,12 @@ class Match:
         self.match_format = match_format
         self.tournament_stage = tournament_stage
         self.match_id = match_id
+        self.winner = None
+        self.losser = None
         self.is_finished = False
+
+    def get_winner(self):
+        return self.winner
 
 
     def evaluate_match(self,played_sets:list[tuple]):
@@ -42,6 +47,8 @@ class Match:
 
         if player_a["games_win"]>player_b["games_win"]:
             player_a["points"] +=3
+            self.winner = player_a
+            self.losser = player_b
 
         elif player_a["games_win"] == player_b["games_win"]:
             player_a["points"] +=1
@@ -49,6 +56,8 @@ class Match:
 
         else:
             player_b["points"] +=3
+            self.winner = player_b
+            self.losser = player_b
 
         self.player_A.write_result(tournament_stage=self.tournament_stage,
                                    balls_win=player_a["balls_win"],
