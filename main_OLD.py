@@ -1,4 +1,3 @@
-
 import random
 from bs4 import BeautifulSoup
 import requests
@@ -55,7 +54,7 @@ def rozrazeni():
     generated_matches = session.get("matches",{})
     played_matches = session.get("played_matches",{})
 
-    return render_template("players.html",
+    return render_template("OLD_players.html",
                            players=free_players,
                            tables=all_tables,
                            matches=generated_matches,
