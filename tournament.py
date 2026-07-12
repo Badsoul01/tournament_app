@@ -1,4 +1,4 @@
-from tournamentconfig import TournamentConfig
+from setupwizard import SetupWizard
 from player import Player
 from group import Group
 from playoff import Playoff
@@ -6,26 +6,26 @@ from playoff import Playoff
 
 class Tournament:
 
-    def __init__(self,name:str,groups_data_from_web:dict,config: TournamentConfig):
-        self.name = name
-        self.raw_groups_data = groups_data_from_web
+    def __init__(self, setup: SetupWizard):
+        self.name = setup.name
+        self.raw_groups_data = setup.groups
 
         #---- Pravidla ----
 
         #Formáty zápasů
-        self.group_match_format = config.group_match_format
-        self.playoff_match_format = config.playoff_match_format
+        self.group_match_format = setup.group_match_format
+        self.playoff_match_format = setup.playoff_match_format
         #pravidla pro postup a vyřazení
-        self.advancing_per_group = config.advancing_per_group
-        self.non_advancing_action = config.non_advancing_action
-        self.playoff_losers_action = config.playoff_losers_action
+        self.advancing_per_group = setup.advancing_per_group
+        self.non_advancing_action = setup.non_advancing_action
+        self.playoff_losers_action = setup.playoff_losers_action
 
         # ---- Objekty ----
 
         #1. základní skupiny
 
         transformed_groups_dict = {}
-        for group_name,player_names in groups_data_from_web.items():
+        for group_name,player_names in self.raw_groups_data.items():
             player_objects = []
             for name in player_names:
                 player_objects.append(Player(name=name))

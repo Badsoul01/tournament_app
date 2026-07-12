@@ -3,7 +3,7 @@ import requests
 from datetime import date
 from config import RULES_OPTIONS
 
-class TournamentConfig:
+class SetupWizard:
 
     def __init__(self):
         #základní informace
