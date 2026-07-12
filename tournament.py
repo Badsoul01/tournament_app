@@ -8,21 +8,13 @@ class Tournament:
 
     def __init__(self, setup: SetupWizard):
         self.name = setup.name
+        self.tournament_format = setup.tournament_format
         self.raw_groups_data = setup.groups
-
         #---- Pravidla ----
-
-        #Formáty zápasů
+        #1.Skupiny
         self.group_match_format = setup.group_match_format
-        self.playoff_match_format = setup.playoff_match_format
-        #pravidla pro postup a vyřazení
-        self.advancing_per_group = setup.advancing_per_group
-        self.non_advancing_action = setup.non_advancing_action
-        self.playoff_losers_action = setup.playoff_losers_action
-
-        # ---- Objekty ----
-
-        #1. základní skupiny
+        self.advancing_per_group = setup.advance_per_group
+        self.elimination_actions = setup.group_elimination_actions
 
         transformed_groups_dict = {}
         for group_name,player_names in self.raw_groups_data.items():
@@ -30,13 +22,14 @@ class Tournament:
             for name in player_names:
                 player_objects.append(Player(name=name))
             transformed_groups_dict[group_name]=player_objects
-
         self.group_stage = Group(groups_dict=transformed_groups_dict,match_format=self.group_match_format)
         self.group_stage.generate_matches()
 
 
-        #2. hlavní vyřazovací část
+        #2.Playoff
         self.main_playoff = None
+        self.playoff_match_format = setup.playoff_match_format
+        self.playoff_elimination_action = setup.playoff_elimination_actions
         self.placement_playoff = {}
 
 
@@ -59,12 +52,12 @@ class Tournament:
         self.main_playoff = Playoff(qualified_players=all_advancing, match_format=self.playoff_match_format)
         self.main_playoff.generate_first_round()
 
-        if self.non_advancing_action == "minitabulka":
+        if self.elimination_actions == "minitabulka":
             minitabulka_dict = {"ÚTĚCHA": all_eliminated}
             self.consolation_group = Group(groups_dict=minitabulka_dict,match_format=self.group_match_format)
             self.consolation_group.generate_matches()
 
-        elif self.non_advancing_action == "playoff_b":
+        elif self.elimination_actions == "playoff_b":
             self.consolation_playoff = Playoff(qualified_players=all_eliminated,match_format=self.playoff_match_format)
             self.consolation_playoff.generate_first_round()
 
