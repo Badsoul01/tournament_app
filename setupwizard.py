@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
 from datetime import date
-from config import RULES_OPTIONS
+from config import TOURNAMENT_RULES, GROUPS_RULES, PLAYOFF_RULES
 
 class SetupWizard:
 
@@ -9,32 +9,32 @@ class SetupWizard:
         #základní informace
         self.name = ""
         self.date = date.today().strftime("%Y-%m-%d")
-        self.min_groups = RULES_OPTIONS["min_group_size"]
-        self.max_groups = RULES_OPTIONS["max_group_size"]
+        self.tournament_format = TOURNAMENT_RULES["tournament_format"]["groups_and_playoff"]
+
+        #skupiny
+        self.min_groups = GROUPS_RULES["min_group_size"]
+        self.max_groups = GROUPS_RULES["max_group_size"]
+        self.group_creation_options = GROUPS_RULES["group_creation_options"][0]
+        self.min_advance_per_group = GROUPS_RULES["min_advance_per_group"]
+        self.max_advance_per_group = GROUPS_RULES["max_advance_per_group"]
+        self.min_players_per_group = GROUPS_RULES["min_players_per_group"]
+        self.max_players_per_group = GROUPS_RULES["max_players_per_group"]
+        self.group_match_format = GROUPS_RULES["group_match_format"][2]
+        self.advance_per_group = GROUPS_RULES["advance_per_group"][0]
+        self.group_elimination_actions = GROUPS_RULES["elimination_actions"]["playoff_b"]
         self.players = []
         self.groups = {}
         self.total_groups = 0
 
-
-        #formát zápasů
-        self.group_match_format = "2"
-        self.playoff_match_format = "BO3"
-
-        #pravidla postupu
-        self.advancing_per_group = RULES_OPTIONS["advance_per_group"][0]
-        self.players_per_group_limit = RULES_OPTIONS["players_per_group_limit"][0]
-
-        #akce
-        self.non_advancing_action = "playoff_b"
-        self.playoff_losers_action = "consolation"
+        #playoff
+        self.playoff_match_format = PLAYOFF_RULES["playoff_match_format"][3]
+        self.playoff_elimination_actions = PLAYOFF_RULES["elimination_actions"]["consolation"]
 
 
-    def create_groups(self,target_count:int):
-        current_count = self.total_groups
-        diff = target_count - current_count
-        if diff > 0 and current_count<=RULES_OPTIONS["max_group_size"]:
-            for i in range(current_count,target_count):
-                letter = chr(65+i)
+    def create_groups(self,count_to_add:int):
+        for _ in range(count_to_add):
+            if self.total_groups<self.max_groups:
+                letter = chr(65+self.total_groups)
                 self.total_groups+=1
                 self.groups[letter]=[]
         else:
@@ -78,3 +78,60 @@ class SetupWizard:
         except Exception as e:
             return None
 
+
+    def assign_player_to_group(self,player_name, group_letter):
+        if player_name not in self.players:
+            print(f"Hráč {player_name} není na volném seznamu hráčů.")
+            return False
+
+        if group_letter not in self.groups:
+            print(f"Skupina {group_letter} neexistuje.")
+            return False
+
+        if len(self.groups[group_letter]) >= self.max_players_per_group:
+            print(f"Skupina {group_letter} je plná.")
+            return False
+
+        self.players.remove(player_name)
+        self.groups[group_letter].append(player_name)
+        print(f"Hráč {player_name} byl přidán do skupiny {group_letter}.")
+        return True
+
+    def remove_player_from_group(self,player_name):
+        for letter, group_list in self.groups.items():
+            if player_name in group_list:
+                group_list.remove(player_name)
+                self.players.append(player_name)
+                return True
+
+        if player_name in self.players:
+            self.players.remove(player_name)
+            return True
+
+        return False
+
+    def remove_group(self,group_letter,force=False):
+        if group_letter not in self.groups:
+            print(f"Skupina {group_letter} neexistuje.")
+            return False
+
+        if len(self.groups[group_letter])>0 and not force:
+            print(f"Skupina {group_letter} není prázdná!")
+            return False
+
+        if force:
+            for player in self.groups[group_letter]:
+                self.players.append(player)
+
+        del self.groups[group_letter]
+        self.total_groups -= 1
+
+        new_groups = {}
+        for i,(key,players) in enumerate(sorted(self.groups.items())):
+            new_letter = chr(65+i)
+            new_groups[new_letter] = players
+
+        self.groups = new_groups
+
+        print(f"Skupina {group_letter} byla smazána.")
+        return True
