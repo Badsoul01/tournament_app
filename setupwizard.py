@@ -12,8 +12,8 @@ class SetupWizard:
         self.tournament_format = TOURNAMENT_RULES["tournament_format"]["groups_and_playoff"]
 
         #skupiny
-        self.min_groups = GROUPS_RULES["min_group_size"]
-        self.max_groups = GROUPS_RULES["max_group_size"]
+        self.min_groups = GROUPS_RULES["min_group"]
+        self.max_groups = GROUPS_RULES["max_group"]
         self.group_creation_options = GROUPS_RULES["group_creation_options"][0]
         self.min_advance_per_group = GROUPS_RULES["min_advance_per_group"]
         self.max_advance_per_group = GROUPS_RULES["max_advance_per_group"]
