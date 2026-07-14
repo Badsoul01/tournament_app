@@ -8,45 +8,46 @@
 <body>
     <h1>Správa základních skupin</h1>
 
-    <form action="/settings/groups" method="POST">
-        <label>Formát zápasu:</label>
-        <!--FORMÁT ZÁPAS-->
-        <select name="group_match_format">
-            {%for val,name in GROUPS_RULES.group_match_format.items() %}
-            <option value="{{val}}" {% if wizard.group_match_format == val %}selected{% endif %}>{{ name }}</option>
-            {% endfor %}
-
-        </select>
-    </form>
-        <!--POSTUPUJÍCÍ-->
-    <form action="/settings/groups" method="POST">
-        <label>Postupující ze skupiny:</label>
-        <select name="advance_per_group">
-            {% for val in GROUPS_RULES.advance_per_group %}
-                <option value="{{ val }}" {% if wizard.advance_per_group == val %}selected{% endif %}>{{ val }}</option>
-            {% endfor %}
-        </select>
-    </form>
-        <!--NEPOSTUPUJÍCÍ-->
-    <form action="/settings/groups" method="POST">
-        <label>Nepostupující:</label>
-        <select name="group_elimination_actions">
-            {% for key, name in GROUPS_RULES.elimination_actions.items() %}
-                <option value="{{ key }}"{% if wizard.group_elimination_action == name%}selected{% endif %}>{{ name }}</option>
-            {% endfor %}
-        </select>
-        <!--Přidání skupin-->
-    </form>
-
-
     <form action="/settings_groups" method="POST">
+        <fieldset>
+            <legend>Nastavení pravidel</legend>
+            <label>Formát zápasu:</label>
+            <select name="group_match_format">
+                {% for val, name in GROUPS_RULES.group_match_format.items() %}
+                    <option value="{{val}}" {% if wizard.group_match_format|string == val|string %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Počet postupujících ze skupiny:</label>
+            <select name="advance_per_group">
+                {% for val in GROUPS_RULES.advance_per_group %}
+                    <option value="{{ val }}" {% if wizard.advance_per_group|string == val|string %}selected{% endif %}>{{ val }}</option>
+                {% endfor %}
+            </select>
+            <label>Nepostupující:</label>
+            <select name="group_elimination_action">
+                {% for key, name in GROUPS_RULES.elimination_actions.items() %}
+                    <option value="{{ key }}" {% if wizard.group_elimination_actions == key %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </fieldset>
+
+        <button type="submit" name="action" value="back">Zpět</button>
+        <button type="submit" name="action" value="next">Další krok</button>
+    </form>
+
+    <hr>
+    <form action="/settings_groups" method="POST">
+
         <label>Přidání nových skupin:</label>
         <select name="groups_count">
             {% for count in GROUPS_RULES.group_creation_options %}
                 <option value="{{ count }}"> {{ count }} </option>
             {% endfor %}
         </select>
+
         <button type="submit" name="action" value="create_groups">+</button>
+
     </form>
 
     <form action="/settings_groups" method="POST">
@@ -111,8 +112,7 @@
         {% endfor %}
     </ul>
     <form action="/settings_groups" method="POST">
-        <button type="submit" name="action" value="back">Zpět</button>
-        <button type="submit" name="action" value="next">Další krok</button>
+
     </form>
 </body>
 
