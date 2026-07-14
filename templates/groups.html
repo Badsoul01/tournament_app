@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turnaj: {{ tournament.name}}</title>
+   <style>
+
+    .qualifying-row td {
+        background-color: #62ff00 !important;
+    }
+
+    @media (max-width: 600px) {
+        table { display: table !important; width: 100% !important; }
+        td { display: table-cell !important; padding: 5px !important; }
+    }
+</style>
+
+</head>
+<body>
+    <h1>Turnaj: {{ tournament.name}}</h1>
+    <h2>Skupinová fáze</h2>
+
+    {% for group_name in tournament.group_stage.groups.keys() %}
+        <details open>
+            <summary><strong> SKUPINA {{ group_name }}</strong></summary>
+            <!-- tabulka pro dvou-sloupcové rozvržení -->
+            <table style="width: 100%;">
+                <tr>
+                    <!--levý sloupec-->
+                    <td style="vertical-align: top; width: 50%;">
+
+                        <table border="1">
+                            <tr>
+                                <th>Hráč</th><th>Body</th><th>Sety</th><th>Míčky +/-</th><th></th>
+                            </tr>
+                            {% for p in tournament.group_stage.rank_players(group_name) %}
+
+                                    <tr class="{% if loop.index|int <= tournament.advance_per_group|int %}qualifying-row{% endif %}">
+
+                                        <td>{{ p.name }}</td>
+                                        <td>{{ p.group["points"] }}</td>
+                                        <td>{{ p.group["games_win"]}}:{{p.group["games_lost"]}}</td>
+                                        <td>{{ p.difference_of_score("Group")["Balls"] }}</td>
+                                    </tr>
+
+                            {% endfor %}
+                        </table>
+                        <p style="font-size: 0.8em; color:#555;">
+                            Pořadí určují: Body,Sety,Míčky.
+
+                        </p>
+
+                        <h4>Odehrané zápasy</h4>
+                        <table border="1">
+                            {% for match in tournament.group_stage.group_matches[group_name] %}
+                                {% if match.is_finished %}
+                                <tr>
+                                    <td>{{ match.player_A.name }} - {{ match.player_B.name}}</td>
+                                    <td>
+                                        {% for game_a,game_b in match.played_sets %}
+                                            {{ game_a }}:{{game_b}}{% if not loop.last %},{% endif %}
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </table>
+                    </td>
+
+                    <!--Pravý sloupec-->
+                    <td style="vertical-align: top; width: 50%;">
+                        {% for match in tournament.group_stage.group_matches[group_name] %}
+                            {% if not match.is_finished %}
+                                <div style="border: 1px solid #ccc; margin: 5px; padding: 5px;">
+                                    {{ match.player_A.name }} : {{ match.player_B.name }}
+                                    <form action="/groups" method="POST">
+                                        <input type="hidden" name="match_id" value="{{match.match_id}}">
+                                        <div>
+                                            <strong>1.set:</strong><input type="number" name="game_a[]" min="0" style="width: 50px;"> : <input type="number" name="game_b[]" min="0" style="width: 50px;">
+                                        </div>
+                                        <div>
+                                            <strong>2.set:</strong><input type="number" name="game_a[]" min="0" style="width: 50px;"> : <input type="number" name="game_b[]" min="0" style="width: 50px;">
+                                        </div>
+                                        <div>
+                                            <strong>3.set:</strong><input type="number" name="game_a[]" min="0" style="width: 50px;"> : <input type="number" name="game_b[]" min="0" style="width: 50px;">
+                                        </div>
+                                        <button type="submit">Uložit</button>
+                                    </form>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                </tr>
+            </table>
+        </details>
+    <hr>
+    {% endfor %}
+
+</body>
