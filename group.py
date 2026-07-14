@@ -14,11 +14,17 @@ class Group:
 
 
     def generate_matches(self):
-
+        match_counter = 1
         for group_name, players in self.groups.items():
             matches = []
             for player_a, player_b in itertools.combinations(players,2):
-                matches.append(Match(player_a=player_a,player_b=player_b,match_format=self.match_format,tournament_stage=self.tournament_stage))
+                matches.append(Match(player_a=player_a,
+                                     player_b=player_b,
+                                     match_format=self.match_format,
+                                     tournament_stage=self.tournament_stage,
+                                     match_id=match_counter
+                                     ))
+                match_counter+=1
 
             random.shuffle(matches)
             self.group_matches[group_name]= matches
