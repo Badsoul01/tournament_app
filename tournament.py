@@ -3,7 +3,6 @@ from player import Player
 from group import Group
 from playoff import Playoff
 
-
 class Tournament:
 
     def __init__(self, setup: SetupWizard):
@@ -13,7 +12,7 @@ class Tournament:
         #---- Pravidla ----
         #1.Skupiny
         self.group_match_format = setup.group_match_format
-        self.advancing_per_group = setup.advance_per_group
+        self.advance_per_group = setup.advance_per_group
         self.elimination_actions = setup.group_elimination_actions
 
         transformed_groups_dict = {}
@@ -128,4 +127,12 @@ class Tournament:
 
         return ranking
 
+    def check_stage_progression(self):
+        if self.main_playoff is None:
+            all_groups_done = all(self.group_stage.are_all_matches_played(g) for g in self.group_stage.groups)
+
+            if all_groups_done:
+                self.evaluate_group_stage_and_proceed()
+                return True
+        return False
 
