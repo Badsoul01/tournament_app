@@ -1,15 +1,17 @@
 from bs4 import BeautifulSoup
 import requests
 from datetime import date
-from config import TOURNAMENT_RULES, GROUPS_RULES, PLAYOFF_RULES
+from config import TOURNAMENT_RULES, GROUPS_RULES, PLAYOFF_RULES, STATE_OF_WIZARD
 
 class SetupWizard:
 
     def __init__(self):
+        self.state = STATE_OF_WIZARD[0]
         #základní informace
         self.name = ""
         self.date = date.today().strftime("%Y-%m-%d")
-        self.tournament_format = TOURNAMENT_RULES["tournament_format"]["groups_and_playoff"]
+        self.tournament_format = TOURNAMENT_RULES["available_formats"]["groups_and_playoff"]
+        self.selected_format= ""
 
         #skupiny
         self.min_groups = GROUPS_RULES["min_group"]
@@ -97,7 +99,7 @@ class SetupWizard:
         print(f"Hráč {player_name} byl přidán do skupiny {group_letter}.")
         return True
 
-    def remove_player_from_group(self,player_name):
+    def remove_player(self,player_name):
         for letter, group_list in self.groups.items():
             if player_name in group_list:
                 group_list.remove(player_name)
@@ -135,3 +137,12 @@ class SetupWizard:
 
         print(f"Skupina {group_letter} byla smazána.")
         return True
+
+
+    def import_to_dict(self):
+        return self.__dict__.copy()
+
+    def import_from_dict(self,data_dict):
+        for key,value in data_dict.items():
+            if key in self.__dict__:
+                setattr(self,key,value)
