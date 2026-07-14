@@ -103,10 +103,10 @@ def settings_playoff():
     if request.method == "POST":
         action = request.form.get("action")
 
-
-
+        session["wizard_data"] = wizard.import_to_dict()
         if action == "back":
             return redirect("/settings_groups")
+
 
         if action == "next":
             wizard.playoff_match_format = int(request.form.get("playoff_match_format"))
@@ -116,11 +116,44 @@ def settings_playoff():
 
             return redirect("/groups")
 
-    session["wizard_data"] = wizard.import_to_dict()
+
 
     return render_template("settings_playoff.html",
                            wizard=wizard,
                            PLAYOFF_RULES=PLAYOFF_RULES)
+
+
+@app.route("/groups", methods=["GET", "POST"])
+def update_match():
+    if active_tournament is None:
+        return redirect("/")
+    if request.method == "POST":
+        match_id = int(request.form.get("match_id"))
+        games_a = request.form.getlist("game_a[]")
+        games_b = request.form.getlist("game_b[]")
+
+        played_sets =[]
+        for a,b in zip(games_a,games_b):
+            if a != "" and b != "":
+                played_sets.append((int(a),int(b)))
+
+
+        found_match = None
+
+        for group_name,matches in active_tournament.group_stage.group_matches.items():
+            for match in matches:
+                if match.match_id ==match_id:
+                    found_match =match
+                    break
+
+        if found_match:
+            found_match.evaluate_match(played_sets)
+            #active_tournament.check_stage_progression()
+
+        return redirect("/groups")
+
+    return render_template("groups.html",tournament=active_tournament)
+
 
 
 if __name__ == "__main__":
