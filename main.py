@@ -1,0 +1,127 @@
+from flask import Flask,render_template,request,redirect,session
+from config import TOURNAMENT_RULES, GROUPS_RULES, PLAYOFF_RULES, STATE_OF_WIZARD
+from setupwizard import SetupWizard
+from tournament import Tournament
+
+app = Flask(__name__)
+app.secret_key = "Ultra tajny kod"
+active_tournament = None
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+
+@app.route("/settings_basic", methods=["GET","POST"])
+def settings_basic():
+    wizard = SetupWizard()
+    if "wizard_data" in session:
+        wizard.import_from_dict(session["wizard_data"])
+
+    if request.method== "POST":
+        action = request.form.get("action")
+
+        wizard.selected_format = request.form.get("available_formats")
+        if action == "cancel":
+            session.pop("wizard_data", None)
+            return redirect("/")
+
+
+        wizard.import_from_dict(request.form.to_dict())
+        session["wizard_data"] = wizard.import_to_dict()
+        return redirect("/settings_groups")
+
+    return render_template("settings_basic.html",
+                           wizard=wizard,
+                           all_formats = TOURNAMENT_RULES["available_formats"])
+
+
+@app.route("/settings_groups", methods=["GET","POST"])
+def settings_groups():
+    wizard = SetupWizard()
+    if "wizard_data" in session:
+        wizard.import_from_dict(session["wizard_data"])
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "add_players":
+            player_text = request.form.get("players_text")
+            if player_text:
+                wizard.add_players(player_text)
+
+        if action == "create_groups":
+            count= int(request.form.get("groups_count"))
+            wizard.create_groups(count)
+
+        if action == "assign_players":
+            player_name = request.form.get("player_name")
+            group_letter = request.form.get("group_letter")
+            if player_name and group_letter:
+                wizard.assign_player_to_group(player_name=player_name,group_letter=group_letter)
+
+        if action == "remove_player":
+            player_name = request.form.get("player_name")
+            if player_name:
+                wizard.remove_player(player_name)
+
+        if action == "remove_group":
+            group_letter = request.form.get("group_letter")
+            wizard.remove_group(group_letter)
+
+        if action == "scrap_players":
+            url = request.form.get("scrap_url")
+            if url:
+                wizard.scrapped_url(url)
+
+        session["wizard_data"] = wizard.import_to_dict()
+
+        if action == "back":
+            return redirect("/settings_basic")
+        if action == "next":
+            wizard.group_match_format=request.form.get("group_match_format")
+            wizard.advance_per_group= request.form.get("advance_per_group")
+            wizard.group_elimination_actions=request.form.get("group_elimination_actions")
+            wizard.state=STATE_OF_WIZARD[2]
+
+            return redirect("/settings_playoff")
+
+
+        session["wizard_data"] = wizard.import_to_dict()
+
+
+    return render_template("settings_groups.html",
+                           wizard=wizard,
+                           GROUPS_RULES = GROUPS_RULES)
+
+@app.route("/settings_playoff",methods=["GET","POST"])
+def settings_playoff():
+    wizard = SetupWizard()
+    if "wizard_data" in session:
+        wizard.import_from_dict(session["wizard_data"])
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+
+
+        if action == "back":
+            return redirect("/settings_groups")
+
+        if action == "next":
+            wizard.playoff_match_format = int(request.form.get("playoff_match_format"))
+            wizard.playoff_elimination_actions = request.form.get("elimination_actions")
+            global active_tournament
+            active_tournament = Tournament(wizard)
+
+            return redirect("/groups")
+
+    session["wizard_data"] = wizard.import_to_dict()
+
+    return render_template("settings_playoff.html",
+                           wizard=wizard,
+                           PLAYOFF_RULES=PLAYOFF_RULES)
+
+
+if __name__ == "__main__":
+    app.run(debug=True,host="0.0.0.0")
