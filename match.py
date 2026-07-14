@@ -11,12 +11,14 @@ class Match:
         self.winner = None
         self.losser = None
         self.is_finished = False
+        self.played_sets=[]
 
     def get_winner(self):
         return self.winner
 
 
     def evaluate_match(self,played_sets:list[tuple]):
+        self.played_sets = played_sets
         player_a = {
             "games_win":0,
             "games_lost":0,
