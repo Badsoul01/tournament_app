@@ -1,0 +1,119 @@
+<!DOCTYPE HTML>
+<html lang="cs" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nastavení skupinové fáze</title>
+</head>
+<body>
+    <h1>Správa základních skupin</h1>
+
+    <form action="/settings/groups" method="POST">
+        <label>Formát zápasu:</label>
+        <!--FORMÁT ZÁPAS-->
+        <select name="group_match_format">
+            {%for val,name in GROUPS_RULES.group_match_format.items() %}
+            <option value="{{val}}" {% if wizard.group_match_format == val %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+
+        </select>
+    </form>
+        <!--POSTUPUJÍCÍ-->
+    <form action="/settings/groups" method="POST">
+        <label>Postupující ze skupiny:</label>
+        <select name="advance_per_group">
+            {% for val in GROUPS_RULES.advance_per_group %}
+                <option value="{{ val }}" {% if wizard.advance_per_group == val %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+        </select>
+    </form>
+        <!--NEPOSTUPUJÍCÍ-->
+    <form action="/settings/groups" method="POST">
+        <label>Nepostupující:</label>
+        <select name="group_elimination_actions">
+            {% for key, name in GROUPS_RULES.elimination_actions.items() %}
+                <option value="{{ key }}"{% if wizard.group_elimination_action == name%}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+        </select>
+        <!--Přidání skupin-->
+    </form>
+
+
+    <form action="/settings_groups" method="POST">
+        <label>Přidání nových skupin:</label>
+        <select name="groups_count">
+            {% for count in GROUPS_RULES.group_creation_options %}
+                <option value="{{ count }}"> {{ count }} </option>
+            {% endfor %}
+        </select>
+        <button type="submit" name="action" value="create_groups">+</button>
+    </form>
+
+    <form action="/settings_groups" method="POST">
+        <label>Přidaní hráče</label>
+        <input name="players_text" placeholder="Jména hráčů(oddělena čárkou)"></input>
+        <button type="submit" name="action" value="add_players">Přidat hráče</button>
+    </form>
+
+
+    <form action="/settings_groups" method="POST">
+        <label>Přidaní hráče z odkazu:</label>
+        <input type="url" name="scrap_url" placeholder="Událost Vaší ligy">
+        <button type="submit" name="action" value="scrap_players">Importovat</button>
+    </form>
+
+    <hr>
+    <h3>Seznam hráčů:</h3>
+    <ul>
+        {% for player in wizard.players %}
+        <li>
+
+            {{ player }}
+            <form action="/settings_groups" method="POST" style="display:inline;">
+                <input type="hidden" name="player_name" value="{{ player }}">
+                <select name="group_letter">
+                    {% for letter in wizard.groups.keys() %}
+                        <option value="{{ letter }}">{{ letter }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" name="action" value="assign_players">+</button>
+
+            </form>
+            <form action="/settings_groups" method="POST" style="display:inline;">
+                <input type="hidden" name="player_name" value="{{ player }}">
+                <button type="submit" name="action" value="remove_player">X</button>
+            </form>
+
+
+        </li>
+        {% endfor %}
+    </ul>
+
+    <h3>Skupiny:</h3>
+    <ul>
+        {% for letter,players in wizard.groups.items() %}
+            <p>
+                <strong>Skupina {{ letter}}</strong>
+                {%if players|length == 0%}
+                <form action="/settings_groups" method="POST" style="display:inline;">
+                    <input type="hidden" name="group_letter" value="{{ letter }}">
+                    <button type="submit" name="action" value="remove_group">X</button>
+                </form>
+                {%endif%}
+            {% for player in players%}
+                {{ player }}
+                <form action="/settings_groups" method="POST" style="display:inline;">
+                    <input type="hidden" name="player_name" value="{{ player }}">
+                    <button type="submit" name="action" value="remove_player">-</button>
+                </form>
+            {% endfor %}
+            </p>
+        {% endfor %}
+    </ul>
+    <form action="/settings_groups" method="POST">
+        <button type="submit" name="action" value="back">Zpět</button>
+        <button type="submit" name="action" value="next">Další krok</button>
+    </form>
+</body>
+
+</html>
