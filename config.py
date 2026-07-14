@@ -1,5 +1,7 @@
+STATE_OF_WIZARD= ["tournament_rules","groups_rules","playoff_rules"]
+
 TOURNAMENT_RULES= {
-    "tournament_format": {
+    "available_formats": {
         "groups_and_playoff": "skupiny a playoff",
         "group": "skupina",
         "playoff": "playoff"
@@ -15,13 +17,13 @@ GROUPS_RULES = {
     "min_players_per_group": 1,
     "max_players_per_group": 10,
     "min_group": 1,
-    "max_group": 1 if TOURNAMENT_RULES["tournament_format"]== "group" else  26,
+    "max_group": 1 if TOURNAMENT_RULES["available_formats"]== "group" else  26,
     "group_creation_options":[1,2,4,6],
     "min_advance_per_group": 1,
     "max_advance_per_group": 4,
     "advance_per_group":[1,2,3,4],
     "elimination_actions": {
-        "playoff_b": "Postup do pavouka B",
+        "playoff_b": "Playoff B",
         "minigroup": "Mini-skupina o pořadí",
         "KO": "Konec v turnaji"
     },
