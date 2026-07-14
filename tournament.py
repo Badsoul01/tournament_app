@@ -45,8 +45,8 @@ class Tournament:
         for group_name in self.group_stage.groups.keys():
             sorted_players = self.group_stage.rank_players(group_name)
 
-            all_advancing.extend(sorted_players[:self.advancing_per_group])
-            all_eliminated.extend(sorted_players[self.advancing_per_group:])
+            all_advancing.extend(sorted_players[:self.advance_per_group])
+            all_eliminated.extend(sorted_players[self.advance_per_group:])
 
         self.main_playoff = Playoff(qualified_players=all_advancing, match_format=self.playoff_match_format)
         self.main_playoff.generate_first_round()
