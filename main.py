@@ -79,10 +79,12 @@ def settings_groups():
         if action == "back":
             return redirect("/settings_basic")
         if action == "next":
-            wizard.group_match_format=request.form.get("group_match_format")
-            wizard.advance_per_group= request.form.get("advance_per_group")
-            wizard.group_elimination_actions=request.form.get("group_elimination_actions")
-            wizard.state=STATE_OF_WIZARD[2]
+            wizard.group_match_format = request.form.get("group_match_format")
+            value = request.form.get("advance_per_group")
+            wizard.advance_per_group= int(value)
+            wizard.group_elimination_actions = request.form.get("group_elimination_actions")
+            wizard.state = STATE_OF_WIZARD[2]
+            session["wizard_data"] = wizard.import_to_dict()
 
             return redirect("/settings_playoff")
 
