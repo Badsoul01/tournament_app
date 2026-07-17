@@ -8,22 +8,24 @@
 <body>
 <h1>Správa Playoff</h1>
 <form action="/settings_playoff" method="POST">
-    <label>Formát zápasu:</label>
-    <select name="playoff_match_format">
-        {% for val,name in PLAYOFF_RULES.playoff_match_format.items() %}
-            <option value="{{ val }}" {% if wizard.playoff_match_format == val %}selected{% endif %}>{{ name }}</option>
-        {% endfor %}
-    </select>
-    <label>Nepostupující:</label>
-    <select name="elimination_actions">
-        {% for key,name in PLAYOFF_RULES.elimination_actions.items() %}
-            <option value="{{ key }}" {% if wizard.playoff_elimination_actions == key %}selected{% endif %}>{{ name }}</option>
-        {% endfor %}
-    </select>
+    <fieldset>
+        <legend>Nastavení Playoff</legend>
+        <label>Formát zápasu:</label>
+        <select name="playoff_match_format">
+            {% for val,name in PLAYOFF_RULES.playoff_match_format.items() %}
+                <option value="{{ val }}" {% if wizard.playoff_match_format == val %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+        </select>
+        <label>Nepostupující:</label>
+        <select name="elimination_actions">
+            {% for key,name in PLAYOFF_RULES.elimination_actions.items() %}
+                <option value="{{ key }}" {% if wizard.playoff_elimination_actions == key %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+        </select>
 
-    <button type="submit" name="action" value="back">Zpět</button>
-    <button type="submit" name="action" value="next">Generovat turnaj</button>
-
+        <button type="submit" name="action" value="back">Zpět</button>
+        <button type="submit" name="action" value="next">Generovat turnaj</button>
+    </fieldset>
 </form>
 
 </body>
