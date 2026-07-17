@@ -6,8 +6,8 @@ from match import Match
 
 class Group:
 
-    def __init__(self,groups_dict:dict,match_format:str):
-        self.tournament_stage = "Group"
+    def __init__(self,groups_dict:dict,match_format:str,stage_name):
+        self.stage_name = stage_name
         self.groups = groups_dict
         self.match_format = match_format
         self.group_matches = {key:[] for key in self.groups.keys()}
@@ -21,7 +21,7 @@ class Group:
                 matches.append(Match(player_a=player_a,
                                      player_b=player_b,
                                      match_format=self.match_format,
-                                     tournament_stage=self.tournament_stage,
+                                     tournament_stage=self.stage_name,
                                      match_id=match_counter
                                      ))
                 match_counter+=1
@@ -35,9 +35,7 @@ class Group:
         sorted_players = sorted(
             players,
             key=lambda p:(
-                p.group["points"],
-                p.difference_of_score("Group")["Games"],
-                p.difference_of_score("Group")["Balls"]
+                p.get_sorting_stats(stage_name=self.stage_name)
             ),
             reverse=True
         )
