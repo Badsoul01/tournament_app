@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turnaj: {{ tournament.name }}</title>
+</head>
+<body>
+    <h1>Turnaj: {{ tournament.name }}</h1>
+    <h2>Playoff fáze</h2>
+    <div class="bracket" style="display: flex; gap:40px;padding: 20px;">
+        {% set rounds = tournament.get_playoff_structure_for_web('main') %}
+        {% if rounds %}
+            {% for round_num,matches in rounds.items() %}
+
+                <div class="round">
+                    Kolo {{round_num}}
+
+                    {% for match in matches %}
+                        <div class="match" style="border:1px solid #333; padding: 15px; margin-bottom: 15px; border-radius: 5px">
+                            <strong>{{ match.player_A.name }}</strong>
+                            vs
+                            <strong>{{ match.player_B.name if match.player_B else 'BYE'}}</strong>
+
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>Pavouk se ještě negeneruje.</p>
+        {% endif %}
+    </div>
+
+
+
+
+
+
+</body>
