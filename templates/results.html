@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turnaj: {{ tournament.name }}</title>
+</head>
+<body>
+<h1>Turnaj: {{ tournament.name }}</h1>
+<h2>Výsledky</h2>
+<ol>
+    {% for entry in ranking %}
+        <li><strong>{{ entry.place }}.místo:</strong> {{entry.name }}</li>
+    {% endfor %}
+    
+</ol>
+</body>
