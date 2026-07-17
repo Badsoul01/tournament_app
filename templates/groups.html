@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Turnaj: {{ tournament.name}}</title>
+    <title>Turnaj: {{ tournament.name }}</title>
    <style>
 
     .qualifying-row td {
@@ -35,15 +35,14 @@
                                 <th>Hráč</th><th>Body</th><th>Sety</th><th>Míčky +/-</th><th></th>
                             </tr>
                             {% for p in tournament.group_stage.rank_players(group_name) %}
+                                {% set s = p.stats.get('Group', {}) %}
 
                                     <tr class="{% if loop.index|int <= tournament.advance_per_group|int %}qualifying-row{% endif %}">
-
                                         <td>{{ p.name }}</td>
-                                        <td>{{ p.group["points"] }}</td>
-                                        <td>{{ p.group["games_win"]}}:{{p.group["games_lost"]}}</td>
-                                        <td>{{ p.difference_of_score("Group")["Balls"] }}</td>
+                                        <td>{{ s.get('points', 0) }}</td>
+                                        <td>{{ s.get('games_win', 0) }}:{{ s.get('games_lost', 0) }}</td>
+                                        <td>{{ p.difference_of_score('Group')['Balls'] }}</td>
                                     </tr>
-
                             {% endfor %}
                         </table>
                         <p style="font-size: 0.8em; color:#555;">
@@ -96,5 +95,11 @@
         </details>
     <hr>
     {% endfor %}
+
+    <form method="POST" action="/groups">
+        {% if tournament.check_stage_progression() %}
+            <button type="submit" name="action" value="go_to_playoff">Přejít do playoff</button>
+        {% endif %}
+    </form>
 
 </body>
