@@ -130,6 +130,11 @@ def update_match():
     if active_tournament is None:
         return redirect("/")
     if request.method == "POST":
+        action = request.form.get("action")
+        if action == "go_to_playoff":
+            active_tournament.check_stage_progression()
+            return redirect("/playoff")
+
         match_id = int(request.form.get("match_id"))
         games_a = request.form.getlist("game_a[]")
         games_b = request.form.getlist("game_b[]")
@@ -150,12 +155,21 @@ def update_match():
 
         if found_match:
             found_match.evaluate_match(played_sets)
-            #active_tournament.check_stage_progression()
+            active_tournament.check_stage_progression()
 
         return redirect("/groups")
 
     return render_template("groups.html",tournament=active_tournament)
 
+
+@app.route("/playoff", methods=["GET","POST"])
+def playoff_view():
+    if active_tournament is None:
+        redirect("/")
+
+    active_tournament.check_stage_progression()
+
+    return render_template("playoff.html",tournament = active_tournament)
 
 
 if __name__ == "__main__":
