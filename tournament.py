@@ -10,7 +10,7 @@ class Tournament:
         self.tournament_format = setup.tournament_format
         self.raw_groups_data = setup.groups
         self.stage = "groups"
-
+        self.match_counter = 1
         self.branches = {
             "main":None,
             "consolation":None,
@@ -33,7 +33,7 @@ class Tournament:
             transformed_groups_dict[group_name]=player_objects
 
         self.group_stage = Group(groups_dict=transformed_groups_dict,match_format=self.group_match_format,stage_name="Group")
-        self.group_stage.generate_matches()
+        self.group_stage.generate_matches(self)
 
 
         #2.Playoff
@@ -41,6 +41,10 @@ class Tournament:
 
         self.playoff_elimination_action = setup.playoff_elimination_actions
 
+    def get_next_match_id(self):
+        current_id = self.match_counter
+        self.match_counter+=1
+        return current_id
     def evaluate_group_stage_and_proceed(self):
         all_advancing = []
         all_eliminated = []
@@ -51,21 +55,21 @@ class Tournament:
             all_advancing.extend(sorted_players[:self.advance_per_group])
             all_eliminated.extend(sorted_players[self.advance_per_group:])
 
-        all_advancing.sort(key=lambda p: p.get_sorting_stats("Group"), reverse=True)
-        self.main_playoff = Playoff(qualified_players=all_advancing, match_format=self.playoff_match_format, stage_name=self.stage)
-        self.branches["main"] = self.main_playoff
-        self.main_playoff.generate_first_round()
 
+        self.main_playoff = Playoff(qualified_players=all_advancing, match_format=self.playoff_match_format, stage_name=self.stage,playoff_elimination_action=self.playoff_elimination_action)
+        self.branches["main"] = self.main_playoff
+        self.main_playoff.generate_first_round(self)
+        print(all_advancing)
         if self.elimination_actions == "minitabulka":
             minitabulka_dict = {"ÚTĚCHA": all_eliminated}
             self.consolation_group = Group(groups_dict=minitabulka_dict, match_format=self.group_match_format,stage_name=self.stage)
-            self.consolation_group.generate_matches()
+            self.consolation_group.generate_matches(self)
 
         elif self.elimination_actions == "playoff_b":
 
             self.consolation_playoff = Playoff(qualified_players=all_eliminated, match_format=self.playoff_match_format, stage_name=self.stage)
             self.branches["consolation"] = self.consolation_playoff
-            self.consolation_playoff.generate_first_round()
+            self.consolation_playoff.generate_first_round(self)
 
     def check_tournament_status(self):
         if self.branches["main"] and self.branches["main"].winner:
@@ -96,7 +100,7 @@ class Tournament:
         stage = "Consolation_Placement" if is_consolation_bracket else "Main_placement"
 
         new_playoff = Playoff(qualified_players=players,match_format=self.playoff_match_format,stage_name=f"{stage}_{key}")
-        new_playoff.generate_first_round()
+        new_playoff.generate_first_round(self)
 
         if "placement" not in self.branches:
             self.branches["placement"] = {}
@@ -117,16 +121,32 @@ class Tournament:
         playoff = self.branches.get(branch_key)
         return playoff.rounds if playoff else None
 
+    def is_tournament_fully_finished(self):
+        if not (self.branches["main"] and self.branches["main"].winner):
+            return False
+
+
+        for key,playoff_obj in self.branches["placement"].items():
+            for match in playoff_obj.matches:
+                if not match.is_finished:
+                    return False
+
+        return True
+
     def get_final_ranking(self):
         """Vrátí seřazený list jmen pro finální tabulku."""
         ranking = []
         if self.branches["main"] and self.branches["main"].winner:
-            ranking.append(self.branches["main"].winner.name)
+            ranking.append({"name":self.branches["main"].winner.name, "place":"1"})
 
-        for key in sorted(self.branches["placement"].keys()):
+        sorted_keys = sorted(self.branches["placement"].keys(),key=lambda k: int(k.split("-")[0]))
+
+
+
+        for key in sorted_keys:
             p = self.branches["placement"][key]
             if p.winner:
-                ranking.append(p.winner.name)
+                ranking.append({"name":p.winner.name,"place":key})
 
         return ranking
 
