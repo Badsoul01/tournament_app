@@ -169,7 +169,49 @@ def playoff_view():
 
     active_tournament.check_stage_progression()
 
+    if request.method == "POST":
+        action= request.form.get("action")
+        if action == "submit_result":
+            match_id = int(request.form.get("match_id"))
+            games_a = request.form.getlist("game_a[]")
+            games_b = request.form.getlist("game_b[]")
+
+            played_sets = []
+            for a, b in zip(games_a, games_b):
+                if a != "" and b != "":
+                    played_sets.append((int(a), int(b)))
+
+
+            current_playoff = active_tournament.branches["main"]
+            found_match = None
+            if current_playoff.current_round_number in current_playoff.rounds:
+                matches = current_playoff.rounds[current_playoff.current_round_number]
+                found_match = next((m for m in matches if m.match_id == match_id),None)
+
+            if not found_match:
+                for bracket_name in current_playoff.placement_rounds:
+                    matches = current_playoff.placement_rounds[bracket_name]["matches"]
+                    found_match= next((m for m in matches if m.match_id== match_id),None)
+                    if found_match: break
+
+            if found_match:
+                found_match.evaluate_match(played_sets)
+                print(f"DEBUG: Zápas {match_id} vyhodnocen, volám check_and_proceed()...")
+                current_playoff.check_and_proceed(tournament=active_tournament)
+
+            return redirect("/playoff")
+
     return render_template("playoff.html",tournament = active_tournament)
+
+
+@app.route("/results")
+def results():
+    if active_tournament is None:
+        return ("/")
+
+    ranking = active_tournament.get_final_ranking()
+    return render_template("results.html",ranking=ranking)
+
 
 
 if __name__ == "__main__":
