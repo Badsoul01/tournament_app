@@ -1,13 +1,8 @@
-<!DOCTYPE HTML>
-<html lang="cs">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nastavení playoff</title>
-</head>
-<body>
+{% extends "base_settings.html" %}
+
+{% block content %}
 <h1>Správa Playoff</h1>
-<form action="/settings_playoff" method="POST">
+<form action="/settings_playoff" method="POST" id="wizard_form">
     <fieldset>
         <legend>Nastavení Playoff</legend>
         <label>Formát zápasu:</label>
@@ -27,7 +22,4 @@
         <button type="submit" name="action" value="next">Generovat turnaj</button>
     </fieldset>
 </form>
-
-</body>
-
-</html>
+{% endblock %}
