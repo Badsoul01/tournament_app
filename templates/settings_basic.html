@@ -1,16 +1,11 @@
-<!DOCTYPE html>
-<html lang="cs">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Základní nastavení</title>
-</head>
-<body>
+{% extends "base_settings.html" %}
+{% block content%}
+
 <h1>Základní nastavení</h1>
-    <form action="/settings_basic" method="POST">
+    <form action="/settings_basic" method="POST" id="wizard_form">
         <fieldset>
             <legend>Základní nastavení</legend>
-            <input type="text" name="name" value="{{ wizard.name}}" placeholder="Název turnaje" required>
+            <input type="text" name="name" value="{{ wizard.name}}" placeholder="Název turnaje">
             <input type="date" name="date" value="{{ wizard.date}}">
             <select name="tournament_format">
                     {% for key,value in all_formats.items() %}
@@ -19,11 +14,7 @@
                     </option>
                     {% endfor %}
             </select>
-
-            <button type="submit" name="action" value="cancel" formnovalidate>Zrušit</button>
-            <button type="submit" name="action" value="next">Další krok</button>
         </fieldset>
     </form>
 
-</body>
-</html>
+{% endblock %}
