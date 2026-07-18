@@ -1,14 +1,9 @@
-<!DOCTYPE HTML>
-<html lang="cs" xmlns="http://www.w3.org/1999/html">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nastavení skupinové fáze</title>
-</head>
-<body>
+{% extends "base_settings.html" %}
+
+{% block content %}
     <h1>Správa základních skupin</h1>
 
-    <form action="/settings_groups" method="POST">
+    <form action="/settings_groups" method="POST" id="wizard_form">
         <fieldset style="margin-bottom: 20px;">
             <legend>Nastavení pravidel</legend>
             <label>Formát zápasu:</label>
@@ -33,11 +28,6 @@
                     <option value="{{ key }}" {% if wizard.group_elimination_actions == key %}selected{% endif %}>{{ name }}</option>
                 {% endfor %}
             </select>
-
-            <br>
-            <br>
-            <button type="submit" name="action" value="back">Zpět</button>
-            <button type="submit" name="action" value="next">Další krok</button>
         </fieldset>
     </form>
 
@@ -122,6 +112,4 @@
     <form action="/settings_groups" method="POST">
 
     </form>
-</body>
-
-</html>
+{% endblock %}
