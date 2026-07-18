@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nastavení turnaje</title>
+</head>
+<body>
+
+    <!-- Navigační menu -->
+
+    <nav style="display:flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #ccc;">
+        <div>
+            <a href="/">Domů</a> |
+            <a href="/settings_basic">Základní nastavení</a> |
+            <a href="/settings_groups">Nastavení skupin</a> |
+            <a href="/settings_playoff">Nastavení playoff</a>
+        </div>
+
+            <a href="/reset_settings" style="color: red" >Reset nastavení</a>
+    </nav>
+
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+
+
+    <footer style="margin-top: 20px; padding: 10px; border-top: 1px solid #ccc;">
+        <form action="/save_settings" method="POST">
+            <button type="submit" form="wizard_form" name="action" value="save">
+                {% if "settings_playoff" in request.path%}
+                    Generovat turnaj
+                {% else %}
+                    Uložit a pokračovat
+                {% endif %}
+            </button>
+        </form>
+    </footer>
+</body>
+</html>
