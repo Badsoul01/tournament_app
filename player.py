@@ -2,6 +2,8 @@ class Player:
 
     def __init__(self,name):
         self.name = name
+        self.group_name= None
+        self.group_rank= None
         self.stats= {}
 
     def _ensure_stage(self,stage_name):
