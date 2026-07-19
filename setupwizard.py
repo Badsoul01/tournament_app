@@ -26,18 +26,28 @@ class SetupWizard:
         self.group_elimination_actions = GROUPS_RULES["elimination_actions"]["playoff_b"]
         self.players = []
         self.groups = {}
-        self.total_groups = 0
 
         #playoff
         self.playoff_match_format = PLAYOFF_RULES["playoff_match_format"][3]
         self.playoff_elimination_actions = PLAYOFF_RULES["elimination_actions"]["consolation"]
 
 
+    @property
+    def total_groups(self):
+        return len(self.groups)
+
+    @property
+    def total_players(self):
+        return len(self.players)
+
+
+    def total_player_in_group(self,letter):
+        return len(self.groups.get(letter,[]))
+
     def create_groups(self,count_to_add:int):
         for _ in range(count_to_add):
             if self.total_groups<self.max_groups:
                 letter = chr(65+self.total_groups)
-                self.total_groups+=1
                 self.groups[letter]=[]
         else:
             print("Maximální povolené množství skupin.")
@@ -126,7 +136,7 @@ class SetupWizard:
                 self.players.append(player)
 
         del self.groups[group_letter]
-        self.total_groups -= 1
+
 
         new_groups = {}
         for i,(key,players) in enumerate(sorted(self.groups.items())):
@@ -146,3 +156,24 @@ class SetupWizard:
         for key,value in data_dict.items():
             if key in self.__dict__:
                 setattr(self,key,value)
+
+    def check_readiness(self):
+        """
+        Kontrola zda je vše připraveno pro generování... Vrací true pokud jsou splněny všechny podmínky,jinak False.
+        :return:
+        """
+
+        if not self.name:
+            return False
+
+        if self.total_groups< self.min_groups:
+            return False
+
+        if len(self.players)>0:
+            return False
+
+        for letter,group_players in self.groups.items():
+            if len(group_players) <self.min_players_per_group:
+                return False
+
+        return True
