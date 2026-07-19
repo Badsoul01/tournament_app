@@ -42,20 +42,6 @@ class Group:
 
         return sorted_players
 
-    @staticmethod
-    def apply_snake_seeding(players):
-        snake_ordered = []
-        temp_list = list(players)
-        left = True
-        while temp_list:
-            if left:
-                snake_ordered.append(temp_list.pop(0))
-            else:
-                snake_ordered.append(temp_list.pop(-1))
-            left = not left
-
-        return snake_ordered
-
     def are_all_matches_played(self,group_name):
         """Vratí True,pokud jsou všechny zápasy ve skupině dohrané."""
         return all(match.is_finished for match in self.group_matches[group_name])
