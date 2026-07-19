@@ -4,6 +4,7 @@ from group import Group
 from config import PLAYOFF_RULES
 
 
+
 class Playoff:
 
     def __init__(self,qualified_players:list,match_format:str,stage_name:str,playoff_elimination_action):
@@ -30,66 +31,37 @@ class Playoff:
 
         return size_of_bracket - total_players
 
-    def _create_matches_for_round(self,players_to_pair:list,tournament, is_snake_seeding=False):
-        if is_snake_seeding:
-            match_counter = 1
-            half = len(players_to_pair) //2
-            first_half = players_to_pair[:half]
-            second_half = players_to_pair[half:]
-            second_half.reverse()
-
-            matches = []
-            for player_a,player_b in zip(first_half,second_half):
-                new_match = Match(
-                    player_a=player_a,
-                    player_b=player_b,
-                    match_format=self.match_format,
-                    tournament_stage=self.stage_name,
-                    match_id=tournament.get_next_match_id(),
-
-                )
-                matches.append(new_match)
-                match_counter+=1
-
-            return matches
-
+    def _create_matches_for_round(self,players,tournament):
+        #Použijeme seeding metodu
+        seeded = self.get_seeded_players(players=players,advance_per_group=tournament.advance_per_group)
         matches = []
+        #párování první s posledním, druhý s předposledním
+        # s osmi hráči, spáruje indexi (0,7),(1,6)
+        for i in range(len(seeded) // 2):
+            player_A = seeded[i]
+            player_B = seeded[len(seeded) -1-i]
 
-        work_players = list(players_to_pair)
-        if len(work_players)%2 !=0:
-            work_players.append(None)
-
-        for i in range(0,len(work_players),2):
-            player_a = players_to_pair[i]
-            player_b = players_to_pair[i+1]
-            if player_a is None:
-                player_a,player_b = player_b,player_a
-
-            new_match = Match(
-                player_a=player_a,
-                player_b=player_b,
-                match_format=self.match_format,
-                tournament_stage=self.stage_name,
-                match_id=tournament.get_next_match_id()
-            )
-            if player_b is None:
-                new_match.winner= player_a
-                new_match.is_finished = True
-
-            matches.append(new_match)
+            match = Match(player_a=player_A,
+                          player_b=player_B,
+                          match_format=self.match_format,
+                          tournament_stage=self.stage_name,
+                          match_id=tournament.get_next_match_id()
+                          )
+            matches.append(match)
 
         return matches
 
 
     def generate_first_round(self,tournament):
+
         sorted_players = sorted(self.players, key=lambda p: p.get_sorting_stats("Group"), reverse=True)
         number_of_byes = self._calculating_byes()
 
         self.waiting_room = sorted_players[:number_of_byes]
-        player_to_match = sorted_players[number_of_byes:]
+        players_to_match = sorted_players[number_of_byes:]
 
-        self.round_one_players=Group.apply_snake_seeding(player_to_match)
-        matches = self._create_matches_for_round(self.round_one_players,is_snake_seeding=True,tournament=tournament)
+
+        matches = self._create_matches_for_round(players=players_to_match,tournament=tournament)
 
 
 
@@ -143,19 +115,28 @@ class Playoff:
 
             self.placement_rounds[bracket_name] = {
                 "ranks":(start_rank,end_rank),
-                "matches": self._create_matches_for_round(current_losers,is_snake_seeding=False,tournament=tournament),
+                "matches": self._create_matches_for_round(current_losers,tournament=tournament),
                 "processed": False
             }
             print(f"DEBUG: Pridavam dohrávku {bracket_name}, aktualni stav: {self.placement_rounds}")
 
 
-        players_for_next_round = advancing_players
-
-        if len(players_for_next_round) ==1:
-            self.winner = players_for_next_round[0]
+        if len(advancing_players) ==1:
+            self.winner = advancing_players[0]
             return []
 
-        next_round_matches = self._create_matches_for_round(players_for_next_round,is_snake_seeding=False,tournament=tournament)
+        next_round_matches = []
+
+        for i in range(0,len(advancing_players),2):
+            match= Match(
+                player_a=advancing_players[i],
+                player_b=advancing_players[i+1] if i+1 <len(advancing_players) else None,
+                match_format=self.match_format,
+                tournament_stage=self.stage_name,
+                match_id=tournament.get_next_match_id()
+            )
+            next_round_matches.append(match)
+
         self.current_round_number+=1
         self.rounds[self.current_round_number]= next_round_matches
 
@@ -163,42 +144,95 @@ class Playoff:
 
 
     def process_placement_bracket(self,bracket_name: str,tournament):
+        """Hlavní řídící metoda pro dohrávky"""
         #1.získání dat o bracketu
         bracket_data = self.placement_rounds[bracket_name]
         matches = bracket_data["matches"]
-        low,high=bracket_data["ranks"]
 
-        #2.sběr výsledků
-        winners = [m.winner for m in matches if m.winner is not None]
-        losers = [m.loser for m in matches if m.loser is not None]
+       #1. Získání výsledků
+        results = self._get_bracket_results(matches)
 
-        #3.Zastavovací podmínka (Base Case)
-        # pokud je jen jeden zápas je konec
-        if len(matches)== 1:
-            print(f"umístění určeno: {low}.místo {winners[0].name},{high}.místo {losers[0].name}")
+        #2. Ukončení, pokud je bracket hotový
+        if len(matches) == 1:
+            self._finalize_ranking_positions(bracket_name,results)
             return
 
+        #3. Rekurzivní tvorka dalších úrovní (pouze pokud máme hráče k párování)
+        if len(results["winners"]) > 1:
+            self._create_sub_bracket(bracket_name,results["winners"], "winners",tournament)
+        if len(results["losers"]) > 1:
+            self._create_sub_bracket(bracket_name,results["losers"], "losers",tournament)
+
+    def _get_bracket_results(self,matches):
+        """Pomocná metoda pro sběr vítězů a poražených"""
+        return {
+            "winners": [m.winner for m in matches if m.winner is not None],
+            "losers": [m.loser for m in matches if m.loser is not None]
+        }
+
+    def _create_sub_bracket(self,parent_name,players,side,tournament):
+        """
+        Vytvoří pod-pavouka na základě výsledků předchozího kola.
+        side: "winners" nebo "losers"
+        """
+
+        # Získání původních rozsahů
+        low,high = self.placement_rounds[parent_name]["ranks"]
+        midpoint = low + (len(players)*2 //2) -1
+
+        if side == "winners":
+            new_ranks = (low,midpoint)
+            new_name = f"{low}-{midpoint}"
+        else:
+            new_ranks = (midpoint+1, high)
+            new_name = f"{midpoint+1}-{high}"
+
+        if new_name in self.placement_rounds:
+            print(f"DEBUG: Pod-pavouk {new_name} již existuje,přeskakuji tvorbu")
+            return
+
+        # Vytvoření nového bracketu v placement_rounds
+        self.placement_rounds[new_name]= {
+            "ranks": new_ranks,
+            "matches": self._create_matches_for_round(players=players,tournament=tournament),
+            "processed": False
+        }
+        print(f"DEBUG: Vytvořen pod-pavout {new_name} pro {side}")
 
 
-        #4.Rekurzivní krok (pokud máme více zápasů, rozdělíme je)
-        midpoint = low + (len(matches)//2)-1
-        #Vytvoření horního pod-pavouka
-        if len(winners)>1:
-            win_bracket_name = f"{low}-{midpoint}"
-            self.placement_rounds[win_bracket_name] = {
-                "ranks": (low, midpoint),
-                "matches": self._create_matches_for_round(winners,tournament=tournament),
-                "processed":False
-            }
+    def get_seeded_players(self,players,advance_per_group):
+        if not players:
+            return players
+        by_group = {}
+        for p in players:
+            by_group.setdefault(p.group_name,[]).append(p)
+            by_group[p.group_name].sort(key=lambda x: x.group_rank or 99)
 
-        # Vytvoření dolního pod-pavouka
-        if len(losers)>1:
-            lose_bracket_name = f"{midpoint+1}-{high}"
-            self.placement_rounds[lose_bracket_name] = {
-                "ranks":(midpoint+1,high),
-                "matches": self._create_matches_for_round(losers,tournament=tournament),
-                "processed": False
-            }
+        group_keys = sorted(by_group.keys())
+        high_ranks =[]
+        for r in range(advance_per_group // 2):
+            for g in group_keys:
+                if r < len(by_group[g]):
+                    high_ranks.append(by_group[g][r])
+
+        low_ranks = []
+
+
+        for r in range(advance_per_group // 2, advance_per_group):
+            for g in group_keys:
+                if r < len(by_group[g]):
+                    low_ranks.append(by_group[g][r])
+
+        return high_ranks + low_ranks
+
+    def get_sorted_placement_rounds(self):
+        return sorted(self.placement_rounds.items(), key=lambda x: x[1]["ranks"][0],reverse=True)
+
+    def _finalize_ranking_positions(self,bracket_name,results):
+        """Ukončí dohrávku a označí jí za zpracovanou."""
+        if bracket_name in self.placement_rounds:
+            self.placement_rounds[bracket_name]["processed"]= True
+            print(f"DEBUG: Dohrávka {bracket_name} byla uspěšně finalizována.")
 
 
     def check_and_proceed(self,tournament):
@@ -228,6 +262,7 @@ class Playoff:
 
 
         return main_advance
+
 
 
 
