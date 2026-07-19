@@ -20,6 +20,8 @@ def settings_basic():
 
     if request.method== "POST":
         action = request.form.get("action")
+        print(f"DEBUG: Přišla akce: {action}")
+        print(f"DEBUG:Form data: {request.form}")
 
         wizard.selected_format = request.form.get("available_formats")
         if action == "cancel":
@@ -44,6 +46,8 @@ def settings_groups():
 
     if request.method == "POST":
         action = request.form.get("action")
+        print(f"DEBUG: Přišla akce: {action}")
+        print(f"DEBUG:Form data: {request.form}")
 
         if action == "add_players":
             player_text = request.form.get("players_text")
@@ -79,9 +83,13 @@ def settings_groups():
         if action == "back":
             return redirect("/settings_basic")
         if action == "next":
+
+
             wizard.group_match_format = request.form.get("group_match_format")
             value = request.form.get("advance_per_group")
-            wizard.advance_per_group= int(value)
+            if value:
+                print(value)
+                wizard.advance_per_group= int(value)
             wizard.group_elimination_actions = request.form.get("group_elimination_actions")
             wizard.state = STATE_OF_WIZARD[2]
             session["wizard_data"] = wizard.import_to_dict()
@@ -104,6 +112,8 @@ def settings_playoff():
 
     if request.method == "POST":
         action = request.form.get("action")
+        print(f"DEBUG: Přišla akce: {action}")
+        print(f"DEBUG:Form data: {request.form}")
 
         session["wizard_data"] = wizard.import_to_dict()
         if action == "back":
@@ -111,6 +121,12 @@ def settings_playoff():
 
 
         if action == "next":
+            if not wizard.check_readiness():
+                return render_template("settings_playoff.html",
+                                       wizard=wizard,
+                                       PLAYOFF_RULES=PLAYOFF_RULES,
+                                       error="Turnaj není připraven")
+
             wizard.playoff_match_format = int(request.form.get("playoff_match_format"))
             wizard.playoff_elimination_actions = request.form.get("elimination_actions")
             global active_tournament
@@ -165,7 +181,7 @@ def update_match():
 @app.route("/playoff", methods=["GET","POST"])
 def playoff_view():
     if active_tournament is None:
-        redirect("/")
+        return redirect("/")
 
     active_tournament.check_stage_progression()
 
@@ -207,11 +223,21 @@ def playoff_view():
 @app.route("/results")
 def results():
     if active_tournament is None:
-        return ("/")
+        return redirect("/")
 
     ranking = active_tournament.get_final_ranking()
-    return render_template("results.html",ranking=ranking)
+    return render_template("results.html",
+                           tournament=active_tournament,
+                           ranking=ranking if ranking else [])
 
+@app.route("/reset_settings", methods=["POST"])
+def reset_settings():
+    global active_tournament
+    session.pop("wizard_data", None)
+
+    active_tournament= None
+
+    return redirect("settings_basic")
 
 
 if __name__ == "__main__":
