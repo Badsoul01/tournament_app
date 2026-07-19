@@ -1,17 +1,9 @@
-<!doctype html>
-<html lang="cs">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Turnaj: {{ tournament.name }}</title>
-</head>
-<body>
+{% extends "base_tournament.html" %}
+{% block content %}
 
-
-    <h1>Turnaj: {{ tournament.name }}</h1>
     <h2>Playoff fáze</h2>
     {% if tournament.branches["main"].winner %}
-        <div style="background-color: #d4edda; padding: 20px; margin-bottom: 20px; border: 1px solid #c3e6cb;">
+        <div class="winner-alert">
             <h3>Vítěz turnaje: {{tournament.branches["main"].winner.name}}</h3>
 
             {% if tournament.is_tournament_fully_finished() %}
@@ -22,7 +14,7 @@
         </div>
     {% endif %}
 
-    <div class="bracket" style="display: flex; gap:40px;padding: 20px;">
+    <div class="bracket">
         {% set rounds = tournament.get_playoff_structure_for_web('main') %}
         {% if rounds %}
             {% for round_num,matches in rounds.items() %}
@@ -31,16 +23,16 @@
                     Kolo {{round_num}}
 
                     {% for match in matches %}
-                        <div class="match" style="border:1px solid #333; padding: 15px; margin-bottom: 15px; border-radius: 5px">
+                        <div class="match">
                             <strong>{{ match.player_A.name }}</strong>
                             <br>vs<br>
                             <strong>{{ match.player_B.name if match.player_B else 'BYE'}}</strong>
                             {% if not match.is_finished %}
                              <form action="/playoff" method="POST">
                                  <input type="hidden" name="match_id" value="{{ match.match_id}}">
-                                 <div>1.set: <input type="number" name="game_a[]"> : <input type="number" name="game_b[]"></div>
-                                 <div>2.set: <input type="number" name="game_a[]"> : <input type="number" name="game_b[]"></div>
-                                 <div>3.set: <input type="number" name="game_a[]"> : <input type="number" name="game_b[]"></div>
+                                 <div class="set-container">1.set: <input type="number" class="match-input" name="game_a[]"> : <input type="number" class="match-input" name="game_b[]"></div>
+                                 <div class="set-container">2.set: <input type="number" class="match-input" name="game_a[]"> : <input type="number" class="match-input" name="game_b[]"></div>
+                                 <div class="set-container">3.set: <input type="number" class="match-input" name="game_a[]"> : <input type="number" class="match-input" name="game_b[]"></div>
                                  <button type="submit" name="action" value="submit_result">Uložit výsledek</button>
                              </form>
                             {% else %}
@@ -60,13 +52,13 @@
 
             <h2> Zápasy o konečné umístění</h2>
 
-            <div class="bracket" style="display: flex; gap:40px;padding: 20px;">
+            <div class="bracket">
                 {% for name, data in tournament.branches["main"].placement_rounds.items() %}
                     <div class="round">
                         <h3>O {{name}}. místo</h3>
 
                         {% for match in data.matches %}
-                            <div class="match" style="border:1px solid #333; padding: 15px; margin-bottom: 15px; border-radius: 5px">
+                            <div class="match">
                                 <strong>{{ match.player_A.name }}</strong>
                                 <br>vs<br>
                                 <strong>{{ match.player_B.name }}</strong>
@@ -74,9 +66,9 @@
                                 {% if not match.is_finished %}
                                     <form action="/playoff" method="POST">
                                         <input type="hidden" name="match_id" value="{{ match.match_id}}">
-                                        <div>1.set: <input type="number" name="game_a[]"> : <input type="number" name="game_b[]"></div>
-                                        <div>2.set: <input type="number" name="game_a[]"> : <input type="number" name="game_b[]"></div>
-                                        <div>3.set: <input type="number" name="game_a[]"> : <input type="number" name="game_b[]"></div>
+                                        <div class="set-container">1.set: <input type="number" class="match-input" name="game_a[]"> : <input type="number" class=match-input name="game_b[]"></div>
+                                        <div class="set-container">2.set: <input type="number" class="match-input" name="game_a[]"> : <input type="number" class="match-input" name="game_b[]"></div>
+                                        <div class="set-container">3.set: <input type="number" class="match-input" name="game_a[]"> : <input type="number" class="match-input" name="game_b[]"></div>
                                         <button type="submit" name="action" value="submit_result">Uložit výsledek</button>
                                     </form>
                                 {% else %}
@@ -90,9 +82,4 @@
         </div>
     {% endif %}
 
-
-
-
-
-
-</body>
+{% endblock %}
