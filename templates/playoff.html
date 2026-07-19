@@ -52,8 +52,8 @@
 
             <h2> Zápasy o konečné umístění</h2>
 
-            <div class="bracket">
-                {% for name, data in tournament.branches["main"].placement_rounds.items() %}
+            <div class="bracket" style="display: flex; flex-direction: row-reverse; justify-content: flex-end ">
+                {% for name, data in tournament.branches["main"].get_sorted_placement_rounds() %}
                     <div class="round">
                         <h3>O {{name}}. místo</h3>
 
