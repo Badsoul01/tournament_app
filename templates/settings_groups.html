@@ -23,7 +23,7 @@
             <br>
 
             <label>Nepostupující:</label>
-            <select name="group_elimination_action">
+            <select name="group_elimination_actions">
                 {% for key, name in GROUPS_RULES.elimination_actions.items() %}
                     <option value="{{ key }}" {% if wizard.group_elimination_actions == key %}selected{% endif %}>{{ name }}</option>
                 {% endfor %}
