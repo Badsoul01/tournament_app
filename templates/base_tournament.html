@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Turnaj: {{ tournament.name }}</title>
+    <style>
+        body { font-family: sans-serif;
+            padding: 20px;
+            line-height: 1.4;
+        }
+        nav { margin-bottom: 20px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+            text-align: center;
+        }
+        nav a { margin-right: 15px;
+            text-decoration: none;
+            color: #333;
+        }
+        table { border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        table th, table td { border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+        .match { border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .match-input { width: 40px !important;
+            padding: 5px !important;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .set-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+        .bracket {
+            display: flex;
+            gap: 40px;
+            padding: 20px;
+        }
+        .round {
+            margin-right: 20px;
+        }
+        .winner-alert {
+            background-color: #d4edda;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+
+
+        @media (max-width: 600px) {
+            table { display: table !important;
+                width: 100% !important;
+            }
+            td { display: table-cell !important;
+                padding: 5px !important; }
+        }
+
+    </style>
+    {% block extra_style %}{% endblock %}
+</head>
+<body>
+
+    <header>
+        <h1 style="text-align: center"> {{ tournament.name }}</h1>
+        <nav>
+            <a href="/groups">Základní skupiny</a>
+            <a href="/playoff">Playoff</a>
+            <a href="/results">Výsledky</a>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+</body>
+</html>
