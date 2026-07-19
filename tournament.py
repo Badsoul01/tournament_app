@@ -35,7 +35,6 @@ class Tournament:
         self.group_stage = Group(groups_dict=transformed_groups_dict,match_format=self.group_match_format,stage_name="Group")
         self.group_stage.generate_matches(self)
 
-
         #2.Playoff
         self.main_playoff = None
 
@@ -52,9 +51,19 @@ class Tournament:
         for group_name in self.group_stage.groups.keys():
             sorted_players = self.group_stage.rank_players(group_name)
 
-            all_advancing.extend(sorted_players[:self.advance_per_group])
-            all_eliminated.extend(sorted_players[self.advance_per_group:])
+            advancing= sorted_players[:self.advance_per_group]
+            eliminated= sorted_players[self.advance_per_group:]
 
+            for rank,p in enumerate(advancing):
+                p.group_name = group_name
+                p.group_rank = rank+1
+
+            for rank,p in enumerate(eliminated):
+                p.group_name = group_name
+                p.group_rank = rank+1
+
+            all_advancing.extend(advancing)
+            all_eliminated.extend(eliminated)
 
         self.main_playoff = Playoff(qualified_players=all_advancing, match_format=self.playoff_match_format, stage_name=self.stage,playoff_elimination_action=self.playoff_elimination_action)
         self.branches["main"] = self.main_playoff
