@@ -67,7 +67,10 @@ class Tournament:
 
         elif self.elimination_actions == "playoff_b":
 
-            self.consolation_playoff = Playoff(qualified_players=all_eliminated, match_format=self.playoff_match_format, stage_name=self.stage)
+            self.consolation_playoff = Playoff(qualified_players=all_eliminated,
+                                               match_format=self.playoff_match_format,
+                                               stage_name=self.stage,
+                                               playoff_elimination_action=self.playoff_elimination_action)
             self.branches["consolation"] = self.consolation_playoff
             self.consolation_playoff.generate_first_round(self)
 
@@ -136,8 +139,17 @@ class Tournament:
     def get_final_ranking(self):
         """Vrátí seřazený list jmen pro finální tabulku."""
         ranking = []
-        if self.branches["main"] and self.branches["main"].winner:
-            ranking.append({"name":self.branches["main"].winner.name, "place":"1"})
+        main_p= self.branches["main"]
+
+        if main_p and main_p.winner:
+            ranking.append({"name":main_p.winner.name,"place":"1"})
+            last_round_num = max(main_p.rounds.keys())
+            final_matches = main_p.rounds[last_round_num]
+
+            if final_matches:
+                final_match = final_matches[0]
+                finalist = final_match.player_B if final_match.winner == final_match.player_A else final_match.player_A
+                ranking.append({"name":finalist.name,"place":"2"})
 
         sorted_keys = sorted(self.branches["placement"].keys(),key=lambda k: int(k.split("-")[0]))
 
