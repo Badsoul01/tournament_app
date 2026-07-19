@@ -4,20 +4,51 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nastavení turnaje</title>
+    <style>
+        h1 {
+            text-align: center;
+        }
+        body { font-family: sans-serif;
+            padding: 20px;
+            line-height: 1.4;
+        }
+        nav { margin-bottom: 20px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+            text-align: center;
+        }
+        nav a { margin-right: 15px;
+            text-decoration: none;
+            color: #333;
+        }
+    </style>
 </head>
 <body>
 
     <!-- Navigační menu -->
 
     <nav style="display:flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #ccc;">
+        <a href="/">Domů</a>
         <div>
-            <a href="/">Domů</a> |
-            <a href="/settings_basic">Základní nastavení</a> |
-            <a href="/settings_groups">Nastavení skupin</a> |
+
+            <a href="/settings_basic">Základní nastavení</a>|
+            <a href="/settings_groups">Nastavení skupin</a>|
             <a href="/settings_playoff">Nastavení playoff</a>
         </div>
 
-            <a href="/reset_settings" style="color: red" >Reset nastavení</a>
+        <form action="/reset_settings" method="POST">
+            <button type="submit"
+            style="background: none;
+                   border: none;
+                   color: #000000;
+                   text-decoration: None;
+                   cursor: pointer;
+                   font-family: inherit;
+                   font-size: inherit;
+                   padding: 0;
+                   margin: 0;">Reset nastavení</button>
+        </form>
+
     </nav>
 
 
@@ -28,14 +59,17 @@
 
 
     <footer style="margin-top: 20px; padding: 10px; border-top: 1px solid #ccc;">
-        <form action="/save_settings" method="POST">
-            <button type="submit" form="wizard_form" name="action" value="save">
+        <form action = "" method="POST" id="wizard_form">
                 {% if "settings_playoff" in request.path%}
-                    Generovat turnaj
+                    {% if wizard.check_readiness %}
+                    <button type="submit" name="action" value="next" form="wizard_form">Generovat turnaj</button>
+                    {% else %}
+                        <button type="button" disabled>Turnaj není připraven</button>
+                        <p style="color: red; font-size: 0.8em;">Zkontroluj, že je turnaj pojmenovaný a všichni hráči jsou rozlosovaní ve skupině.</p>
+                    {% endif %}
                 {% else %}
-                    Uložit a pokračovat
+                    <button type="submit" name="action" value="next" form="wizard_form">Uložit a pokračovat</button>
                 {% endif %}
-            </button>
         </form>
     </footer>
 </body>
