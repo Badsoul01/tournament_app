@@ -24,9 +24,9 @@
 
                     {% for match in matches %}
                         <div class="match">
-                            <strong>{{ match.player_A.name }}</strong>
+                            <strong>{{ match.player_A.name }}</strong><small>({{match.player_A.group_rank}}{{match.player_A.group_name}})</small>
                             <br>vs<br>
-                            <strong>{{ match.player_B.name if match.player_B else 'BYE'}}</strong>
+                            <strong>{{ match.player_B.name if match.player_B else 'BYE'}}</strong><small>({{ match.player_B.group_rank}}{{match.player_B.group_name}})</small>
                             {% if not match.is_finished %}
                              <form action="/playoff" method="POST">
                                  <input type="hidden" name="match_id" value="{{ match.match_id}}">
@@ -61,7 +61,7 @@
                             <div class="match">
                                 <strong>{{ match.player_A.name }}</strong>
                                 <br>vs<br>
-                                <strong>{{ match.player_B.name }}</strong>
+                                <strong>{{ match.player_B.name if match.player_B else 'BYE'}}</strong>
 
                                 {% if not match.is_finished %}
                                     <form action="/playoff" method="POST">
