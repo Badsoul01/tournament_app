@@ -59,9 +59,9 @@
 
                         {% for match in data.matches %}
                             <div class="match">
-                                <strong>{{ match.player_A.name }}</strong>
+                                <strong>{{ match.player_A.name }}<small>({{match.player_A.group_rank}}{{match.player_A.group_name}})</small></strong>
                                 <br>vs<br>
-                                <strong>{{ match.player_B.name if match.player_B else 'BYE'}}</strong>
+                                <strong>{{ match.player_B.name if match.player_B else 'BYE' }}</strong><small>({{ match.player_B.group_rank}}{{match.player_B.group_name}})</small>
 
                                 {% if not match.is_finished %}
                                     <form action="/playoff" method="POST">
