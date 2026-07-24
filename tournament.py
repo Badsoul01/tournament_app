@@ -12,30 +12,28 @@ class Tournament:
     sleduje postup turnaje a pro výpočty statistik, pořadí a vyhodnocení skupin
     deleguje logiku na dedikovaný Results manager.
     """
-
-    def __init__(self, setup: SetupWizard):
+    def __init__(self, setup: SetupWizard) -> None:
         # Základní identifikační a stavové atribudy turnaje
         self.results_manager = Results()
-        self.name = setup.name
-        self.tournament_format = setup.tournament_format
-        self.raw_groups_data = setup.groups
-        self.stage = "groups"  # Aktualní fáze turnaje (začíná se ve skupinách)
-        self.match_counter = 1 # počítadlo zápasů
+        self.name: str = setup.name
+        self.tournament_format: str = setup.tournament_format
+        self.raw_groups_data: dict = setup.groups
+        self.stage: str = "groups"  # Aktualní fáze turnaje (začíná se ve skupinách)
+        self.match_counter: int = 1 # počítadlo zápasů
 
         # Struktura větví turnaje pro správu pavouků
-        self.branches = {
+        self.branches: dict = {
             "main":None,  # Hlavní pavouk playoff
             "consolation":None, # útěcha
             "placement": {}  # dohrávkové zápasy o kontrétní umístění
         }
-        self.eliminated_players = []
 
         #---- Pravidla turnaje načtená ze setupu ----
-        self.group_match_format = setup.group_match_format
-        self.advance_per_group = setup.advance_per_group
-        self.elimination_actions = setup.group_elimination_actions
-        self.playoff_match_format = setup.playoff_match_format
-        self.playoff_elimination_action = setup.playoff_elimination_actions
+        self.group_match_format: str = setup.group_match_format
+        self.advance_per_group: str = setup.advance_per_group
+        self.elimination_actions: str = setup.group_elimination_actions
+        self.playoff_match_format: str = setup.playoff_match_format
+        self.playoff_elimination_action: str = setup.playoff_elimination_actions
 
         #Inicializace a transformace skupin
         transformed_groups_dict = {}
@@ -54,22 +52,20 @@ class Tournament:
         )
         self.group_stage.generate_matches(self)
 
-        #Reference na hlvní plaoff
+        #Reference na hlavní playoff
         self.main_playoff = None
 
-
-    def get_next_match_id(self):
+    def get_next_match_id(self) -> int:
         """
         Vrátí aktuální ID pro nový zápas a posune počítadlo o 1 dál.
         Zajišťuje, že každý zápas v celém turnaji má své jedinečné ID.
         :return:
         """
-
         current_id = self.match_counter
         self.match_counter+=1
         return current_id
 
-    def check_stage_progression(self):
+    def check_stage_progression(self) -> bool:
         """
         Kontoluje, zda nastal čas posunout turnaj ze skupinové fáze do playoff.
         - Pokud už playoff běží, vrací True.
@@ -77,7 +73,6 @@ class Tournament:
         - Jinak vrací False (skupiny stále probíhají)
         :return:
         """
-
         # pokud hlavní playoff již existuje, není co řešit
         if self.branches["main"] is not None:
             return True
@@ -89,8 +84,7 @@ class Tournament:
 
         return False
 
-
-    def evaluate_group_stage_and_proceed(self):
+    def evaluate_group_stage_and_proceed(self) -> None:
         """
         Vyhodnotí skončenou skupinovou fázi:
         1. Seřadí hráče v každé skupině.
@@ -99,11 +93,8 @@ class Tournament:
         4. Podle zvoleného pravidla vytvoří útěchovou skupinu (minitabulku) nebo utěchové  playoff
         :return:
         """
-
-
         advancing, all_eliminated = self.results_manager.evaluate_group_stage(
             self.group_stage, self.advance_per_group)
-
 
         # Vytvotříme hlavního pavouka pro postupující hráče
         self.main_playoff = Playoff(
@@ -136,8 +127,7 @@ class Tournament:
             self.branches["consolation"] = self.consolation_playoff
             self.consolation_playoff.generate_first_round(self)
 
-
-    def get_groups_for_web(self):
+    def get_groups_for_web(self)-> dict:
         """
         Vrátí slovník skupin a jejich aktuální pořadí ve formátu vhodném pro webové zobrazení.
         Pro každého hrače vrací jméno a získané body.
@@ -147,22 +137,20 @@ class Tournament:
             for name in self.group_stage.groups.keys()
         }
 
-    def get_playoff_structure_for_web(self,branch_key="main"):
+    def get_playoff_structure_for_web(self,branch_key: str="main") -> dict|None:
         """
         Vrátí strukturu kol a zápasů pro danou větev playoff (pro vykreslení na webu)
         -brach_key: Klíč větve (např. "main", "consolation")
         """
-
         playoff = self.branches.get(branch_key)
         return playoff.rounds if playoff else None
 
-    def is_tournament_fully_finished(self):
+    def is_tournament_fully_finished(self) -> bool:
         """
         Zda je turnaj kompletně dohraný (včetně všech zápasů o umístění).
         Vrací True, pokud máme celkového vítěze a všechny dohrávkové zápasy jsou hotové
         :return:
         """
-
         # Pokud hlavní playoff nemá vítěze,turnaj neskončil
         if not (self.branches["main"] and self.branches["main"].winner):
             return False
