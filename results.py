@@ -1,15 +1,20 @@
+from group import Group
+
 class Results:
     """
     Třída zodpovědná za zpracování statistik, výpočty tabulek,
     vyhodnocení skupin a sestavení konečného pořadí turnaje.
     """
 
-    def __init__(self):
-        self.ranking = []
-        self.qualified_players = []
-        self.eliminated_players = []
+    def __init__(self)-> None:
+        # Seznam pro uložení celkového konečného pořadí hráčů v turnaji
+        self.ranking: list[dict]= []
+        # Seznam postupujících hráčů
+        self.qualified_players: list = []
+        # Seznam vyřazených hráčů
+        self.eliminated_players: list = []
 
-    def compute_final_ranking(self, tournament_branches):
+    def compute_final_ranking(self, tournament_branches: dict) -> list[dict]:
         """
         Sestaví a vrátí seřazený seznam slovníků s konečným umístěním hráčů
         na základě stavu hlavní větve playoff a dohrávkových pavouků.
@@ -44,17 +49,18 @@ class Results:
         return self.ranking
 
 
-    def are_groups_finished(self,group_stage):
+    def are_groups_finished(self,group_stage) -> bool:
         """
         Zkontroluje, zda jsou všcehny zápasy ve všech skupinách odehrané.
         """
-        for group_name,group_obj in group_stage.groups.items():
-            for match in group_obj.matches:
-                if not match.is_finished:
-                    return False
-        return True
+        return all(
+            match.is_finished
+            for group_obj in group_stage.groups.values()
+            for match_list in group_obj.group_matches.values()
+            for match in match_list
+        )
 
-    def evaluate_group_stage(self,group_stage,advance_per_group):
+    def evaluate_group_stage(self,group_stage: Group, advance_per_group:int) -> tuple[list]:
         """
         sestaví seznam postupujících hráčů ze skupin na základě jejich umístění
         (např top 2 z každé skupiny) pro vstup do playoff.
