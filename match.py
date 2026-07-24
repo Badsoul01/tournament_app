@@ -1,19 +1,36 @@
 from player import Player
 
 class Match:
+    """
+    Třída reprezentující jeden kontrétní zápas mezi dvěma hráči.
+    Uchovává jeho stav, odehrané sety, vítěze a poraženého.
+    """
 
-    def __init__(self, player_a:Player,player_b:Player,match_format:str, tournament_stage:str,match_id):
-        self.player_A = player_a
-        self.player_B = player_b
-        self.match_format = match_format
-        self.tournament_stage = tournament_stage
-        self.match_id = match_id
-        self.winner = None
-        self.loser = None
-        self.is_finished = False
-        self.played_sets=[]
+    def __init__(
+            self,
+            player_a:Player,
+            player_b:Player,
+            match_format:str,
+            tournament_stage:str,
+            match_id: int | str
+    ) -> None:
+        self.player_A: Player = player_a
+        self.player_B: Player = player_b
+        self.match_format: str = match_format
+        self.tournament_stage: str = tournament_stage
+        self.match_id: int | str = match_id
+        self.winner: Player | None = None
+        self.loser: Player | None = None
+        self.is_finished: bool = False
+        self.played_sets: list[tuple[int, int]] = []
 
-    def evaluate_match(self,played_sets:list[tuple]):
+    def evaluate_match(self,played_sets:list[tuple[int,int]]) -> bool:
+        """
+         Vyhodnotí zápas na zákaladě odehraných setů:
+         1. Spočítá skóre míčků a setů pro oba hráče.
+         2. Určí vítěze, poraženého a body do tabulky.
+         3. Propíše statistiky hráčům a označí zápas jako dohraný.
+        """
         self.played_sets = played_sets
         player_a = {
             "games_win":0,
