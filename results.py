@@ -21,6 +21,8 @@ class Results:
         """
         self.ranking = []
         main_p= tournament_branches.get("main")
+        print(f"DEBUG RESULTS: Přijaté branches: {list(tournament_branches.keys()) if tournament_branches else 'Je prázdné!'}")
+
 
         # Zpracování 1. a 2.místa z hlavní větve playoff
         if main_p and main_p.winner:
@@ -38,14 +40,32 @@ class Results:
                     self.ranking.append({"name":finalist.name,"place":"2"})
 
         # Zpracování pozic z dohrávkových pavouků podle klíčů (např. "3", "5.-8.")
-        placement_branch = tournament_branches.get("placement", {})
+        placement_branch = main_p.placement_rounds if main_p else {}
+        print(f"DEBUG RESULTS: Obsah placement_branch: {list(placement_branch.keys())}")
         sorted_keys = sorted(placement_branch.keys(), key=lambda k: int(k.split("-")[0]))
 
-        for key in sorted_keys:
-            p = placement_branch[key]
-            if p.winner:
-                self.ranking.append({"name":p.winner.name,"place":key})
 
+        for key in sorted_keys:
+            bracket_data = placement_branch[key]
+            matches = bracket_data.get("matches", [])
+
+            parts = key.split("-")
+            # Zjistíme, jeslti klíč představuje přesně dvě sousední pozice (např. 3,4)
+            if len(parts) == 2 and len(matches) == 1:
+                match = matches[0]
+                print(f"DEBUG RESULTS: Zápas pro '{key}' - hotovo: {match.is_finished}, vítěz: {match.winner}")
+
+                if match.is_finished and match.winner:
+                    winner = match.winner
+                    loser = match.player_B if match.winner == match.player_A else match.player_A
+
+                    self.ranking.append({"name": winner.name, "place": parts[0]})
+                    if loser:
+                        self.ranking.append({"name": loser.name, "place": parts[1]})
+            else:
+                print(f"DEBUG RESULTS: Klíč '{key}' nesplnil podmínku (parts={len(parts)}, matches={len(matches)})")
+
+        print(f"DEBUG RESULTS: Výsledný ranking: {self.ranking}")
         return self.ranking
 
 
@@ -55,8 +75,7 @@ class Results:
         """
         return all(
             match.is_finished
-            for group_obj in group_stage.groups.values()
-            for match_list in group_obj.group_matches.values()
+            for match_list in group_stage.group_matches.values()
             for match in match_list
         )
 
