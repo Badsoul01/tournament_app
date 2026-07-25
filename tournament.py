@@ -162,3 +162,9 @@ class Tournament:
                     return False
 
         return True
+
+    def get_final_ranking(self) -> list[dict]:
+        """
+        Vrátí konečné počadí turnaje pomocí results_manageru.
+        """
+        return self.results_manager.compute_final_ranking(self.branches)
