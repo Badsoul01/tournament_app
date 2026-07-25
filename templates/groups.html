@@ -63,15 +63,13 @@
                                     {{ match.player_A.name }} : {{ match.player_B.name }}
                                     <form action="/groups" method="POST">
                                         <input type="hidden" name="match_id" value="{{match.match_id}}">
-                                        <div class="set-container">
-                                            <strong>1.set:</strong><input type="number" class="match-input" name="game_a[]" min="0"> : <input type="number" class="match-input" name="game_b[]" min="0">
-                                        </div>
-                                        <div class="set-container">
-                                            <strong>2.set:</strong><input type="number" class="match-input" name="game_a[]" min="0"> : <input type="number" class="match-input" name="game_b[]" min="0">
-                                        </div>
-                                        <div class="set-container">
-                                            <strong>3.set:</strong><input type="number" class="match-input" name="game_a[]" min="0"> : <input type="number" class="match-input" name="game_b[]" min="0">
-                                        </div>
+                                        {% for i in range(1, match.match_format | int + 1) %}
+                                            <div class="set-container">
+                                                <strong>{{ i }}.set:</strong>
+                                                <input type="number" class="match-input" name="game_a[]" min="0"> :
+                                                <input type="number" class="match-input" name="game_b[]" min="0">
+                                            </div>
+                                        {% endfor %}
                                         <button type="submit">Uložit</button>
                                     </form>
                                 </div>
