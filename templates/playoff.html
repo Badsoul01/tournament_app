@@ -24,32 +24,56 @@
 
                     {% for match in matches %}
                         <div class="match">
-                            <strong>{{ match.player_A.name }}</strong><small>({{match.player_A.group_rank}}{{match.player_A.group_name}})</small>
-                            <br>vs<br>
-                            <strong>{{ match.player_B.name if match.player_B else 'BYE'}}</strong><small>({{ match.player_B.group_rank}}{{match.player_B.group_name}})</small>
-                            {% if not match.is_finished %}
-                             <form action="/playoff" method="POST">
-                                 <input type="hidden" name="match_id" value="{{ match.match_id}}">
+                            {# Zjistíme, zda jde o objekt zápasu nebo o slotovou n-tici(tuple) #}
+                            {% if match.__class__.__name__ == 'Match' %}
+                                {# Klasický reálný zápas #}
+                                <strong>{{ match.player_A.name }}</strong><small>({{match.player_A.group_rank}}{{match.player_A.group_name}})</small>
+                                <br>vs<br>
+                                <strong>{{ match.player_B.name if match.player_B else 'BYE'}}</strong><small>({{ match.player_B.group_rank}}{{match.player_B.group_name}})</small>
+                                {% if not match.is_finished %}
+                                    <form action="/playoff" method="POST">
+                                         <input type="hidden" name="match_id" value="{{ match.match_id}}">
 
-                                 {% for i in range(1, match.match_format | int + 1) %}
-                                     <div class="set-container">
-                                         <strong>{{ i }}. set</strong>
-                                         <input type="number" class="match-input" name="game_a[]"> :
-                                         <input type="number" class="match-input" name="game_b[]">
-                                     </div>
-                                 {% endfor %}
-                                 <button type="submit" name="action" value="submit_result">Uložit výsledek</button>
-                             </form>
+                                         {% for i in range(1, match.match_format | int + 1) %}
+                                             <div class="set-container">
+                                                 <strong>{{ i }}. set</strong>
+                                                 <input type="number" class="match-input" name="game_a[]" min="0"> :
+                                                 <input type="number" class="match-input" name="game_b[]" min="0">
+                                             </div>
+                                         {% endfor %}
+                                         <button type="submit" name="action" value="submit_result">Uložit výsledek</button>
+                                         </form>
+                                {% else %}
+                                    <div>Vítěz: <strong>{{ match.winner.name }}</strong></div>
+                                {% endif %}
+
                             {% else %}
-                            <div>Vítěz: <strong>{{ match.winner.name }}</strong></div>
+                                {# Slotová n-tice(např.('1A''2B') nebo ('1A', None)) -pouze náhled  sktruktury#}
+                                {% set slot_a = match[0] %}
+                                {% set slot_b = match[1] %}
+
+                                {# Hráč A #}
+                                {% if slot_a.__class__.__name__ == "Player" %}
+                                    <strong>{{ slot_a.name}}</strong><small>({{ slot_a.group_rank}}{{slot_a.group_name}})</small>
+                                {% else %}
+                                    <strong>{{ slot_a }}</strong>
+                                {% endif %}
+
+                                <br>vs<br>
+
+                                {# Hráč B #}
+                                {% if slot_b is none %}
+                                    <strong>BYE</strong>
+                                {% elif slot_b.__class__.__name__ == "Player" %}
+                                    <strong>{{ slot_b.name }}</strong><small>({{ slot_b.group_rank }}{{ slot_b.group_name }})</small>
+                                {% else %}
+                                    <strong>{{ slot_b}}</strong>
+                                {% endif %}
                             {% endif %}
                         </div>
                     {% endfor %}
-                </div>
+                    </div>
             {% endfor %}
-        {% else %}
-            <p>Pavouk se ještě negeneruje.</p>
-        {% endif %}
     </div>
 
     {% if tournament.branches["main"].placement_rounds %}
@@ -91,5 +115,5 @@
             </div>
         </div>
     {% endif %}
-
+    {% endif %}
 {% endblock %}
