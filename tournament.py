@@ -35,6 +35,8 @@ class Tournament:
         self.playoff_match_format: str = setup.playoff_match_format
         self.playoff_elimination_action: str = setup.playoff_elimination_actions
 
+
+
         #Inicializace a transformace skupin
         transformed_groups_dict = {}
         for group_name,player_names in self.raw_groups_data.items():
@@ -51,9 +53,19 @@ class Tournament:
             stage_name="Group"
         )
         self.group_stage.generate_matches(self)
+        self.processed_groups: set = set()
 
-        #Reference na hlavní playoff
-        self.main_playoff = None
+        self.main_playoff = Playoff(
+            qualified_players=[],
+            match_format=self.playoff_match_format,
+            stage_name=self.stage,
+            playoff_elimination_action=self.playoff_elimination_action
+        )
+        self.branches["main"] = self.main_playoff
+
+        slot_structure = self.main_playoff.generate_slotted_bracket(groups=transformed_groups_dict,
+                                                                    tournament=self)
+        self.main_playoff.rounds[1] = slot_structure
 
     def get_next_match_id(self) -> int:
         """
@@ -67,65 +79,43 @@ class Tournament:
 
     def check_stage_progression(self) -> bool:
         """
-        Kontoluje, zda nastal čas posunout turnaj ze skupinové fáze do playoff.
-        - Pokud už playoff běží, vrací True.
-        - Pokud jsou všechny zápasy ve skupinách dohrané, vrací True.
-        - Jinak vrací False (skupiny stále probíhají)
-        :return:
+        Průběžně kontroluje stav jednotlivých skupin.
+        Pokud některá skupinaprávě dohrála a ještě nebyla zpracována,
+        okamžitě vyhodnotí její výsledky a propíše postupující do playoff.
         """
-        # pokud hlavní playoff již existuje, není co řešit
-        if self.branches["main"] is not None:
-            return True
+        progres_made = False
 
-        # Zkontrolujeme, zda jsou dohrané všechny zápasy ve všech skupinách
+        # Projedme všechny skupiny v názvech skupin.
+
+        for group_name in self.group_stage.groups.keys():
+            # Pokud skupina dohrála  a ještě není v seznamu zpracovaných
+            if self.group_stage.are_all_matches_played(group_name=group_name) and group_name not in self.processed_groups:
+                self.evaluate_single_group(group_name)
+                self.processed_groups.add(group_name)
+                progres_made = True
+
+        # Celková kontrola, zda už jsou hotové všechny skupiny:
+
         if self.results_manager.are_groups_finished(self.group_stage):
-            self.evaluate_group_stage_and_proceed()
             return True
 
-        return False
+        return progres_made
 
-    def evaluate_group_stage_and_proceed(self) -> None:
+    def evaluate_single_group(self,group_name: str) -> None:
         """
-        Vyhodnotí skončenou skupinovou fázi:
-        1. Seřadí hráče v každé skupině.
-        2. Rozdělí je na postupující a vyřazené (pro útěchu)
-        3. Inicializuje hlavní playoff.
-        4. Podle zvoleného pravidla vytvoří útěchovou skupinu (minitabulku) nebo utěchové  playoff
-        :return:
+        Vyhodnotí pouze kontrétní dohranou skupinu a propíše její postupující hráče do odpovídajících slotů v playoff.
         """
-        advancing, all_eliminated = self.results_manager.evaluate_group_stage(
-            self.group_stage, self.advance_per_group)
+        # Získáme seřazené hráče v této kontrétní skupině pomocí result_managera
+        ranked_players = self.group_stage.rank_players(group_name=group_name)
 
-        # Vytvotříme hlavního pavouka pro postupující hráče
-        self.main_playoff = Playoff(
-            qualified_players=advancing,
-            match_format=self.playoff_match_format,
-            stage_name=self.stage,
-            playoff_elimination_action=self.playoff_elimination_action
-        )
-        self.branches["main"] = self.main_playoff
-        self.main_playoff.generate_first_round(self)
-        print(advancing)
+        # Určíme, kolik hráčů z této skupiny postupuje
+        advance_count = int(self.advance_per_group)
+        advancing_players = ranked_players[:advance_count]
+        print(f"DEBUG: Skupina {group_name} dohrála! Postupující {[p.name for p in advancing_players]}")
 
-        # Reakce na vyřazené hráče podle zvolené konfigurace turnaje
-        if self.elimination_actions == "minitabulka":
-            minitabulka_dict = {"ÚTĚCHA": all_eliminated}
-            self.consolation_group = Group(
-                groups_dict=minitabulka_dict,
-                match_format=self.group_match_format,
-                stage_name=self.stage
-            )
-            self.consolation_group.generate_matches(self)
-
-        elif self.elimination_actions == "playoff_b":
-            self.consolation_playoff = Playoff(
-                qualified_players=all_eliminated,
-                match_format=self.playoff_match_format,
-                stage_name=self.stage,
-                playoff_elimination_action=self.playoff_elimination_action
-            )
-            self.branches["consolation"] = self.consolation_playoff
-            self.consolation_playoff.generate_first_round(self)
+        # Pošleme hráče do pavouka, ať si je zařadí
+        if hasattr(self, "main_playoff") and self.main_playoff:
+            self.main_playoff.update_slots_with_players(group_name=group_name,advancing_players=advancing_players,tournament=self)
 
     def get_groups_for_web(self)-> dict:
         """
@@ -149,18 +139,19 @@ class Tournament:
         """
         Zda je turnaj kompletně dohraný (včetně všech zápasů o umístění).
         Vrací True, pokud máme celkového vítěze a všechny dohrávkové zápasy jsou hotové
-        :return:
         """
+
+        main_playoff = self.branches.get("main")
         # Pokud hlavní playoff nemá vítěze,turnaj neskončil
-        if not (self.branches["main"] and self.branches["main"].winner):
+        if not (main_playoff and main_playoff.winner):
             return False
 
         # Projdeme všechny dohrávkové pavouky a zkontrolujeme, zda mají všechny zápasy hotové.
-        for key,playoff_obj in self.branches["placement"].items():
-            for match in playoff_obj.matches:
-                if not match.is_finished:
-                    return False
-
+        if main_playoff and main_playoff.placement_rounds:
+            for key, bracket_data in main_playoff.placement_rounds.items():
+                for match in bracket_data.get("matches",[]):
+                    if not match.is_finished:
+                        return False
         return True
 
     def get_final_ranking(self) -> list[dict]:
