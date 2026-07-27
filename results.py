@@ -79,39 +79,5 @@ class Results:
             for match in match_list
         )
 
-    def evaluate_group_stage(self,group_stage: Group, advance_per_group:int) -> tuple[list]:
-        """
-        sestaví seznam postupujících hráčů ze skupin na základě jejich umístění
-        (např top 2 z každé skupiny) pro vstup do playoff.
-        """
-        qualified = []
-        eliminated = []
-
-        for group_name in sorted(group_stage.groups.keys()):
-            # Získáme seřazené hráče v dané skupině
-            ranked_players = group_stage.rank_players(group_name)
-
-            # Vybereme daný počet postupujících z vrcholu tabulky
-            top_players = ranked_players[:advance_per_group]
-            bottom_players = ranked_players[advance_per_group:]
-
-            # Zpracování postupujícíchě
-            for rank,player in enumerate(top_players,start=1):
-                player.group_name = group_name
-                player.group_rank = rank
-                qualified.append(player)
-
-            # Zpracování vyřazených
-            for rank,player in enumerate(bottom_players, start=advance_per_group+1):
-                player.group_name= group_name
-                player.group_rank= rank
-                eliminated.append(player)
-
-        self.qualified_players =  qualified
-        self.eliminated_players = eliminated
-
-        return self.qualified_players, self.eliminated_players
-
-
 
 
