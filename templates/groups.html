@@ -82,10 +82,4 @@
     <hr>
     {% endfor %}
 
-    <form method="POST" action="/groups">
-        {% if tournament.check_stage_progression() %}
-            <button type="submit" name="action" value="go_to_playoff">Přejít do playoff</button>
-        {% endif %}
-    </form>
-
 {% endblock %}
