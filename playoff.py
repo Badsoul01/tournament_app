@@ -1,3 +1,4 @@
+import tournament
 from match import Match
 from group import Group
 from config import PLAYOFF_RULES
@@ -34,63 +35,6 @@ class Playoff:
     # VEŘEJNÉ API (HLAVNÍ METODY)
     # ==========================================
 
-    def generate_first_round(self,tournament) -> None:
-        """
-        Vygeneruje 1.kolo playoff včetně nasazení hráčů,
-        výpočtu volných losů (BYE) a chytrého proházení pavouka.
-        """
-        #1. Seřadíme hráče podle statistik ve skupině sestupně
-        sorted_players = sorted(self.players, key=lambda p: p.get_sorting_stats("Group"), reverse=True)
-        number_of_byes = self._calculating_byes()
-
-        # Cílený výběr do waiting_room: primárně vítězové skupin
-        group_winners = [p for p in sorted_players if getattr(p,"group_rank", None) == 1]
-        other_players = [p for p in sorted_players if getattr(p,"group_rank", None) != 1]
-
-        #. Rozdělení na hráče s volným losem (BYE) a ty, co hrají pvní kolo
-        waiting_room =  group_winners[:number_of_byes]
-        if len(waiting_room) < number_of_byes:
-            remaining_needed = number_of_byes - len(waiting_room)
-            waiting_room.extend(other_players[:remaining_needed])
-
-        self.waiting_room = waiting_room
-        waiting_set = set(self.waiting_room)
-        players_to_match = [p for p in sorted_players if p not in waiting_set]
-
-        # Vytvoření základních dvojic a jejich úprava přes novou pomocnou metodu
-        matches = self._create_matches_for_round(players=players_to_match,tournament=tournament)
-        matches = self._reorder_matches_for_spread(matches)
-
-        # Vytvoříme BYE Zápasů pro nejlepší hráče z waiting_room)
-        bye_matches_top = []
-        bye_matches_bottom = []
-
-        for i, player in enumerate(self.waiting_room):
-            bye_match = Match(
-                player_a=player,
-                player_b=None,
-                match_format=self.match_format,
-                tournament_stage=self.stage_name,
-                match_id=tournament.get_next_match_id())
-
-            bye_match.winner = player
-            bye_match.is_finished = True
-
-            # Strategické umístění BYE slotů na okraje pavouka (začátek a konec),
-            # aby netvořily blok hned pod sebou s hlavními nasazenými hráči.
-            if i % 2 == 0:
-                bye_matches_top.append(bye_match)
-            else:
-                bye_matches_bottom.append(bye_match)
-
-        # Strategické umístění BYE slotů na okraje pavouka (začátek a konec)
-        matches = bye_matches_top + matches + bye_matches_bottom
-
-        self.rounds[self.current_round_number]= matches
-        self.waiting_room = []
-
-
-
     def generate_next_round(self, played_matches:list,tournament) -> list:
         """
         Vygeneruje následující kolo playoff na základě dohraných zápasů předchozího kola,
@@ -98,7 +42,6 @@ class Playoff:
         """
         advancing_players = []
         current_losers=[]
-
         self.eliminated_players[self.current_round_number] = []
 
         # Pokud jsme v 1.kole, můžeme použít metodu pro zachování BYE pozic(None)
@@ -119,7 +62,8 @@ class Playoff:
             all_previously_eliminated = sum(len([p for p in v if p is not None]) for k,v in self.eliminated_players.items() if k < self.current_round_number)
             real_losers = [p for p in current_losers if p is not None]
 
-            total_slots = len(self.players)
+            first_round_items = self.rounds.get(1,[])
+            total_slots = len(first_round_items) *2
             start_rank = (total_slots - (all_previously_eliminated+ len(real_losers))) + 1
             end_rank = total_slots - all_previously_eliminated
             bracket_name = f"{start_rank}-{end_rank}"
@@ -178,6 +122,114 @@ class Playoff:
             self._create_sub_bracket(bracket_name,results["winners"], "winners",tournament)
         if len(results["losers"]) >= 1:
             self._create_sub_bracket(bracket_name,results["losers"], "losers",tournament)
+
+    def generate_slotted_bracket(self,groups: dict,tournament,) -> list:
+        """
+        Vygeneruje strukturu prvního kola složenou čistě ze slotů("1A", "2B" apod).
+        Funguje jako nezáslislá šablona pavouka pro budoucí nasazení hráčů.
+        """
+        # 1. Získáme surové sloty ze všech skupin
+        all_slots = self._generate_slots(groups=groups, advance_per_group=tournament.advance_per_group)
+
+        # 2.Využijeme dedikovanou metodu pro výpočet BYE podle počtu slotů
+        number_of_byes = self._calculating_byes(len(all_slots))
+
+        # 3. Oddělíme vítěze/první místo (začínající "1") jako prioritní pro BYE
+        group_first = [slot for slot in all_slots if slot.startswith("1")]
+        other_slots = [slot for slot in all_slots if not slot.startswith("1")]
+
+        #4. waiting room pro volné losy
+        waiting_room = group_first[:number_of_byes]
+        if len(waiting_room) < number_of_byes:
+            remaining_needed = number_of_byes - len(waiting_room)
+            waiting_room.extend(other_slots[:remaining_needed])
+
+        waiting_set = set(waiting_room)
+        slots_to_match = [s for s in all_slots if s not in waiting_set]
+
+        # 5. Spárování zbývajícíh slotů
+        paired_slots = []
+        for i in range(len(slots_to_match) // 2):
+            slot_a = slots_to_match[i]
+            slot_b = slots_to_match[len(slots_to_match)-1-i]
+            paired_slots.append((slot_a,slot_b))
+
+        paired_slots = self._reorder_matches_for_spread(paired_slots)
+
+        #6. Umístění BYE dvojic (slot,None) na okraje pavouka
+        bye_top = []
+        bye_bottom = []
+
+        for i, slot in enumerate(waiting_room):
+            bye_pair = (slot, None)
+            if i % 2 == 0:
+                bye_top.append(bye_pair)
+            else:
+                bye_bottom.append(bye_pair)
+
+        final_bracket_structure = bye_top + paired_slots + bye_bottom
+        return final_bracket_structure
+
+    def update_slots_with_players(self,group_name: str, advancing_players: list, tournament) ->None:
+        """
+        Nahradí textové sloty (např. "1A") reálnými objekty hráčů po dohrání skupiny.
+        Pokud jsou oba sloty v n-tici zaplněny, vytvoří reálný objekt Match.
+        """
+        # 1.připravíme si mapování slotů na hráče pro tuto skupiny (např. "1A":Hráč1, "2A":Hráč2)
+        slot_mapping = {}
+        for index, player in enumerate(advancing_players):
+            rank = index + 1
+            slot_name = f"{rank}{group_name}"
+            slot_mapping[slot_name] = player
+
+            # Můžeme hráči rovnou zapsat jeho umístění
+            player.group_rank = str(rank)
+            player.group_name = group_name
+
+        # 2. Projdme první kolo playoff a pokusíme se nahradit sloty
+        current_round = self.rounds[1]
+        updated_round = []
+
+        for item in current_round:
+            if isinstance(item,tuple):
+                slot_a, slot_b = item
+
+                # Zkusíme nahradit slot_a (pokud je to string a patří do právě dohrané skupiny)
+                if isinstance(slot_a, str) and slot_a in slot_mapping:
+                    slot_a=slot_mapping[slot_a]
+
+                # Zkusíme nahradit slot_b
+                if isinstance(slot_b, str) and slot_b in slot_mapping:
+                    slot_b= slot_mapping[slot_b]
+
+                # 3. Zjistíme, zda jsou oba sloty vyřešené (nejsou to už stringy)
+                # slot_b muže být i None (BYE), což je také "vyřešený" stav
+                is_a_resolved = not isinstance(slot_a, str)
+                is_b_resolved = not isinstance(slot_b, str)
+
+                if is_a_resolved and is_b_resolved:
+                    # Oba zanjí své místo, vytvoříme realný zápas!
+                    new_match = Match(
+                        player_a=slot_a,
+                        player_b=slot_b,
+                        match_format=self.match_format,
+                        tournament_stage=self.stage_name,
+                        match_id=tournament.get_next_match_id()
+                    )
+                    updated_round.append(new_match)
+                else:
+                    # nejsou kompletní, vracíme zpět jako tuple
+                    updated_round.append((slot_a,slot_b))
+
+            else:
+                # Už je to hotový Match (vyřešený dříve), necháme ho být
+                updated_round.append(item)
+
+        # uložíme aktualizované kolo zpět
+        self.rounds[1] = updated_round
+
+
+
 
     def check_and_proceed(self,tournament) -> bool:
         """
@@ -263,18 +315,20 @@ class Playoff:
     # INTERNÍ POMOCNÉ METODY (PRIVÁTNÍ)
     # ==========================================
 
-    def _calculating_byes(self) -> int:
+    def _calculating_byes(self, total_slots: int) -> int:
         """
-        Spočítá počet potřebných volných lusů(BYE) do nejbližší mocniny dvou.
+        Spočítá počet potřebných volných lusů(BYE) bez nutnosti znát hráče.
         """
-
-        total_players = len(self.players)
         size_of_bracket = 2
 
-        while size_of_bracket < total_players:
+        while size_of_bracket < total_slots:
             size_of_bracket *= 2
 
-        return size_of_bracket - total_players
+        return size_of_bracket - total_slots
+
+
+
+
 
     def _create_matches_for_round(self,players: list,tournament)-> list:
         """
@@ -405,16 +459,16 @@ class Playoff:
 
             print(f"DEBUG: Dohrávka {bracket_name} byla uspěšně finalizována.")
 
-    def _reorder_matches_for_spread(self,matches: list) -> list:
+    def _reorder_matches_for_spread(self,items: list) -> list:
         """
         Chytře přeuspořádá zápavy v prvním kole, aby se top hráči nepotkali příliš brzo.
         """
-        if len(matches)<4:
-            return matches
+        if len(items)<4:
+            return items
 
-        half = len(matches) //2
-        top_half = matches[:half]
-        bottom_half = matches[half:]
+        half = len(items) // 2
+        top_half = items[:half]
+        bottom_half = items[half:]
         bottom_half.reverse()
 
         reordered = []
@@ -427,10 +481,18 @@ class Playoff:
             # Prohození v blocích
             for i in range(2, len(reordered) - 1, 4):
                 if i + 1 < len(reordered):
-                    reordered[j], reordered[i + 1] = reordered[i + 1], reordered[j]
-            return reordered
+                    reordered[i], reordered[i + 1] = reordered[i + 1], reordered[i]
+        return reordered
 
 
+    def _generate_slots(self,groups: dict,advance_per_group: int,start_from: int = 1) -> list:
+        list_of_slots = []
+
+        for group_name in groups:
+            for num in range(start_from,start_from+advance_per_group):
+                list_of_slots.append(f"{num}{group_name}")
+
+        return list_of_slots
 
 
 
