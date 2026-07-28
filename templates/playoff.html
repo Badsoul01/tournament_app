@@ -25,11 +25,39 @@
                     {% for match in matches %}
                         <div class="match">
                             {# Zjistíme, zda jde o objekt zápasu nebo o slotovou n-tici(tuple) #}
+
                             {% if match.__class__.__name__ == 'Match' %}
-                                {# Klasický reálný zápas #}
-                                <strong>{{ match.player_A.name }}</strong><small>({{match.player_A.group_rank}}{{match.player_A.group_name}})</small>
+                                {# ========================================== #}
+                                {# REÁLNÝ ZÁPAS                               #}
+                                {# ========================================== #}
+
+
+                                {# Hráč A #}
+                                {% if match.player_A.__class__.__name__ == 'Player' %}
+                                    <strong>{{ match.player_A.name }}</strong>
+                                    {% if match.player_A.group_rank%}<small>({{ match.player_A.group_rank }}{{ match.player_A.group_name }})</small>{% endif %}
+                                {% else %}
+                                    <strong>{{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
+                                {% endif %}
+
                                 <br>vs<br>
-                                <strong>{{ match.player_B.name if match.player_B else 'BYE'}}</strong><small>({{ match.player_B.group_rank}}{{match.player_B.group_name}})</small>
+
+                                {# Háč B #}
+                                {% if match.player_B is none %}
+                                    {# Pokud jsme v prvním kole a hráč B je None, je to reálné BYE v dalších kolech je to "Čeká se.."  #}
+                                    {% if round_num == 1 %}
+                                        <strong>BYE</strong>
+                                    {% else %}
+                                        <strong>Čeká se..</strong>
+                                    {% endif %}
+                                {% elif match.player_B.__class__.__name__ == 'Player' %}
+                                    <strong>{{ match.player_B.name }}</strong>
+                                    {% if match.player_B.group_rank %}<small>({{ match.player_B.group_rank }}{{ match.player_B.group_name}}</small>{% endif %}
+                                {% else %}
+                                    <strong> {{ match.player_B if match.player_B else 'Čeká se..'}}</strong>
+                                {% endif %}
+
+                                {# FORMULÁŘ/ VÝSLEDEK #}
                                 {% if not match.is_finished %}
                                     <form action="/playoff" method="POST">
                                          <input type="hidden" name="match_id" value="{{ match.match_id}}">
@@ -48,7 +76,11 @@
                                 {% endif %}
 
                             {% else %}
-                                {# Slotová n-tice(např.('1A''2B') nebo ('1A', None)) -pouze náhled  sktruktury#}
+
+                                {# ========================================== #}
+                                {# SLOTOVÁ N-TICE (TUPLE) - např. ("Čeká se..", "Čeká se..") #}
+                                {# nebo už částečně vyplněná s postupujícím hráčem #}
+                                {# ========================================== #}
                                 {% set slot_a = match[0] %}
                                 {% set slot_b = match[1] %}
 
