@@ -12,13 +12,19 @@ class Match:
             player_b:Player,
             match_format:str,
             tournament_stage:str,
-            match_id: int | str
+            match_id: int | str,
+            next_match: 'Match | None' = None,
+            target_slot: str | None = None
     ) -> None:
         self.player_A: Player = player_a
         self.player_B: Player = player_b
         self.match_format: str = match_format
         self.tournament_stage: str = tournament_stage
         self.match_id: int | str = match_id
+
+        self.next_match: Match | None = next_match
+        self.target_slot: str | None = target_slot
+
         self.winner: Player | None = None
         self.loser: Player | None = None
         self.is_finished: bool = False
@@ -90,4 +96,13 @@ class Match:
                                    )
         self.is_finished = True
 
+        if self.next_match and self.winner:
+            # Podle target_slot určíme, do kterého slotu v dalším zápase vítěz patří
+            if self.target_slot == "A":
+                self.next_match.player_A = self.winner
+            elif self.target_slot == "B":
+                self.next_match.player_B = self.winner
+
         return self.is_finished
+
+
