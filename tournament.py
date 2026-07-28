@@ -63,9 +63,7 @@ class Tournament:
         )
         self.branches["main"] = self.main_playoff
 
-        slot_structure = self.main_playoff.generate_slotted_bracket(groups=transformed_groups_dict,
-                                                                    tournament=self)
-        self.main_playoff.rounds[1] = slot_structure
+        self.main_playoff.generate_full_bracket_structure(groups=transformed_groups_dict,tournament=self)
 
     def get_next_match_id(self) -> int:
         """
@@ -94,7 +92,7 @@ class Tournament:
                 self.processed_groups.add(group_name)
                 progres_made = True
 
-        # Celková kontrola, zda už jsou hotové všechny skupiny:
+        # Celková kontrola, zda už jsou hoerá kromě prvního kola rovnou ptové všechny skupiny:
 
         if self.results_manager.are_groups_finished(self.group_stage):
             return True
