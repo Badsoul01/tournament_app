@@ -1,8 +1,9 @@
+from functools import total_ordering
+
 import tournament
 from match import Match
 from group import Group
 from config import PLAYOFF_RULES
-
 
 
 class Playoff:
@@ -38,7 +39,7 @@ class Playoff:
     def generate_next_round(self, played_matches:list,tournament) -> list:
         """
         Vygeneruje následující kolo playoff na základě dohraných zápasů předchozího kola,
-        vyhodnotí postupující, poražené a případně založí větve pro dohrávky o umístění.
+        využívá předpřipravé sloty v self.rounds a nahrazuje je reálnámi Match objekty
         """
         advancing_players = []
         current_losers=[]
@@ -85,6 +86,8 @@ class Playoff:
 
         next_round_matches = []
 
+
+
         for i in range(0,len(advancing_players),2):
             match= Match(
                 player_a=advancing_players[i],
@@ -95,10 +98,46 @@ class Playoff:
             )
             next_round_matches.append(match)
 
-        self.current_round_number+=1
-        self.rounds[self.current_round_number]= next_round_matches
 
         return next_round_matches
+
+    def move_winner_to_next_round(self,finished_match, round_num: int,match_index: int, tournament) -> None:
+        """
+        Posouvá vítěze dohraného zápasu do slotu v následujícím kole.
+        Pokud jsou v příším kole obsazeny oba sloty, vytvoří z nich reálný Match.
+        """
+        next_round_num = round_num + 1
+        if next_round_num not in self.rounds:
+            return
+
+        # Vypočítáme, do kterého zápasu (indexu) v dalším kole vítěz patří
+        target_match_index = match_index // 2
+        target_slot_position = "A" if match_index % 2 == 0 else "B"
+
+        next_round_items = self.rounds[next_round_num]
+
+        # Zkontrolujeme, zda na cílovém indexu exituje slot (tuple) nebo už reálný Match
+        if target_match_index <len(next_round_items):
+            target_item = next_round_items[target_match_index]
+            winner = finished_match.winner
+            # Pokud je v dalším kole stále slot(tuple), pracujeme s ním
+            if isinstance(target_item, tuple):
+                slot_a,slot_b = target_item
+
+                if target_slot_position == "A":
+                    slot_a = winner
+                else:
+                    slot_b = winner
+
+                resolved = self._resolve_slot_pair_to_match(slot_a=slot_a,slot_b=slot_b,tournament=tournament)
+                next_round_items[target_match_index] = resolved
+            elif isinstance(target_item,Match):
+                if target_slot_position == "A":
+                    target_item.player_A = winner
+                else:
+                    target_item.player_B = winner
+
+
 
     def process_placement_bracket(self,bracket_name: str,tournament) -> None:
         """
@@ -190,7 +229,7 @@ class Playoff:
         current_round = self.rounds[1]
         updated_round = []
 
-        for item in current_round:
+        for i, item in enumerate(current_round):
             if isinstance(item,tuple):
                 slot_a, slot_b = item
 
@@ -203,33 +242,14 @@ class Playoff:
                     slot_b= slot_mapping[slot_b]
 
                 # 3. Zjistíme, zda jsou oba sloty vyřešené (nejsou to už stringy)
-                # slot_b muže být i None (BYE), což je také "vyřešený" stav
-                is_a_resolved = not isinstance(slot_a, str)
-                is_b_resolved = not isinstance(slot_b, str)
-
-                if is_a_resolved and is_b_resolved:
-                    # Oba zanjí své místo, vytvoříme realný zápas!
-                    new_match = Match(
-                        player_a=slot_a,
-                        player_b=slot_b,
-                        match_format=self.match_format,
-                        tournament_stage=self.stage_name,
-                        match_id=tournament.get_next_match_id()
-                    )
-                    updated_round.append(new_match)
-                else:
-                    # nejsou kompletní, vracíme zpět jako tuple
-                    updated_round.append((slot_a,slot_b))
-
+                resolved = self._resolve_slot_pair_to_match(slot_a=slot_a,slot_b=slot_b,tournament=tournament)
+                updated_round.append(resolved)
             else:
                 # Už je to hotový Match (vyřešený dříve), necháme ho být
                 updated_round.append(item)
 
         # uložíme aktualizované kolo zpět
         self.rounds[1] = updated_round
-
-
-
 
     def check_and_proceed(self,tournament) -> bool:
         """
@@ -239,12 +259,32 @@ class Playoff:
         #kontrola hlavního pavouka
         current_matches = self.rounds.get(self.current_round_number,[])
         main_advance = False
+        # Porjdeme zápasy aktualního kola a průběžně posouváme vítěze do dalšího kola
+        for idx, match in enumerate(current_matches):
+            if match.is_finished and match.winner is not None:
+                self.move_winner_to_next_round(
+                    finished_match=match,
+                    round_num=self.current_round_number,
+                    match_index=idx,
+                    tournament=tournament
+                )
 
-
+        # Kontrola, zda jsou hotové věechny zápasy aktuálního kola
         if current_matches and all(m.is_finished for m in current_matches):
-            if (self.current_round_number + 1) not in self.rounds:
-                self.generate_next_round(current_matches,tournament=tournament)
-                main_advance= True
+            next_round_num = self.current_round_number + 1
+            # Pokud existuje další kolo, vygenerujeme ho /posuneme se
+            if next_round_num in self.rounds:
+                # Pokud ještě nemáme v dalším kole vytvořené zápasy(nebo to jsou jen tuplové sloty,
+                # které se nepřevedly), zavoláme generate_next_round
+                self.current_round_number = next_round_num
+                main_advance = True
+            else:
+                # Pokud další kolo neexistuje, znamená to, právě skončilo finále
+                # vytáhneme vítěze z posledního zápasu finále.
+                if len(current_matches) == 1:
+                    self.winner = current_matches[0].winner
+                    print(f"DEBUG: Turnaj má celkového vítěze: {self.winner}")
+
 
         #Kontrola dohrávky
         print(f"DEBUG: Počet placement_rounds: {len(self.placement_rounds)}")
@@ -311,6 +351,46 @@ class Playoff:
     def get_sorted_placement_rounds(self):
         return sorted(self.placement_rounds.items(), key=lambda x: x[1]["ranks"][0],reverse=True)
 
+    def generate_full_bracket_structure(self,groups: dict, tournament) -> None:
+        """
+        Vygeneruje strukturu celého pavouka:
+        - 1. kolo zůstává jako slotové n-tice (čekájící na dohrání skupin a převod na Match).
+        - 2. a další kolo se generují jako prázdné objekty Match s navázanými vazbami pro postup vítězů.
+        """
+        import math
+        # KROK 1: vytvoříme první kolo pavouka podle metody generate_slotted_bracket
+        slot_structure = self.generate_slotted_bracket(groups=groups, tournament=tournament)
+        self.rounds[1] = slot_structure
+
+
+        #  KROK 2:Spočítáme celkový počet kol podle velikosti 1.kola
+        total_matches_in_round = len(slot_structure)
+        # Počet kol je logaritmus o základu 2 (např. 4 zápasy = 2 kola, 8zápasu = 3 kola)
+        num_rounds = math.ceil(math.log2(total_matches_in_round * 2)) if total_matches_in_round >0 else 1
+
+        if num_rounds <2:
+            return
+
+        # KROK 3: Pro 2. a další kola předpřipravíme prázdné objekty Match
+        # (Pozn.: Propojení s 1. se dokončí dynamicky ve chvíli, kdy se sloty v 1.kole přemění na Match).
+        # Zde si vytvoříme strunkturu prázdných kol
+
+        # Pro zjištění počtu zápasů v 2.kole (a dál)
+        current_match_count = total_matches_in_round
+
+        for r in range(2, num_rounds + 1):
+            current_match_count = current_match_count // 2
+            next_round_slots = []
+
+            # V každém dalším kole je poloviční počet zápasů
+            for i in range(current_match_count):
+                # Vytvoříme slotovnou n-tici pro budoucí zápas
+                next_round_slots.append(("Čeká se..", "Čeká se.."))
+
+            self.rounds[r] = next_round_slots
+
+
+
     # ==========================================
     # INTERNÍ POMOCNÉ METODY (PRIVÁTNÍ)
     # ==========================================
@@ -327,32 +407,29 @@ class Playoff:
         return size_of_bracket - total_slots
 
 
-
-
-
-    def _create_matches_for_round(self,players: list,tournament)-> list:
+    def _resolve_slot_pair_to_match(self, slot_a, slot_b,tournament):
         """
-        Pomocná metoda pro vytvoření zápasů v kole metodou párování (1. vs posledního).
+        Pomocná metoda: zkrontroluje, zda jsou oba sloty v n-tici plné (vyřešené),
+        a pokud ano, vytvoří a vrátí realný Match objekt. Jinak vrací zpět tuple.
         """
 
-        #Použijeme seeding metodu
-        seeded = self.get_seeded_players(players=players,advance_per_group=tournament.advance_per_group)
-        matches = []
-        #párování první s posledním, druhý s předposledním
-        # s osmi hráči, spáruje indexi (0,7),(1,6)
-        for i in range(len(seeded) // 2):
-            player_A = seeded[i]
-            player_B = seeded[len(seeded) -1-i]
+        # Slot je vytvořený, pokud to není string( což je "1A" nebo čeká se..") a zároveň to není None
+        is_a_resolved = not isinstance(slot_a, str) and slot_a is not None
+        is_b_resolved = not isinstance(slot_b, str) and slot_b is not None
 
-            match = Match(player_a=player_A,
-                          player_b=player_B,
-                          match_format=self.match_format,
-                          tournament_stage=self.stage_name,
-                          match_id=tournament.get_next_match_id()
-                          )
-            matches.append(match)
+        if is_a_resolved and is_b_resolved:
+            # Oba hráči pro další kola jsou známí -> vytvoříme reálný Match!
+            return  Match(
+                player_a=slot_a,
+                player_b=slot_b,
+                match_format=self.match_format,
+                tournament_stage=self.stage_name,
+                match_id=tournament.get_next_match_id()
+            )
+        else:
+            return (slot_a, slot_b)
 
-        return matches
+
 
     def _create_placement_bracket_matches(self,players_with_none: list,tournament) -> list:
         """
