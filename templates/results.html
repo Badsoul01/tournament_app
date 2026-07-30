@@ -3,12 +3,12 @@
 
 <h2>Výsledky</h2>
 {% if ranking %}
-    <ol>
+    <ul>
         {% for entry in ranking %}
-        <li><strong>{{ entry.place }}.místo:</strong> {{entry.name }}</li>
+        <li><strong>{{ entry.place }}. místo:</strong> {{entry.name }}</li>
         {% endfor %}
 
-    </ol>
+    </ul>
 {% else %}
     <div class="status-box">
         <p>Turnaj se stále hraje</p>
