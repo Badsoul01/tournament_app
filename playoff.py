@@ -1,4 +1,3 @@
-import seedingengine
 from match import Match
 from group import Group
 from config import PLAYOFF_RULES
@@ -130,11 +129,14 @@ class Playoff:
                         # Využijeme existující metodu, která zkontroluje, oba poražené a případně vytvoří Match
                         resolved = self._resolve_slot_pair_to_match(slot_a=slot_a,slot_b=slot_b,tournament=tournament)
                         placement_matches[target_match_index] = resolved
+
                     elif isinstance(target_item,Match):
                         if target_slot_position == "A":
                             target_item.player_A = loser
                         else:
                             target_item.player_B = loser
+
+                break
 
     def move_winner_to_next_round(self,finished_match, round_num: int,match_index: int, tournament) -> None:
         """
@@ -171,6 +173,67 @@ class Playoff:
                     target_item.player_A = winner
                 else:
                     target_item.player_B = winner
+
+    def move_placement_match_result(self,finished_match, bracket_name: str, match_index: int, tournament) -> None:
+        """
+        Okamžitě posune vítěze i poraženého z  dohrávkového zápasu do odpovídajícího slotu v navazujícím pod pavouku.)
+        """
+        if finished_match.winner is None:
+            return
+
+        low,high = self.placement_rounds[bracket_name]["ranks"]
+        if low >= high:
+            return
+
+        mid = (low + high) // 2
+        winner = finished_match.winner
+        loser = finished_match.player_B if winner == finished_match.player_A else finished_match.player_A
+
+        target_match_index = match_index // 2
+        target_slot_position = "A" if match_index % 2 == 0 else "B"
+
+        # Vítěžové postupují do horní (lepší poloviny)
+        upper_low, upper_high = low, mid
+        upper_name = f"{upper_low}-{upper_high}"
+        if upper_name in self.placement_rounds:
+            upper_matches = self.placement_rounds[upper_name]["matches"]
+            if target_match_index <len(upper_matches):
+                target_item = upper_matches[target_match_index]
+                if isinstance(target_item, tuple):
+                    slot_a, slot_b = target_item
+                    if target_slot_position == "A":
+                        slot_a = winner
+                    else:
+                        slot_b = winner
+                    upper_matches[target_match_index] = self._resolve_slot_pair_to_match(slot_a=slot_a,slot_b=slot_b,tournament=tournament)
+                elif isinstance(target_item, Match):
+                    if target_slot_position == "A":
+                        target_item.player_A = winner
+                    else:
+                        target_item.player_B = winner
+
+
+        lower_low, lower_high = mid + 1, high
+        lower_name = f"{lower_low}-{lower_high}"
+        if lower_name in self.placement_rounds:
+            lower_matches = self.placement_rounds[lower_name]["matches"]
+            if target_match_index < len(lower_matches):
+                target_item = lower_matches[target_match_index]
+                if isinstance(target_item, tuple):
+                    slot_a, slot_b = target_item
+                    if target_slot_position == "A":
+                        slot_a = loser
+                    else:
+                        slot_b = loser
+                    lower_matches[target_match_index] = self._resolve_slot_pair_to_match(slot_a=slot_a, slot_b=slot_b, tournament=tournament)
+                elif isinstance(target_item, Match):
+                    if target_slot_position == "A":
+                        target_item.player_A = loser
+                    else:
+                        target_item.player_B = loser
+
+
+
 
 
 
@@ -266,8 +329,8 @@ class Playoff:
                     )
                     print(f"DEBUG: Akce v playoff je: '{self.playoff_elimination_action}'")
 
-                    # B) Pokud jsme v prvního kole a hrajeme dohrávky, pošleme poraženého do dohrávkového slotu!
-                    if round_num == 1 and  self.playoff_elimination_action == "consolation":
+                    # B) Pokud hrajeme dohrávky, pošleme poraženého do dohrávkového slotu!
+                    if self.playoff_elimination_action == "consolation":
                         self.move_loser_to_placement_bracket(
                             finished_match=match,
                             round_num=round_num,
@@ -287,14 +350,16 @@ class Playoff:
             data = self.placement_rounds[bracket_name]
             matches = data["matches"]
 
-            # Filtrujeme jen reálné Match objekty (ignorujeme nevyplněné sloty)
-            real_matches = [m for m in matches if isinstance(m, Match)]
-
-            # Pokud už máme vytvořené zápasy a všechny jsou hotové
-            if real_matches and all(m.is_finished for m in real_matches) and not data["processed"]:
-                print(f"DEBUG: Všechny zápasy v dohrávce {bracket_name} jsou hotové, zpracovávám.. ")
-                self.process_placement_bracket(bracket_name=bracket_name,tournament=tournament)
-                data["processed"] = True
+            for idx, match in enumerate(matches):
+                if isinstance(match, Match) and match.is_finished and match.winner is not None:
+                    if not getattr(match, "placement_result_moved", False):
+                        self.move_placement_match_result(
+                            finished_match=match,
+                            bracket_name=bracket_name,
+                            match_index=idx,
+                            tournament=tournament
+                        )
+                        match.placement_result_moved = True
 
         return main_advance
 
