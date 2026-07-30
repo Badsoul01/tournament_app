@@ -3,7 +3,8 @@ from player import Player
 from group import Group
 from playoff import Playoff
 from results import Results
-
+from match import Match
+from seedingengine import SeedingEngine
 
 class Tournament:
     """
@@ -33,7 +34,7 @@ class Tournament:
         self.advance_per_group: str = setup.advance_per_group
         self.elimination_actions: str = setup.group_elimination_actions
         self.playoff_match_format: str = setup.playoff_match_format
-        self.playoff_elimination_action: str = setup.playoff_elimination_actions
+        self.playoff_elimination_action: str = setup.playoff_elimination_action
 
 
 
@@ -63,7 +64,11 @@ class Tournament:
         )
         self.branches["main"] = self.main_playoff
 
-        self.main_playoff.generate_full_bracket_structure(groups=transformed_groups_dict,tournament=self)
+        engine = SeedingEngine(tournament_format=self.tournament_format)
+
+        self.main_playoff.generate_full_bracket_structure(groups=transformed_groups_dict,
+                                                          advance_per_group=int(self.advance_per_group),
+                                                          seeding_engine = engine)
 
     def get_next_match_id(self) -> int:
         """
@@ -148,7 +153,7 @@ class Tournament:
         if main_playoff and main_playoff.placement_rounds:
             for key, bracket_data in main_playoff.placement_rounds.items():
                 for match in bracket_data.get("matches",[]):
-                    if not match.is_finished:
+                    if isinstance(match, Match) and not match.is_finished:
                         return False
         return True
 
