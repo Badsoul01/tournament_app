@@ -59,10 +59,11 @@
             border: 1px solid #c3e6cb;
         }
         .placement-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px,1fr));
+            display: flex;
             gap: 20px;
             padding: 20px;
+            overflow-x: auto;
+            align-items: flex-start;
         }
 
 
@@ -81,10 +82,14 @@
 
     <header>
         <h1 style="text-align: center"> {{ tournament.name }}</h1>
-        <nav>
-            <a href="/groups">Základní skupiny</a>
-            <a href="/playoff">Playoff</a>
-            <a href="/results">Výsledky</a>
+
+        <nav style="display:grid;grid-template-columns: 1fr auto 1fr; align-items: center; padding: 10px; border-bottom: 1px solid #ccc;">
+            <a href="/" style="justify-self: start;">Domů</a>
+            <div>
+                <a href="/groups">Základní skupiny</a>
+                <a href="/playoff">Playoff</a>
+                <a href="/results">Výsledky</a>
+            </div>
         </nav>
     </header>
 
