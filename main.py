@@ -2,6 +2,7 @@ from flask import Flask,render_template,request,redirect,session
 from config import TOURNAMENT_RULES, GROUPS_RULES, PLAYOFF_RULES, STATE_OF_WIZARD
 from setupwizard import SetupWizard
 from tournament import Tournament
+from match import Match
 
 app = Flask(__name__)
 app.secret_key = "Ultra tajny kod"
@@ -128,7 +129,7 @@ def settings_playoff():
                                        error="Turnaj není připraven")
 
             wizard.playoff_match_format = int(request.form.get("playoff_match_format"))
-            wizard.playoff_elimination_actions = request.form.get("elimination_actions")
+            wizard.playoff_elimination_action = request.form.get("elimination_actions")
             global active_tournament
             active_tournament = Tournament(wizard)
 
@@ -165,7 +166,7 @@ def update_match():
 
         for group_name,matches in active_tournament.group_stage.group_matches.items():
             for match in matches:
-                if match.match_id ==match_id:
+                if match.match_id == match_id:
                     found_match =match
                     break
 
@@ -200,15 +201,18 @@ def playoff_view():
 
             current_playoff = active_tournament.branches["main"]
             found_match = None
-            if current_playoff.current_round_number in current_playoff.rounds:
-                matches = current_playoff.rounds[current_playoff.current_round_number]
-                found_match = next((m for m in matches if m.match_id == match_id),None)
+
+            for round_num,matches in current_playoff.rounds.items():
+                found_match = next((m for m in matches if isinstance(m, Match) and m.match_id == match_id), None)
+                if found_match:
+                    break
 
             if not found_match:
                 for bracket_name in current_playoff.placement_rounds:
                     matches = current_playoff.placement_rounds[bracket_name]["matches"]
-                    found_match= next((m for m in matches if m.match_id== match_id),None)
-                    if found_match: break
+                    found_match= next((m for m in matches if  isinstance(m, Match) and m.match_id == match_id),None)
+                    if found_match:
+                        break
 
             if found_match:
                 found_match.evaluate_match(played_sets)
