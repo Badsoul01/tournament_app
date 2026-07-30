@@ -1,10 +1,8 @@
-from functools import total_ordering
-
-import tournament
+import seedingengine
 from match import Match
 from group import Group
 from config import PLAYOFF_RULES
-
+import math
 
 class Playoff:
     """
@@ -25,7 +23,6 @@ class Playoff:
         self.waiting_room: list = []
         self.round_one_players: list = []
         self.eliminated_players: dict[int, list]  = {}
-        self.current_round_number: int = 1
         self.rounds: dict[int, list] = {}
         self.winner = None
 
@@ -36,70 +33,108 @@ class Playoff:
     # VEŘEJNÉ API (HLAVNÍ METODY)
     # ==========================================
 
-    def generate_next_round(self, played_matches:list,tournament) -> list:
+    def generate_placement_bracket_structure(self)-> None:
         """
-        Vygeneruje následující kolo playoff na základě dohraných zápasů předchozího kola,
-        využívá předpřipravé sloty v self.rounds a nahrazuje je reálnámi Match objekty
+        Vygeneruje předpřipravenou slotovou strukturu pro dohrávkové pavouky
+        pro všechna kola hlavního pavouka, abychom pokryli kompletní umístění.
         """
-        advancing_players = []
-        current_losers=[]
-        self.eliminated_players[self.current_round_number] = []
+        # Projdmee všechna kola v hlavním pavouku (kromě posledního, kde se hraje finále)
+        main_rounds = sorted([r for r in self.rounds.keys() if isinstance(r,int)])
 
-        # Pokud jsme v 1.kole, můžeme použít metodu pro zachování BYE pozic(None)
-        if self.current_round_number == 1:
-            current_losers = self.get_placement_losers_from_first_round(played_matches)
+        if len(main_rounds) < 1:
+            return
 
-        for match in played_matches:
-            if match.is_finished and  match.winner is not None:
-                advancing_players.append(match.winner)
-                if self.current_round_number >1:
-                    if match.player_A is not None and match.player_B is not None:
-                        loser=match.player_B if match.winner== match.player_A else match.player_A
-                        current_losers.append(loser)
+        # Celkový počet v 1.kole
+        total_slots_in_main = len(self.rounds[1]) *2 #Celkový počet hráčů v prvním kole
 
-        self.eliminated_players[self.current_round_number] = current_losers
+        # Postupně projdeme kola hlavního pavouka a vytvoříme pro ně odpovídající dohrávkové bloky
+        for r_idx, round_num in enumerate(main_rounds[:-1]):
+            round_matches = self.rounds[round_num]
+            num_losers = len(round_matches) # Počet poražených v tomto kole
 
-        if self.playoff_elimination_action == "consolation" and len([p for p in current_losers if p is not None]) >= 2:
-            all_previously_eliminated = sum(len([p for p in v if p is not None]) for k,v in self.eliminated_players.items() if k < self.current_round_number)
-            real_losers = [p for p in current_losers if p is not None]
+            if num_losers <1:
+                continue
 
-            first_round_items = self.rounds.get(1,[])
-            total_slots = len(first_round_items) *2
-            start_rank = (total_slots - (all_previously_eliminated+ len(real_losers))) + 1
-            end_rank = total_slots - all_previously_eliminated
+            # Spočítáme rozsahy umístění (ranks) pro toto patro dohrávek
+            # Z 1. kola padá nejvíce hráčů (spodní polovina pavouka), z dalších kol užší výběr
+            if r_idx == 0:
+                start_rank = (total_slots_in_main // 2) + 1
+                end_rank = total_slots_in_main
+            else:
+                # Pro vyšší kola hlavního pavouka se umísťují hráči blíže k vrcholu dohrávek
+                end_rank = (total_slots_in_main // (2** r_idx))
+                start_rank = end_rank - num_losers + 1
+
             bracket_name = f"{start_rank}-{end_rank}"
 
-            #Zde použijeme bezpečné vytvoření dohrávkových zápasů
-            placement_matches = self._create_placement_bracket_matches(current_losers,tournament=tournament)
+            # Počet zápasů v tomto dohrávkovém patře je polovina počtu poražených
+            placement_match_count = max(1, num_losers // 2)
 
+            placement_slots = [("Čeká se..","Čeká se..") for _ in range(placement_match_count)]
+
+            # Uložíme do struktury
             self.placement_rounds[bracket_name] = {
-                "ranks":(start_rank,end_rank),
-                "matches": placement_matches,
-                "processed": False
+                "ranks": (start_rank,end_rank),
+                "matches": placement_slots,
+                "processed": False,
+                "source_main_round": round_num # Poznamenáme si, ze kterého kola hlavního pavouka sem padají poražení
             }
-            print(f"DEBUG: Přidávám dohrávku {bracket_name}, aktualní stav: {self.placement_rounds}")
+
+            # Pokud má tento dohrávkový blok 2 nebo více zápasů (např. 4 a více hráčů)
+            # rovnou dopředu předpřipravíme i pod.pavouky (pro vítěze a poražené)
+            if placement_match_count >=2:
+                self._pregenerate_sub_brackets_recursive(low=start_rank,high=end_rank,match_count=placement_match_count,source_main_round=round_num)
 
 
-        if len(advancing_players) ==1:
-            self.winner = advancing_players[0]
-            return []
+            print(f"DEBUG: Vygenerována slotová struktura dohrávky {bracket_name} pro poražené z hlavního kola #{round_num}.")
 
-        next_round_matches = []
+    def move_loser_to_placement_bracket(self, finished_match, round_num: int, match_index: int, tournament) -> None:
+        """
+        Vezme poraženého z dohraného zápasu hlavního pavouka a posune ho do správného slotu
+        v odpovídajícím dohrávkovém pavouku podle kola, ve kterém vypadl.
+        """
+        # 1. Zkontrolujeme, zda vůbec máme nějaké dohrávky aktivní/předpřipravené
+        print(f"DEBUG: Hledám bracket pro source_main_round={round_num}. Dostupné v placement_rounds: {[d.get('source_main_round') for d in self.placement_rounds.values()]}")
+        if not self.placement_rounds:
+            return
 
+        # 2. Určíme poraženého z právě dohraného zápasu hlavního kola
+        # (pokud nějaký hráč chybí -např. BYE, poražený neexistuje)
+        if finished_match.player_A is None or finished_match.player_B is None:
+            return
 
+        loser = finished_match.player_B if finished_match.winner == finished_match.player_A else finished_match.player_A
+        if loser is None:
+            return
 
-        for i in range(0,len(advancing_players),2):
-            match= Match(
-                player_a=advancing_players[i],
-                player_b=advancing_players[i+1] if i+1 <len(advancing_players) else None,
-                match_format=self.match_format,
-                tournament_stage=self.stage_name,
-                match_id=tournament.get_next_match_id()
-            )
-            next_round_matches.append(match)
+        # 3. Najdeme správný dohrávkový bracket, který odpovídá aktuálnímu kolu hlavního pavouka
+        for bracket_name, bracket_data in self.placement_rounds.items():
+            if bracket_data.get("source_main_round") == round_num:
+                placement_matches = bracket_data["matches"]
 
+                # Výpočítáme index zápasu a pozici (A/B) v dohrávce stejně jako v hlavním pavouku
+                target_match_index = match_index // 2
+                target_slot_position = "A" if match_index % 2 == 0 else "B"
 
-        return next_round_matches
+                if target_match_index < len(placement_matches):
+                    target_item = placement_matches[target_match_index]
+
+                    # Pokud je v dohrávce na daném indexu stále slot (tuple) dosadíme poraženého
+                    if isinstance(target_item, tuple):
+                        slot_a, slot_b = target_item
+                        if target_slot_position == "A":
+                            slot_a = loser
+                        else:
+                            slot_b = loser
+
+                        # Využijeme existující metodu, která zkontroluje, oba poražené a případně vytvoří Match
+                        resolved = self._resolve_slot_pair_to_match(slot_a=slot_a,slot_b=slot_b,tournament=tournament)
+                        placement_matches[target_match_index] = resolved
+                    elif isinstance(target_item,Match):
+                        if target_slot_position == "A":
+                            target_item.player_A = loser
+                        else:
+                            target_item.player_B = loser
 
     def move_winner_to_next_round(self,finished_match, round_num: int,match_index: int, tournament) -> None:
         """
@@ -162,52 +197,8 @@ class Playoff:
         if len(results["losers"]) >= 1:
             self._create_sub_bracket(bracket_name,results["losers"], "losers",tournament)
 
-    def generate_slotted_bracket(self,groups: dict,tournament,) -> list:
-        """
-        Vygeneruje strukturu prvního kola složenou čistě ze slotů("1A", "2B" apod).
-        Funguje jako nezáslislá šablona pavouka pro budoucí nasazení hráčů.
-        """
-        # 1. Získáme surové sloty ze všech skupin
-        all_slots = self._generate_slots(groups=groups, advance_per_group=tournament.advance_per_group)
 
-        # 2.Využijeme dedikovanou metodu pro výpočet BYE podle počtu slotů
-        number_of_byes = self._calculating_byes(len(all_slots))
 
-        # 3. Oddělíme vítěze/první místo (začínající "1") jako prioritní pro BYE
-        group_first = [slot for slot in all_slots if slot.startswith("1")]
-        other_slots = [slot for slot in all_slots if not slot.startswith("1")]
-
-        #4. waiting room pro volné losy
-        waiting_room = group_first[:number_of_byes]
-        if len(waiting_room) < number_of_byes:
-            remaining_needed = number_of_byes - len(waiting_room)
-            waiting_room.extend(other_slots[:remaining_needed])
-
-        waiting_set = set(waiting_room)
-        slots_to_match = [s for s in all_slots if s not in waiting_set]
-
-        # 5. Spárování zbývajícíh slotů
-        paired_slots = []
-        for i in range(len(slots_to_match) // 2):
-            slot_a = slots_to_match[i]
-            slot_b = slots_to_match[len(slots_to_match)-1-i]
-            paired_slots.append((slot_a,slot_b))
-
-        paired_slots = self._reorder_matches_for_spread(paired_slots)
-
-        #6. Umístění BYE dvojic (slot,None) na okraje pavouka
-        bye_top = []
-        bye_bottom = []
-
-        for i, slot in enumerate(waiting_room):
-            bye_pair = (slot, None)
-            if i % 2 == 0:
-                bye_top.append(bye_pair)
-            else:
-                bye_bottom.append(bye_pair)
-
-        final_bracket_structure = bye_top + paired_slots + bye_bottom
-        return final_bracket_structure
 
     def update_slots_with_players(self,group_name: str, advancing_players: list, tournament) ->None:
         """
@@ -256,49 +247,52 @@ class Playoff:
         Zkontroluje stav aktuálního kola hlavního poavouka i všech dohrávek
         a v případě dohrání automaticky vygeneruje kolo následující.
         """
-        #kontrola hlavního pavouka
-        current_matches = self.rounds.get(self.current_round_number,[])
         main_advance = False
-        # Porjdeme zápasy aktualního kola a průběžně posouváme vítěze do dalšího kola
-        for idx, match in enumerate(current_matches):
-            if match.is_finished and match.winner is not None:
-                self.move_winner_to_next_round(
-                    finished_match=match,
-                    round_num=self.current_round_number,
-                    match_index=idx,
-                    tournament=tournament
-                )
 
-        # Kontrola, zda jsou hotové věechny zápasy aktuálního kola
-        if current_matches and all(m.is_finished for m in current_matches):
-            next_round_num = self.current_round_number + 1
-            # Pokud existuje další kolo, vygenerujeme ho /posuneme se
-            if next_round_num in self.rounds:
-                # Pokud ještě nemáme v dalším kole vytvořené zápasy(nebo to jsou jen tuplové sloty,
-                # které se nepřevedly), zavoláme generate_next_round
-                self.current_round_number = next_round_num
-                main_advance = True
-            else:
-                # Pokud další kolo neexistuje, znamená to, právě skončilo finále
-                # vytáhneme vítěze z posledního zápasu finále.
-                if len(current_matches) == 1:
-                    self.winner = current_matches[0].winner
+        main_rounds = sorted([r for r in self.rounds.keys() if isinstance(r, int)])
+
+        # Projdeme zápasy  aktuálního kola hlavního pavouka
+        for round_num in main_rounds:
+            matches = self.rounds[round_num]
+
+            for idx,match in enumerate(matches):
+                if isinstance(match, Match) and match.is_finished and  match.winner is not None:
+                    # A) Standartní posun vítěze do dalšího kola hlavního pavouka
+                    self.move_winner_to_next_round(
+                        finished_match=match,
+                        round_num=round_num,
+                        match_index=idx,
+                        tournament=tournament
+                    )
+                    print(f"DEBUG: Akce v playoff je: '{self.playoff_elimination_action}'")
+
+                    # B) Pokud jsme v prvního kole a hrajeme dohrávky, pošleme poraženého do dohrávkového slotu!
+                    if round_num == 1 and  self.playoff_elimination_action == "consolation":
+                        self.move_loser_to_placement_bracket(
+                            finished_match=match,
+                            round_num=round_num,
+                            match_index=idx,
+                            tournament=tournament
+                    )
+        # 2. Kontrola, zda skončilo finále (poslední kolo má už jen jeden zápas)
+        for round_num, matches in self.rounds.items():
+            if isinstance(round_num, int) and len(matches) ==1:
+                if isinstance(matches[0], Match) and matches[0].is_finished and matches[0].winner is not None:
+                    self.winner = matches[0].winner
                     print(f"DEBUG: Turnaj má celkového vítěze: {self.winner}")
 
-
-        #Kontrola dohrávky
-        print(f"DEBUG: Počet placement_rounds: {len(self.placement_rounds)}")
+        # 3. Kontrola stavu zápasů v dohrávkách (placement rounds)
         keys_to_process = [bracket_name for bracket_name in self.placement_rounds.keys()]
         for bracket_name in keys_to_process:
             data = self.placement_rounds[bracket_name]
             matches = data["matches"]
 
-            for m in matches:
-                print(f"DEBUG: Zápas ID {m.match_id} je hotov: {m.is_finished}")
+            # Filtrujeme jen reálné Match objekty (ignorujeme nevyplněné sloty)
+            real_matches = [m for m in matches if isinstance(m, Match)]
 
-
-            if all(m.is_finished for m in matches):
-                print(f"DEBUG: Všechny zápasy v {bracket_name} jsou hotové, zpracovávám...")
+            # Pokud už máme vytvořené zápasy a všechny jsou hotové
+            if real_matches and all(m.is_finished for m in real_matches) and not data["processed"]:
+                print(f"DEBUG: Všechny zápasy v dohrávce {bracket_name} jsou hotové, zpracovávám.. ")
                 self.process_placement_bracket(bracket_name=bracket_name,tournament=tournament)
                 data["processed"] = True
 
@@ -349,19 +343,22 @@ class Playoff:
         return placement_losers
 
     def get_sorted_placement_rounds(self):
-        return sorted(self.placement_rounds.items(), key=lambda x: x[1]["ranks"][0],reverse=True)
+        return sorted(self.placement_rounds.items(), key=lambda x: (x[1]["ranks"][1]-x[1]["ranks"][0], x[1]["ranks"][0]),
+                      reverse=True)
 
-    def generate_full_bracket_structure(self,groups: dict, tournament) -> None:
+    def generate_full_bracket_structure(self,groups: dict, advance_per_group: int, seeding_engine) -> None:
         """
         Vygeneruje strukturu celého pavouka:
         - 1. kolo zůstává jako slotové n-tice (čekájící na dohrání skupin a převod na Match).
         - 2. a další kolo se generují jako prázdné objekty Match s navázanými vazbami pro postup vítězů.
         """
-        import math
-        # KROK 1: vytvoříme první kolo pavouka podle metody generate_slotted_bracket
-        slot_structure = self.generate_slotted_bracket(groups=groups, tournament=tournament)
-        self.rounds[1] = slot_structure
+        # KROK 1: vytvoříme první kolo pavouka podle metody build_first_round
 
+        slot_structure = seeding_engine.build_first_round(
+            groups=groups,
+            advance_per_group=advance_per_group
+        )
+        self.rounds[1] = slot_structure
 
         #  KROK 2:Spočítáme celkový počet kol podle velikosti 1.kola
         total_matches_in_round = len(slot_structure)
@@ -387,25 +384,50 @@ class Playoff:
                 # Vytvoříme slotovnou n-tici pro budoucí zápas
                 next_round_slots.append(("Čeká se..", "Čeká se.."))
 
-            self.rounds[r] = next_round_slots
+                self.rounds[r] = next_round_slots
+        print(f"DEBUG: počet kol v pavouku: {self.rounds}")
+        # KROK 4: vytvoříme slotovou dohrávku
+        if self.playoff_elimination_action == "consolation":
+            self.generate_placement_bracket_structure()
 
 
-
-    # ==========================================
-    # INTERNÍ POMOCNÉ METODY (PRIVÁTNÍ)
-    # ==========================================
-
-    def _calculating_byes(self, total_slots: int) -> int:
+    def _pregenerate_sub_brackets_recursive(self,low: int, high: int,match_count: int,source_main_round: int) -> None:
         """
-        Spočítá počet potřebných volných lusů(BYE) bez nutnosti znát hráče.
+        Rekursivně předpřipraví všechny pod-pavouky dohlubokých pater dohrávek
+        (např. z 9-16 -> 9-12 a 13-16, z toho dál na 9-10, 11-12 atd).
         """
-        size_of_bracket = 2
+        if match_count <2:
+            return
 
-        while size_of_bracket < total_slots:
-            size_of_bracket *= 2
+        mid= (low + high) // 2
+        sub_match_count = max(1,match_count // 2)
 
-        return size_of_bracket - total_slots
+        # 1.vštvovité pod-sloty pro vítěze (horní polovina)
+        w_low, w_high = low, mid
+        w_name = f"{w_low}-{w_high}"
+        if w_name not in self.placement_rounds:
+            self.placement_rounds[w_name] = {
+                "ranks": (w_low, w_high),
+                "matches": [("Čeká se..","Čeká se..") for _ in range(sub_match_count)],
+                "processed": False,
+                "source_main_round": source_main_round
+            }
+            # Rekursivní sestup pro ještě hlubší patra (pokud je co štěpit)
+            self._pregenerate_sub_brackets_recursive(low=w_low,high=w_high,match_count=sub_match_count, source_main_round= source_main_round)
 
+        # 2. Větvovité= pod-sloty pro poražené (dolní polovina)
+        l_low, l_high = mid + 1, high
+        l_name = f"{l_low}-{l_high}"
+
+        if l_name not in self.placement_rounds:
+            self.placement_rounds[l_name] = {
+                "ranks": (l_low,l_high),
+                "matches":[("Čeká se..","Čeká se..") for _ in range(sub_match_count)],
+                "processed": False,
+                "source_main_round": source_main_round
+            }
+            # Rekursivní sestup pro dolní větev
+            self._pregenerate_sub_brackets_recursive(low=l_low,high=l_high,match_count=sub_match_count,source_main_round= source_main_round)
 
     def _resolve_slot_pair_to_match(self, slot_a, slot_b,tournament):
         """
@@ -471,9 +493,19 @@ class Playoff:
         """
         Pomocná metoda pro sběr vítězů a poražených z předchozích zápasů.
         """
+        winners = []
+        losers = []
+
+        for m in matches:
+            if isinstance(m,Match) and m.is_finished and m.winner is not None:
+                winners.append(m.winner)
+                # Bezpečně dopočítáme poraženého
+                if m.player_A is not None and m.player_B is not None:
+                    loser = m.player_B if m.winner == m.player_A else m.player_A
+                    losers.append(loser)
         return {
-            "winners": [m.winner for m in matches if m.winner is not None],
-            "losers": [m.loser for m in matches if m.loser is not None]
+            "winners": winners,
+            "losers": losers
         }
 
     def _create_sub_bracket(self,parent_name: str,players: list,side: str,tournament) -> None:
@@ -508,13 +540,15 @@ class Playoff:
             bracket_players.append(None)
 
         sub_matches = self._create_placement_bracket_matches(bracket_players,tournament=tournament)
-
+        #Zjistíme source_main_round  z rodičovkého bracketu
+        parent_source_round= self.placement_rounds[parent_name].get("source_main_round")
 
         # Vytvoření nového bracketu v placement_rounds
         self.placement_rounds[new_name]= {
             "ranks": new_ranks,
             "matches": sub_matches,
-            "processed": False
+            "processed": False,
+            "source_main_round": parent_source_round
         }
         print(f"DEBUG: Vytvořen pod-pavout {new_name} pro {side}")
 
@@ -535,41 +569,5 @@ class Playoff:
 
 
             print(f"DEBUG: Dohrávka {bracket_name} byla uspěšně finalizována.")
-
-    def _reorder_matches_for_spread(self,items: list) -> list:
-        """
-        Chytře přeuspořádá zápavy v prvním kole, aby se top hráči nepotkali příliš brzo.
-        """
-        if len(items)<4:
-            return items
-
-        half = len(items) // 2
-        top_half = items[:half]
-        bottom_half = items[half:]
-        bottom_half.reverse()
-
-        reordered = []
-        for j in range(max(len(top_half), len(bottom_half))):
-            if j < len(top_half):
-                reordered.append(top_half[j])
-            if j < len(bottom_half):
-                reordered.append(bottom_half[j])
-
-            # Prohození v blocích
-            for i in range(2, len(reordered) - 1, 4):
-                if i + 1 < len(reordered):
-                    reordered[i], reordered[i + 1] = reordered[i + 1], reordered[i]
-        return reordered
-
-
-    def _generate_slots(self,groups: dict,advance_per_group: int,start_from: int = 1) -> list:
-        list_of_slots = []
-
-        for group_name in groups:
-            for num in range(start_from,start_from+advance_per_group):
-                list_of_slots.append(f"{num}{group_name}")
-
-        return list_of_slots
-
 
 
