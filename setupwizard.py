@@ -29,7 +29,7 @@ class SetupWizard:
 
         #playoff
         self.playoff_match_format = PLAYOFF_RULES["playoff_match_format"][3]
-        self.playoff_elimination_actions = PLAYOFF_RULES["elimination_actions"]["consolation"]
+        self.playoff_elimination_action = PLAYOFF_RULES["elimination_actions"]["consolation"]
 
 
     @property
