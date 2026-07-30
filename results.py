@@ -1,4 +1,5 @@
 from group import Group
+from match import Match
 
 class Results:
     """
@@ -49,19 +50,21 @@ class Results:
             bracket_data = placement_branch[key]
             matches = bracket_data.get("matches", [])
 
+
             parts = key.split("-")
             # Zjistíme, jeslti klíč představuje přesně dvě sousední pozice (např. 3,4)
             if len(parts) == 2 and len(matches) == 1:
                 match = matches[0]
-                print(f"DEBUG RESULTS: Zápas pro '{key}' - hotovo: {match.is_finished}, vítěz: {match.winner}")
+                if isinstance(match, Match):
+                    print(f"DEBUG RESULTS: Zápas pro '{key}' - hotovo: {match.is_finished}, vítěz: {match.winner}")
 
-                if match.is_finished and match.winner:
-                    winner = match.winner
-                    loser = match.player_B if match.winner == match.player_A else match.player_A
+                    if match.is_finished and match.winner:
+                        winner = match.winner
+                        loser = match.player_B if match.winner == match.player_A else match.player_A
 
-                    self.ranking.append({"name": winner.name, "place": parts[0]})
-                    if loser:
-                        self.ranking.append({"name": loser.name, "place": parts[1]})
+                        self.ranking.append({"name": winner.name, "place": parts[0]})
+                        if loser:
+                            self.ranking.append({"name": loser.name, "place": parts[1]})
             else:
                 print(f"DEBUG RESULTS: Klíč '{key}' nesplnil podmínku (parts={len(parts)}, matches={len(matches)})")
 
