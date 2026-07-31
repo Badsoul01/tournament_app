@@ -148,31 +148,38 @@ def update_match():
         return redirect("/")
     if request.method == "POST":
         action = request.form.get("action")
-        if action == "go_to_playoff":
-            active_tournament.check_stage_progression()
-            return redirect("/playoff")
-
         match_id = int(request.form.get("match_id"))
-        games_a = request.form.getlist("game_a[]")
-        games_b = request.form.getlist("game_b[]")
+        # Zpracování přepnutí stavu rozkliknutí
+        if action == "toggle_progress":
+            for group_name, matches in active_tournament.group_stage.group_matches.items():
+                for match in matches:
+                    if match.match_id == match_id:
+                        match.toggle_in_progress()
+                        break
+            return redirect("/groups")
 
-        played_sets =[]
-        for a,b in zip(games_a,games_b):
-            if a != "" and b != "":
-                played_sets.append((int(a),int(b)))
+        # Zpracování výsledku
+        if action == "submit_result":
+            games_a = request.form.getlist("game_a[]")
+            games_b = request.form.getlist("game_b[]")
+
+            played_sets =[]
+            for a,b in zip(games_a,games_b):
+                if a != "" and b != "":
+                    played_sets.append((int(a),int(b)))
 
 
-        found_match = None
+            found_match = None
 
-        for group_name,matches in active_tournament.group_stage.group_matches.items():
-            for match in matches:
-                if match.match_id == match_id:
-                    found_match =match
-                    break
+            for group_name,matches in active_tournament.group_stage.group_matches.items():
+                for match in matches:
+                    if match.match_id == match_id:
+                        found_match =match
+                        break
 
-        if found_match:
-            found_match.evaluate_match(played_sets)
-            active_tournament.check_stage_progression()
+            if found_match:
+                found_match.evaluate_match(played_sets)
+                active_tournament.check_stage_progression()
 
         return redirect("/groups")
 
@@ -188,8 +195,33 @@ def playoff_view():
 
     if request.method == "POST":
         action= request.form.get("action")
-        if action == "submit_result":
-            match_id = int(request.form.get("match_id"))
+        match_id = int(request.form.get("match_id"))
+
+        if action == "toggle_progress":
+            current_playoff = active_tournament.branches["main"]
+            found_match = None
+
+            # Hledáme v kolech playoff
+            for round_num, matches in current_playoff.rounds.items():
+                found_match = next((m for m in matches if isinstance(m, Match) and m.match_id == match_id), None)
+                if found_match:
+                    break
+
+            if not found_match:
+                for bracket_name in current_playoff.placement_rounds:
+                    matches = current_playoff.placement_rounds[bracket_name]["matches"]
+                    found_match = next((m for m in matches if isinstance(m, Match) and m.match_id == match_id), None)
+                    if found_match:
+                        break
+
+            if found_match:
+                found_match.toggle_in_progress()
+
+            return redirect("/playoff")
+
+
+
+        if action == "submit_results":
             games_a = request.form.getlist("game_a[]")
             games_b = request.form.getlist("game_b[]")
 
