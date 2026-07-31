@@ -100,11 +100,11 @@ class Playoff:
         # 2. Určíme poraženého z právě dohraného zápasu hlavního kola
         # (pokud nějaký hráč chybí -např. BYE, poražený neexistuje)
         if finished_match.player_A is None or finished_match.player_B is None:
-            return
-
-        loser = finished_match.player_B if finished_match.winner == finished_match.player_A else finished_match.player_A
-        if loser is None:
-            return
+            loser = None
+        else:
+            loser = finished_match.player_B if finished_match.winner == finished_match.player_A else finished_match.player_A
+            if loser is None:
+                return
 
         # 3. Najdeme správný dohrávkový bracket, který odpovídá aktuálnímu kolu hlavního pavouka
         for bracket_name, bracket_data in self.placement_rounds.items():
@@ -305,6 +305,8 @@ class Playoff:
         # uložíme aktualizované kolo zpět
         self.rounds[1] = updated_round
 
+        self.check_and_proceed(tournament=tournament)
+
     def check_and_proceed(self,tournament) -> bool:
         """
         Zkontroluje stav aktuálního kola hlavního poavouka i všech dohrávek
@@ -500,19 +502,31 @@ class Playoff:
         a pokud ano, vytvoří a vrátí realný Match objekt. Jinak vrací zpět tuple.
         """
 
-        # Slot je vytvořený, pokud to není string( což je "1A" nebo čeká se..") a zároveň to není None
-        is_a_resolved = not isinstance(slot_a, str) and slot_a is not None
-        is_b_resolved = not isinstance(slot_b, str) and slot_b is not None
+        # Slot je vytvořený, pokud to není string( což je "1A" nebo čeká se..")
+        is_a_resolved = not isinstance(slot_a, str)
+        is_b_resolved = not isinstance(slot_b, str)
 
         if is_a_resolved and is_b_resolved:
             # Oba hráči pro další kola jsou známí -> vytvoříme reálný Match!
-            return  Match(
+            match = Match(
                 player_a=slot_a,
                 player_b=slot_b,
                 match_format=self.match_format,
                 tournament_stage=self.stage_name,
                 match_id=tournament.get_next_match_id()
             )
+
+            if slot_b is None and slot_a is not None:
+                match.winner = slot_a
+                match.is_finished = True
+            elif slot_a is None and slot_b is not None:
+                match.winner = slot_b
+                match.is_finished = True
+            elif slot_a is None and slot_b is None:
+                match.is_finished = True
+
+            return match
+
         else:
             return (slot_a, slot_b)
 
