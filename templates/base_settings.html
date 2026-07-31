@@ -60,12 +60,23 @@
 
     <footer style="margin-top: 20px; padding: 10px; border-top: 1px solid #ccc;">
         <form action = "" method="POST" id="wizard_form">
-                {% if "settings_playoff" in request.path%}
-                    {% if wizard.check_readiness %}
+                {% if "settings_playoff" in request.path %}
+                    <!-- Přidány závorky pro explicitní volání metody check_readiness() -->
+                    {% if wizard.check_readiness() %}
                     <button type="submit" name="action" value="next" form="wizard_form">Generovat turnaj</button>
                     {% else %}
                         <button type="button" disabled>Turnaj není připraven</button>
-                        <p style="color: red; font-size: 0.8em;">Zkontroluj, že je turnaj pojmenovaný a všichni hráči jsou rozlosovaní ve skupině.</p>
+
+
+                        <div style="color: #dc3545; font-size: 0.9em; margin-top: 15px;">
+                            <strong>Před vygenerováním turnaje je nutné:</strong>
+                            <ul style="list-style-position: inside; padding-left: 0; margin-top: 5px;">
+                                {% for error in wizard.get_readiness_errors() %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
                     {% endif %}
                 {% else %}
                     <button type="submit" name="action" value="next" form="wizard_form">Uložit a pokračovat</button>
