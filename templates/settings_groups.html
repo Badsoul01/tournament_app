@@ -62,6 +62,19 @@
         </form>
     </fieldset>
     <hr>
+
+    {# --- VÝPOČET STATISTIK --- #}
+    {% set assigned = namespace(count=0) %}
+    {% for players_list in wizard.groups.values() %}
+        {% set assigned.count = assigned.count + players_list|length %}
+    {% endfor %}
+    {% set total_all_players = wizard.players|length + assigned.count %}
+
+    <div>
+        <strong>Celkový počet hráčů:</strong> {{ total_all_players }}<br>
+        <strong>Počet nezařazených hráčů:</strong> {{ wizard.players|length }}
+    </div>
+
     <h3>Seznam hráčů:</h3>
     <ul>
         {% for player in wizard.players %}
@@ -89,24 +102,30 @@
     </ul>
 
     <h3>Skupiny:</h3>
-    <ul>
+    <ul style="list-style-type: none; padding-left: 0;">
         {% for letter,players in wizard.groups.items() %}
-            <p>
-                <strong>Skupina {{ letter}}</strong>
+            <li style="margin-bottom: 15px;">
+                <strong>Skupina {{ letter}} </strong> <small>({{ players|length }})</small>
                 {%if players|length == 0%}
                 <form action="/settings_groups" method="POST" style="display:inline;">
                     <input type="hidden" name="group_letter" value="{{ letter }}">
                     <button type="submit" name="action" value="remove_group">X</button>
                 </form>
                 {%endif%}
-            {% for player in players%}
-                {{ player }}
-                <form action="/settings_groups" method="POST" style="display:inline;">
-                    <input type="hidden" name="player_name" value="{{ player }}">
-                    <button type="submit" name="action" value="remove_player">-</button>
-                </form>
-            {% endfor %}
-            </p>
+
+                <!-- Flexbox kontejner pro zarovnání hráčů do řady -->
+                <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 8px;">
+                {% for player in players%}
+                    <span style="white-space: nowrap;">
+                        {{ player }}
+                        <form action="/settings_groups" method="POST" style="display:inline;">
+                            <input type="hidden" name="player_name" value="{{ player }}">
+                            <button type="submit" name="action" value="remove_player">-</button>
+                        </form>
+                    </span>
+                {% endfor %}
+                </div>
+            </li>
         {% endfor %}
     </ul>
     <form action="/settings_groups" method="POST">
