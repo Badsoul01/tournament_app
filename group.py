@@ -4,6 +4,7 @@ from player import Player
 from match import Match
 
 
+
 class Group:
     """
     Třída zodpovědná za správu skupinové fáze turnaje.
@@ -23,39 +24,39 @@ class Group:
 
     def generate_matches(self,tournament)-> None:
         """
-        Vygeneruje zápasy pro všechny skupiny systémem každý s každým.
-        Vytvoří instance zápasů, přiřadí jim unikátní ID z turnaje a chytře je proháže tak,
-        aby stejný hráč nehrál hned v následujícím zápase.
+        Vygeneruje zápasy pro všechny skupiny spravedlivou kruhovou metodou (round-robin),
+        která zajištuje přirozené pauzy mezi zápasy pro jednotlivé hráče.
         """
         for group_name, players in self.groups.items():
-            pool = []
-            # Projdeme všechny unikátní dvojice hráčů v dané skupině
-            for player_a, player_b in itertools.combinations(players,2):
-                pool.append(Match(player_a=player_a,
-                                     player_b=player_b,
-                                     match_format=self.match_format,
-                                     tournament_stage=self.stage_name,
-                                     match_id=tournament.get_next_match_id()
-                                     ))
+            match_players = list(players)
 
-            # Chytré proházení zápasů (spacing), aby hráči nehráli dvakrát za sebou.
+            # Pokud je lichý počet hráčů, přidáme None (volno /BYE)
+            if len(match_players) % 2 != 0:
+                match_players.append(None)
+
+            n = len(match_players)
+            round_count = n - 1
+            half = n // 2
+
             ordered_matches = []
-            while pool:
-                # Zkusíme najít zápas, ve kterém nehraje nikdo z předchozího zápasu.
-                next_match_idx = 0
-                if ordered_matches:
-                    last_match = ordered_matches[-1]
-                    last_players = {last_match.player_A, last_match.player_B}
+            # Kruhová metoda generování kol
+            for r in range(round_count):
+                for i in range(half):
+                    player_a = match_players[i]
+                    player_b = match_players[n - 1 -i]
 
-                    # hledáme první vhodný zápas, kde se neopakuje žádný hráč
-                    for i, match in enumerate(pool):
-                        if match.player_A not in last_players and match.player_B not in last_players:
-                            next_match_idx = i
-                            break
-
-                chosen_match = pool.pop(next_match_idx)
-                ordered_matches.append(chosen_match)
-
+                    # Pokud nejde o volno (BYE), vytvoříme reálný Match objekt
+                    if player_a is not None and player_b is not None:
+                        ordered_matches.append(
+                            Match(
+                                player_a=player_a,
+                                player_b=player_b,
+                                match_format= self.match_format,
+                                tournament_stage= self.stage_name,
+                                match_id=tournament.get_next_match_id()
+                            )
+                        )
+                match_players = [match_players[0]] + [match_players[-1]] + match_players[1:-1]
 
             self.group_matches[group_name]= ordered_matches
 
