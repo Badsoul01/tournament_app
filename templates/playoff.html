@@ -199,11 +199,13 @@
                                     {% if match.is_finished %}
                                         <!-- STAV 0: Dohráno -->
                                         <div>
-                                            {% if match.player_A.__class__.__name__ == 'Player' %}
+                                            {% if match.player_A is none %}
+                                                <strong>BYE</strong>
+                                            {% elif match.player_A.__class__.__name__ == 'Player' %}
                                                 <strong>{{ match.player_A.name }}</strong>
-                                                {% if match.player_A.group_rank %}<small>({{match.player_A.group_rank}}{{match.player_A.group_name}})</small>{% endif %}
+                                                {% if match.player_A.group_rank %}<small>({{ match.player_A.group_rank}}{{match.player_A.group_name}})</small>{% endif %}
                                             {% else %}
-                                                <strong>{{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
+                                                <strong> {{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
                                             {% endif %}
 
                                             <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
@@ -224,11 +226,13 @@
                                         <!-- STAV 1: Zavřeno -->
                                         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                                             <div>
-                                                {% if match.player_A.__class__.__name__ == 'Player' %}
+                                                {% if match.player_A is none %}
+                                                <strong>BYE</strong>
+                                                {% elif match.player_A.__class__.__name__ == 'Player' %}
                                                     <strong>{{ match.player_A.name }}</strong>
-                                                    {% if match.player_A.group_rank %}<small>({{match.player_A.group_rank}}{{match.player_A.group_name}})</small>{% endif %}
+                                                    {% if match.player_A.group_rank %}<small>({{ match.player_A.group_rank}}{{match.player_A.group_name}})</small>{% endif %}
                                                 {% else %}
-                                                    <strong>{{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
+                                                    <strong> {{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
                                                 {% endif %}
 
                                                 <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
@@ -253,11 +257,13 @@
                                         <!-- STAV 2: Rozkliknuto -->
                                         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
                                             <div>
-                                                {% if match.player_A.__class__.__name__ == 'Player' %}
+                                                {% if match.player_A is none %}
+                                                <strong>BYE</strong>
+                                                {% elif match.player_A.__class__.__name__ == 'Player' %}
                                                     <strong>{{ match.player_A.name }}</strong>
-                                                    {% if match.player_A.group_rank %}<small>({{ match.player_A.group_rank }}{{ match.player_A.group_name }})</small>{% endif %}
+                                                    {% if match.player_A.group_rank %}<small>({{ match.player_A.group_rank}}{{match.player_A.group_name}})</small>{% endif %}
                                                 {% else %}
-                                                    <strong>{{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
+                                                    <strong> {{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
                                                 {% endif %}
 
                                                 <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
@@ -299,12 +305,13 @@
                                     {% set slot_a = match[0] %}
                                     {% set slot_b = match[1] %}
 
-                                    {% if slot_a.__class__.__name__ == 'Player' %}
+                                    {% if slot_a is none %}
+                                        <strong>BYE</strong>
+                                    {% elif slot_a.__class__.__name__ == 'Player'%}
                                         <strong>{{ slot_a.name }}</strong><small>({{ slot_a.group_rank }}{{ slot_a.group_name }})</small>
                                     {% else %}
-                                        <strong>{{ slot_a }}</strong>
+                                        <strong> {{ slot_a }}</strong>
                                     {% endif %}
-
                                     <br>vs<br>
 
                                     {% if slot_b is none %}
