@@ -221,7 +221,7 @@ def playoff_view():
 
 
 
-        if action == "submit_results":
+        if action == "submit_result":
             games_a = request.form.getlist("game_a[]")
             games_b = request.form.getlist("game_b[]")
 
