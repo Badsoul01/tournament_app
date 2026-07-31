@@ -64,6 +64,7 @@ class SetupWizard:
     def add_players(self,names:str):
         players = names.replace("\n",",").split(",")
         added_count = 0
+
         for player in players:
             clear_name = player.strip().title()
 
@@ -225,8 +226,9 @@ class SetupWizard:
         """
         # generování seznamu chyb pro uživatele
         errors = []
-
+        number = self.min_players_per_group
         if not self.name:
+            print(number)
             errors.append("Chybí název turnaje.")
 
         if self.total_groups < self.min_groups:
@@ -241,9 +243,10 @@ class SetupWizard:
 
         for letter, group_players in self.groups.items():
             if len(group_players) < self.min_players_per_group:
-                # Pokud je skupina prázdná (protože se nesmazala kvůli nezařazeným hráčům,
+
+                # Pokud je ve sekupině méně lidí než je povolené množství,
                 # vypíše se klasická chyba o nedostatečném počtu hráčů.
-                errors.append(f" Skupina {letter} má málo hráčů (minimum pro skupinu je {self.min_players_per_group}).")
+                errors.append(f" Skupina {letter} má málo hráčů ({len(group_players)}) (minimum pro skupinu je {self.min_players_per_group}).")
 
         return errors
 
