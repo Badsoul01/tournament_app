@@ -98,7 +98,16 @@ class SeedingEngine:
         """
         # 1. Nasbíráme všechna postupová místa ze všech skupin
         group_names = sorted(groups.keys())
-        num_bracket = len(group_names)
+        num_groups = len(group_names)
+
+        num_bracket = 2
+        while num_bracket <num_groups:
+            num_bracket *= 2
+
+        # Doplníme chybějící sloty pro neexistující skupiny
+        padded_groups = list(group_names)
+        while len(padded_groups) < num_bracket:
+            padded_groups.append(None)
 
         # 1. Vytvoříme prázdné koše (čtvrtiny/poloviny) podle počtu skupin
         buckets = [[] for _ in range(num_bracket)]
@@ -107,11 +116,13 @@ class SeedingEngine:
         for rank in range(1, advance_per_group + 1):
             # Posuneme abecedu o 0,1,2.... pozice
             shift = rank-1
-            rotated_groups = group_names[shift:] + group_names[:shift]
+            rotated_groups = padded_groups[shift:] + padded_groups[:shift]
 
             #Rozdáme hráče do košů
             for i in range(num_bracket):
-                buckets[i].append(f"{rank}{rotated_groups[i]}")
+                g = rotated_groups[i]
+                if g is not None:
+                    buckets[i].append(f"{rank}{g}")
 
         # Každý koš samostatně domplníme o Bye a necháme ATP, at ho spáruje unvitř
         final_matches = []
