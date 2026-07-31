@@ -63,16 +63,24 @@
     </fieldset>
     <hr>
 
-    {# --- VÝPOČET STATISTIK --- #}
-    {% set assigned = namespace(count=0) %}
-    {% for players_list in wizard.groups.values() %}
-        {% set assigned.count = assigned.count + players_list|length %}
-    {% endfor %}
-    {% set total_all_players = wizard.players|length + assigned.count %}
+   <div class="stats-bar">
+    <div class="stat-item">
+        <span class="stat-label">Celkový počet hráčů:</span>
+        <span class="stat-value">{{ wizard.total_tournament_players }}</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label">Počet nezařazených hráčů:</span>
+        <span class="stat-value">{{ wizard.non_classification_players }}</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label">Počet skupin:</span>
+        <span class="stat-value">{{ wizard.total_groups }}</span>
+    </div>
+</div>
 
     <div>
-        <strong>Celkový počet hráčů:</strong> {{ total_all_players }}<br>
-        <strong>Počet nezařazených hráčů:</strong> {{ wizard.players|length }}
+
+
     </div>
 
     <h3>Seznam hráčů:</h3>
@@ -105,7 +113,7 @@
     <ul style="list-style-type: none; padding-left: 0;">
         {% for letter,players in wizard.groups.items() %}
             <li style="margin-bottom: 15px;">
-                <strong>Skupina {{ letter}} </strong> <small>({{ players|length }})</small>
+                <h3>Skupina {{ letter }} <span class="group-count">({{ wizard.total_players_in_group(letter) }})</span></h3>
                 {%if players|length == 0%}
                 <form action="/settings_groups" method="POST" style="display:inline;">
                     <input type="hidden" name="group_letter" value="{{ letter }}">
