@@ -21,6 +21,36 @@
             text-decoration: none;
             color: #333;
         }
+        .group-count {
+            font-size: 0.85em;      /* Zmenší písmo jen trochu (na 85 % velikosti okolního textu) */
+            font-weight: normal;    /* Zruší tučné písmo, které dělá nadpis <h3> - text okamžitě "zhubne" */
+            color: #666;            /* Změní barvu na středně šedou, takže text tolik "neřve" */
+            margin-left: 5px;       /* Udělá drobnou mezeru za názvem skupiny */
+            }
+        .stats-bar {
+            display: flex;
+            flex-wrap: wrap;        /* Na mobilu se to hezky zalamí pod sebe */
+            gap: 20px;              /* Mezery mezi jednotlivými statistikami */
+            background-color: #ffffff; /* Velmi jemné šedé pozadí */
+            padding: 15px;
+            border-radius: 8px;     /* Zakulacené rohy pro moderní vzhled */
+            border: 1px solid #ddd; /* Lehký rámeček */
+            margin-bottom: 25px;
+        }
+
+        .stat-item {
+            font-size: 16px;        /* Normální, neřvoucí velikost písma */
+        }
+
+        .stat-label {
+            color: #000000;            /* Popisek bude šedý, aby tolik nerušil */
+        }
+
+        .stat-value {
+            font-weight: bold;      /* Pouze samotné číslo bude tučné */
+            color: #000;            /* Číslo bude černé, aby vyniklo */
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
