@@ -28,7 +28,12 @@ class Match:
         self.winner: Player | None = None
         self.loser: Player | None = None
         self.is_finished: bool = False
+        self.is_in_progress: bool = False
         self.played_sets: list[tuple[int, int]] = []
+
+    def toggle_in_progress(self) -> None:
+        """ Přepne stav rozkliknutí formuláře pro zápas (True <-> False"""
+        self.is_in_progress = not self.is_in_progress
 
     def evaluate_match(self,played_sets:list[tuple[int,int]]) -> bool:
         """
