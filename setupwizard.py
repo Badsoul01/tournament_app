@@ -175,14 +175,27 @@ class SetupWizard:
         Kontrola zda je vše připraveno pro generování... Vrací true pokud jsou splněny všechny podmínky,jinak False.
         :return:
         """
+        # 1. Smažeme prázdné skupiny jen pokud nejsou žádní nezařazení hráči.
+        if len(self.players) == 0:
+            while True:
+                empty_group = None
+                for letter, players in self.groups.items():
+                    if len(players) == 0:
+                        empty_group = letter
+                        break
+                if empty_group:
+                    self.remove_group(empty_group)
+                else:
+                    break
 
+        # 2. Samotná kotrola:
         if not self.name:
             return False
 
-        if self.total_groups< self.min_groups:
+        if self.total_groups < self.min_groups:
             return False
 
-        if len(self.players)>0:
+        if self.total_players >0:
             return False
 
         for letter,group_players in self.groups.items():
@@ -190,3 +203,44 @@ class SetupWizard:
                 return False
 
         return True
+
+    def get_readiness_errors(self):
+        """
+        Projde podmínky připravenosti a vratí seznam konkrétních chyb.
+        """
+        # Smaže prázdné skupiny, jen pokud nejsou volní hráči.
+        if len(self.players) == 0:
+            while True:
+                empty_group = None
+                for letter,players in self.groups.items():
+                    if len(players) ==0:
+                        empty_group = letter
+                        break
+                if empty_group:
+                    self.remove_group(empty_group)
+                else:
+                    break
+
+        # generování seznamu chyb pro uživatele
+        errors = []
+
+        if not self.name:
+            errors.append("Chybí název turnaje.")
+
+        if self.total_groups < self.min_groups:
+            errors.append(f"Nedostatečný počet skupin (minimum je {self.min_groups}.")
+
+        if self.total_players  > 0:
+            errors.append(f"Máš {self.total_players} nezařazených hráčů (všichni musí být ve skupině).")
+
+        for letter, group_players in self.groups.items():
+            if len(group_players) < self.min_players_per_group:
+                # Pokud je skupina prázdná (protože se nesmazala kvůli nezařazeným hráčům,
+                # vypíše se klasická chyba o nedostatečném počtu hráčů.
+                errors.append(f" Skupina {letter} má málo hráčů (minimum pro skupinu je {self.min_players_per_group}")
+
+        return errors
+
+
+
+
