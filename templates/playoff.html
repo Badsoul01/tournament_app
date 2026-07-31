@@ -285,7 +285,7 @@
                                                 {% for i in range(1, match.match_format | int + 1) %}
                                                     <div class="set-container">
                                                         <span>{{ i }}. set</span>
-                                                        <input type="number" class="match-input" name="game_a[]" min="0" style="width: 40px;">{% if i == 1 %}autofocus{% endif %}> :
+                                                        <input type="number" class="match-input" name="game_a[]" min="0" style="width: 40px;"> :
                                                         <input type="number" class="match-input" name="game_b[]" min="0" style="width: 40px;">
                                                     </div>
                                                 {% endfor %}
