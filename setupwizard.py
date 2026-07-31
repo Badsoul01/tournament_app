@@ -58,9 +58,22 @@ class SetupWizard:
         added_count = 0
         for player in players:
             clear_name = player.strip().title()
-            if clear_name  and clear_name not in self.players:
-                self.players.append(clear_name)
-                added_count += 1
+
+            if not clear_name:
+                continue
+
+            # Kontrola 1: je hráč v neřařazených hráčích?
+            if clear_name in self.players:
+                continue
+
+            # Kontrola 2: je hráč už v nějaké skupině?
+            is_in_any_group = any(clear_name in group_players for group_players in self.groups.values())
+
+            if is_in_any_group:
+                continue
+
+             # Pokud nikde není, přidáme ho
+            self.players.append(clear_name)
 
         return added_count>0
 
