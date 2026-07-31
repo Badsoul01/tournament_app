@@ -63,10 +63,11 @@ class Group:
     def rank_players(self,group_name: str) -> list[Player]:
         """
         Vrátí seřazený seznam hráčů v dané skupině sestupně
-        podle jejich statistik pro aktuální fázi turnaje.
+        podle jejich statistik, včetně vyřešení minitabulek při shodě bodů.
         """
         players = self.groups[group_name]
 
+        # 1. Celkové seřazení hráčů podle standartních globálních statistik (body, sety, míčky)
         sorted_players = sorted(
             players,
             key=lambda p:(
@@ -75,7 +76,26 @@ class Group:
             reverse=True
         )
 
-        return sorted_players
+        matches = self.group_matches.get(group_name, [])
+        final_ranked = []
+
+        # 2.  Sestkupení hráčů, kteří mají shodné primární kritérium (body = první prvek n-tice)
+        # itertools.groupby vyžaduje seřazená data, což sorted_players splňují.
+        for points_key, group_iter in itertools.groupby(
+            sorted_players,
+            key=lambda p: p.get_sorting_stats(stage_name=self.stage_name)[:1]
+        ):
+            subgroup = list(group_iter)
+
+            # Pokud je ve skupince jen 1 hráč, nemá s kým řešit shodu bodů
+            if len(subgroup) == 1:
+                final_ranked.extend(subgroup)
+            else:
+                # Pokud je hráčů více se stejnými body, aplikujeme minitabulku
+                resolved_subgroup = self._resolve_mini_group(subgroup=subgroup, matches=matches)
+                final_ranked.extend(resolved_subgroup)
+
+        return final_ranked
 
     def are_all_matches_played(self,group_name: str) -> bool:
         """
@@ -83,3 +103,69 @@ class Group:
         jinak vrací False.
         """
         return all(match.is_finished for match in self.group_matches[group_name])
+
+    def _resolve_mini_group(self,subgroup: list[Player], matches: list) -> list[Player]:
+        """
+        Vytvoří a vyhodnotí minitabulku ze vzájemných zápasů pro hráče
+        se stejným počtem bodů.
+        """
+        subgroup_set = set(subgroup)
+
+        # 1. Vyfiltrujeme pouze zápasy odehrané POUZE mezi členy této podskupiny, které jsou dohrané
+        relevant_matches = [
+            m for m in matches
+            if m.is_finished and m.player_A in subgroup_set and m.player_B in subgroup_set
+        ]
+        # Pokud neexistují vzájemné zápasy pro každého hráče v podskupině
+        if not relevant_matches:
+            return subgroup
+
+
+        #  Inicializace mini-statistik pro každého hráče v podskupině
+        mini_stats = {p: {"points": 0,"game_diff": 0, "ball_diff": 0} for p in subgroup}
+
+        for match in relevant_matches:
+            pA = match.player_A
+            pB = match.player_B
+
+            games_a_win = 0
+            games_b_win = 0
+            balls_a_total = 0
+            balls_b_total = 0
+
+            for balls_a, balls_b in match.played_sets:
+                balls_a_total += balls_a
+                balls_b_total += balls_b
+
+                if balls_a > balls_b:
+                    games_a_win += 1
+                else:
+                    games_b_win += 1
+
+            # Přičtení setových a míčkových rozdílů
+            mini_stats[pA]["game_diff"] += (games_a_win - games_b_win)
+            mini_stats[pB]["game_diff"] += (games_b_win - games_a_win)
+
+            mini_stats[pA]["ball_diff"] += (balls_a_total - balls_b_total)
+            mini_stats[pB]["ball_diff"] += (balls_b_total - balls_a_total)
+
+            if games_a_win > games_b_win:
+                mini_stats[pA]["points"] += 3
+            elif games_a_win == games_b_win:
+                mini_stats[pA]["points"] += 1
+                mini_stats[pB]["points"] += 1
+            else:
+                mini_stats[pB]["points"] += 3
+
+        # 3.Seřazení podskupiny podle mini-statistik
+        sorted_subgroup = sorted(
+            subgroup,
+            key=lambda p: (
+                mini_stats[p]["points"],
+                mini_stats[p]["game_diff"],
+                mini_stats[p]["ball_diff"]
+            ),
+            reverse=True
+        )
+
+        return sorted_subgroup
