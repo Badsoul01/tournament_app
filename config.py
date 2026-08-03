@@ -15,9 +15,9 @@ GROUPS_RULES = {
         5: "3 vítězné sety"
         },
     "min_players_per_group": 3,
-    "max_players_per_group": 10,
+    "max_players_per_group": 8,
     "min_group": 1,
-    "max_group": 1 if TOURNAMENT_RULES["available_formats"]== "group" else  26,
+    "max_group": 1 if TOURNAMENT_RULES["available_formats"]== "group" else  8,
     "group_creation_options":[1,2,4,6],
     "min_advance_per_group": 1,
     "max_advance_per_group": 4,
