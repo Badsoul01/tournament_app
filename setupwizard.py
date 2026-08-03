@@ -226,9 +226,8 @@ class SetupWizard:
         """
         # generování seznamu chyb pro uživatele
         errors = []
-        number = self.min_players_per_group
+
         if not self.name:
-            print(number)
             errors.append("Chybí název turnaje.")
 
         if self.total_groups < self.min_groups:
