@@ -30,7 +30,6 @@ class SetupWizard:
         self.groups = {}
 
         #playoff
-        self.max_bye_count = PLAYOFF_RULES["max_byes_count"]
         self.players_allowed_to_playoff = PLAYOFF_RULES["players_allowed_to_playoff"]
         self.playoff_match_format = PLAYOFF_RULES["playoff_match_format"][3]
         self.playoff_elimination_action = PLAYOFF_RULES["elimination_actions"]["consolation"]
@@ -52,8 +51,8 @@ class SetupWizard:
 
     @property
     def total_players_advance_to_playoff(self):
-        return self.total_groups*self.advance_per_group
-
+        advance_players = sum(len(group_players[:self.advance_per_group]) for group_players in self.groups.values())
+        return advance_players
 
     def total_players_in_group(self,letter):
         return len(self.groups.get(letter,[]))
@@ -257,7 +256,7 @@ class SetupWizard:
                 errors.append(f" Skupina {letter} má málo hráčů ({len(group_players)}) (minimum pro skupinu je {self.min_players_per_group}).")
 
         if self.total_players_advance_to_playoff not in self.players_allowed_to_playoff:
-            errors.append(f"Počet postupujících ({self.total_players_advance_to_playoff}) nelze nasadit do pavouka s ohledem na maximální počet BYES ({self.max_bye_count}).")
+            errors.append(f"Počet postupujících ({self.total_players_advance_to_playoff}) nelze nasadit do pavouka.")
 
         return errors
 
