@@ -30,6 +30,8 @@ class SetupWizard:
         self.groups = {}
 
         #playoff
+        self.max_bye_count = PLAYOFF_RULES["max_byes_count"]
+        self.players_allowed_to_playoff = PLAYOFF_RULES["players_allowed_to_playoff"]
         self.playoff_match_format = PLAYOFF_RULES["playoff_match_format"][3]
         self.playoff_elimination_action = PLAYOFF_RULES["elimination_actions"]["consolation"]
 
@@ -47,6 +49,10 @@ class SetupWizard:
     @property
     def non_classification_players(self):
         return len(self.players)
+
+    @property
+    def total_players_advance_to_playoff(self):
+        return self.total_groups*self.advance_per_group
 
 
     def total_players_in_group(self,letter):
@@ -203,6 +209,9 @@ class SetupWizard:
             if len(group_players) <self.min_players_per_group:
                 return False
 
+        if self.total_players_advance_to_playoff not in self.players_allowed_to_playoff:
+            return False
+
         return True
 
     def clean_empty_groups(self):
@@ -246,6 +255,9 @@ class SetupWizard:
                 # Pokud je ve sekupině méně lidí než je povolené množství,
                 # vypíše se klasická chyba o nedostatečném počtu hráčů.
                 errors.append(f" Skupina {letter} má málo hráčů ({len(group_players)}) (minimum pro skupinu je {self.min_players_per_group}).")
+
+        if self.total_players_advance_to_playoff not in self.players_allowed_to_playoff:
+            errors.append(f"Počet postupujících ({self.total_players_advance_to_playoff}) nelze nasadit do pavouka s ohledem na maximální počet BYES ({self.max_bye_count}).")
 
         return errors
 
