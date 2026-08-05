@@ -32,8 +32,7 @@ GROUPS_RULES = {
 }
 
 PLAYOFF_RULES = {
-    "max_byes_count" : 4,
-    "players_allowed_to_playoff" : [6,7,8,12,14,15,16,28,32],
+    "players_allowed_to_playoff" : [6,7,8,12,14,15,16,25,26,27,28,29,30,31,32],
     "playoff_match_format":{
         3: "2 vítězné sety",
         5: "3 vítězné sety",
