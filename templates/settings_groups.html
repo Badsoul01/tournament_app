@@ -73,9 +73,14 @@
         <span class="stat-value">{{ wizard.non_classification_players }}</span>
     </div>
     <div class="stat-item">
+        <span class="stat-label">Počet postupujících:</span>
+        <span class="stat-value">{{ wizard.total_players_advance_to_playoff}}</span>
+    </div>
+    <div class="stat-item">
         <span class="stat-label">Počet skupin:</span>
         <span class="stat-value">{{ wizard.total_groups }} / {{ wizard.max_groups}}</span>
     </div>
+
 </div>
 
     <div>
@@ -113,7 +118,7 @@
     <ul style="list-style-type: none; padding-left: 0;">
         {% for letter,players in wizard.groups.items() %}
             <li style="margin-bottom: 15px;">
-                <h3>Skupina {{ letter }} <span class="group-count">({{ wizard.total_players_in_group(letter) }})</span></h3>
+                <h3>Skupina {{ letter }} <span class="group-count">({{ wizard.total_players_in_group(letter) }} / {{ wizard.max_players_per_group}})</span></h3>
                 {%if players|length == 0%}
                 <form action="/settings_groups" method="POST" style="display:inline;">
                     <input type="hidden" name="group_letter" value="{{ letter }}">
