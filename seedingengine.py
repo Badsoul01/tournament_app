@@ -1,3 +1,6 @@
+import group
+
+
 class SeedingEngine:
 
     def __init__(self,tournament_format: str):
@@ -114,13 +117,12 @@ class SeedingEngine:
 
         # 2. Do každého koše jedno písmenko, rotujeme pro každé pořadí
         for rank in range(1, advance_per_group + 1):
-            # Posuneme abecedu o 0,1,2.... pozice
-            shift = rank-1
-            rotated_groups = padded_groups[shift:] + padded_groups[:shift]
 
             #Rozdáme hráče do košů
             for i in range(num_bracket):
-                g = rotated_groups[i]
+                source_index = i ^ ((rank - 1) % num_bracket)
+                g = padded_groups[source_index]
+
                 if g is not None:
                     buckets[i].append(f"{rank}{g}")
 
@@ -130,10 +132,6 @@ class SeedingEngine:
 
         for target_position, bucket_index in enumerate(bucket_order):
             bucket = buckets[bucket_index]
-
-            byes_needed = self._calculating_byes(len(bucket))
-            for _ in range(byes_needed):
-                bucket.append(None)
 
             # ATP nám spáruje prvního s posledním unvitř čtvrtiny
             bucket_matches = self._generate_atp_bracket(bucket)
