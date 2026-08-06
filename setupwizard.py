@@ -25,7 +25,7 @@ class SetupWizard:
         self.max_players_per_group = GROUPS_RULES["max_players_per_group"]
         self.group_match_format = GROUPS_RULES["group_match_format"][2]
         self.advance_per_group = GROUPS_RULES["advance_per_group"][0]
-        self.group_elimination_actions = GROUPS_RULES["elimination_actions"]["playoff_b"]
+        self.group_elimination_action = GROUPS_RULES["elimination_actions"]["playoff_b"]
         self.players = []
         self.groups = {}
 
