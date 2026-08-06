@@ -1,5 +1,3 @@
-from click import confirmation_option
-
 from setupwizard import SetupWizard
 from player import Player
 from group import Group
@@ -74,8 +72,9 @@ class Tournament:
                                                           seeding_engine = engine)
 
         max_group_size = max(len(players) for players in transformed_groups_dict.values())
+        start_rank = int(self.advance_per_group) + 1
         # PLAYOFF_B
-        if self.group_elimination_action == "playoff_b":
+        if self.group_elimination_action == "playoff_b" and start_rank <=max_group_size:
             self.branches["consolation"] = Playoff(
                 qualified_players=[],
                 match_format=self.playoff_match_format,
@@ -91,7 +90,7 @@ class Tournament:
             print(f"DEBUG: Playoff B pro nepostupujícíc bylo vygenerováno.")
 
         #MINIGROUP
-        elif self.group_elimination_action == "minigroup":
+        elif self.group_elimination_action == "minigroup" and start_rank <= max_group_size:
             consolation_players = []
             for group_name in transformed_groups_dict:
                 for rank in range(int(self.advance_per_group)+1, max_group_size+1):
@@ -280,6 +279,30 @@ class Tournament:
                         return False
 
         return True
+
+    def has_active_consolation(self)-> bool:
+        """
+        Vrací True, pokud větev útěchy existuje a reálně obsahuje data/hráče,
+        jinak vrací False
+        """
+        consolation = self.branches.get("consolation")
+        if not consolation:
+            return False
+
+        # Pokud je útěcha typu Group(minitabulka)
+        if isinstance(consolation, Group):
+            for group_name, players in consolation.groups.items():
+                if players:
+                    return True
+            return False
+
+        # Pokud je útěcha typu Playoff
+        elif isinstance(consolation, Playoff):
+            if consolation.rounds:
+                return True
+            return False
+
+        return False
 
     def get_final_ranking(self) -> list[dict]:
         """
