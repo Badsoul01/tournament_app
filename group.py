@@ -68,9 +68,14 @@ class Group:
         """
         players = self.groups[group_name]
 
-        # 1. Celkové seřazení hráčů podle standartních globálních statistik (body, sety, míčky)
+        # 1. Rozdělení: oddělíme reálné hráče a placeholdery
+        real_players = [p for p in players if not isinstance(p, str)]
+        placeholders = [p for p in players if isinstance(p, str)]
+
+
+        # 2. Seřazení: Řadíme pouze reálné hráče (body, sety, míčky)
         sorted_players = sorted(
-            players,
+            real_players,
             key=lambda p:(
                 p.get_sorting_stats(stage_name=self.stage_name)
             ),
@@ -96,6 +101,7 @@ class Group:
                 resolved_subgroup = self._resolve_mini_group(subgroup=subgroup, matches=matches)
                 final_ranked.extend(resolved_subgroup)
 
+        final_ranked.extend(placeholders)
         return final_ranked
 
     def are_all_matches_played(self,group_name: str) -> bool:
