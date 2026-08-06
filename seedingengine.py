@@ -10,14 +10,14 @@ class SeedingEngine:
     # VEŘEJNÉ API (HLAVNÍ METODY)
     # ==========================================
 
-    def build_first_round(self,groups: dict, players: list = None, advance_per_group: int=0) -> list:
+    def build_first_round(self,groups: dict, players: list = None , start_rank: int = 0,end_rank: int=0) -> list:
         """
         Hlavní metoda, která funguje jako vyhybka.
         Podle formátu turnaje rozhodne, jaký matematický algoritmus se použije.
         """
         if self.tournament_format == "groups_and_playoff":
             print(F"DEBUG: POUŽIT GROUPED METODA {self.tournament_format}")
-            return self._generate_grouped_bracket(groups, advance_per_group)
+            return self._generate_grouped_bracket(groups, start_rank=start_rank,end_rank=end_rank)
 
         elif self.tournament_format == "playoff":
             print(F"DEBUG: POUŽIT ATP METODA {self.tournament_format}")
@@ -95,7 +95,7 @@ class SeedingEngine:
             size_of_bracket *= 2
         return size_of_bracket - total_slots
 
-    def _generate_grouped_bracket(self,groups: dict, advance_per_group: int) -> list:
+    def _generate_grouped_bracket(self,groups: dict, start_rank: int, end_rank: int) -> list:
         """
         Připrava pro nový algoritmus
         """
@@ -116,7 +116,7 @@ class SeedingEngine:
         buckets = [[] for _ in range(num_bracket)]
 
         # 2. Do každého koše jedno písmenko, rotujeme pro každé pořadí
-        for rank in range(1, advance_per_group + 1):
+        for rank in range(start_rank, end_rank + 1):
 
             #Rozdáme hráče do košů
             for i in range(num_bracket):
