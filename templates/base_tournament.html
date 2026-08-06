@@ -88,6 +88,16 @@
             <div>
                 <a href="/groups">Základní skupiny</a>
                 <a href="/playoff">Playoff</a>
+                {% if tournament and tournament.branches.get("consolation") %}
+                    <!-- Mini-skupina -->
+                    {% if tournament.branches.get("consolation").__class__.__name__ == "Group" %}
+                        <a href="/consolation_minigroup">Útěcha</a>
+                    {% else %}
+                        <a href="/consolation_playoff">Útěcha</a>
+                    {% endif %}
+                {% endif %}
+
+
                 <a href="/results">Výsledky</a>
             </div>
         </nav>
