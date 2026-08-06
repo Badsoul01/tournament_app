@@ -19,7 +19,7 @@ GROUPS_RULES = {
     "max_players_per_group": 8,
     "min_group": 1,
     "max_group": 1 if TOURNAMENT_RULES["available_formats"]== "group" else  8,
-    "group_creation_options":[1,2,4,6],
+    "group_creation_options":[1,2,3,4,5,6,7,8],
     "min_advance_per_group": 1,
     "max_advance_per_group": 4,
     "advance_per_group":[1,2,3,4],
@@ -32,7 +32,7 @@ GROUPS_RULES = {
 }
 
 PLAYOFF_RULES = {
-    "players_allowed_to_playoff" : [6,7,8,12,14,15,16,25,26,27,28,29,30,31,32],
+    "players_allowed_to_playoff" : [6,7,8,12,13,14,15,16,25,26,27,28,29,30,31,32],
     "playoff_match_format":{
         3: "2 vítězné sety",
         5: "3 vítězné sety",
