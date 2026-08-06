@@ -232,11 +232,6 @@ class Playoff:
                     else:
                         target_item.player_B = loser
 
-
-
-
-
-
     def process_placement_bracket(self,bracket_name: str,tournament) -> None:
         """
         Hlavní řídící metoda pro dohrávky - vyhodnotí aktuální fázi
@@ -260,17 +255,14 @@ class Playoff:
         if len(results["losers"]) >= 1:
             self._create_sub_bracket(bracket_name,results["losers"], "losers",tournament)
 
-
-
-
-    def update_slots_with_players(self,group_name: str, advancing_players: list, tournament) ->None:
+    def update_slots_with_players(self,group_name: str, advancing_players: list, tournament, start_rank: int = 0) ->None:
         """
         Nahradí textové sloty (např. "1A") reálnými objekty hráčů po dohrání skupiny.
         Pokud jsou oba sloty v n-tici zaplněny, vytvoří reálný objekt Match.
         """
         # 1.připravíme si mapování slotů na hráče pro tuto skupiny (např. "1A":Hráč1, "2A":Hráč2)
         slot_mapping = {}
-        for index, player in enumerate(advancing_players):
+        for index, player in enumerate(advancing_players, start=start_rank):
             rank = index + 1
             slot_name = f"{rank}{group_name}"
             slot_mapping[slot_name] = player
@@ -413,7 +405,7 @@ class Playoff:
         return sorted(self.placement_rounds.items(), key=lambda x: (x[1]["ranks"][1]-x[1]["ranks"][0], x[1]["ranks"][0]),
                       reverse=True)
 
-    def generate_full_bracket_structure(self,groups: dict, advance_per_group: int, seeding_engine) -> None:
+    def generate_full_bracket_structure(self,groups: dict, seeding_engine,start_rank: int = 1, end_rank: int=0) -> None:
         """
         Vygeneruje strukturu celého pavouka:
         - 1. kolo zůstává jako slotové n-tice (čekájící na dohrání skupin a převod na Match).
@@ -423,7 +415,8 @@ class Playoff:
 
         slot_structure = seeding_engine.build_first_round(
             groups=groups,
-            advance_per_group=advance_per_group
+            start_rank=start_rank,
+            end_rank=end_rank
         )
         self.rounds[1] = slot_structure
 
