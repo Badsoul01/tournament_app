@@ -109,7 +109,7 @@ class Results:
             placement_branch = playoff_branch.placement_rounds if playoff_branch else {}
             print(f"DEBUG RESULTS: Obsah placement_branch: {list(placement_branch.keys())}")
 
-            sorted_keys = sorted(placement_branch.keys(), key=lambda  k: k.split("-"))
+            sorted_keys = sorted(placement_branch.keys(), key=lambda  k: int(k.split("-")[0]))
 
             for key in sorted_keys:
                 bracket_data = placement_branch[key]
