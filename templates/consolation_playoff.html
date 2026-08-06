@@ -1,0 +1,322 @@
+{% extends "base_tournament.html" %}
+{% block content %}
+
+    <h2>ÚTĚCHA</h2>
+
+
+    <div class="bracket">
+        {% set rounds = tournament.get_playoff_structure_for_web('consolation') %}
+        {% if rounds %}
+            {% for round_num,matches in rounds.items() %}
+
+                <div class="round">
+                    Kolo {{round_num}}
+
+                    {% for match in matches %}
+                        <div class="match">
+                            {# Zjistíme, zda jde o objekt zápasu nebo o slotovou n-tici(tuple) #}
+
+                            {% if match.__class__.__name__ == 'Match' %}
+                                {# ========================================== #}
+                                {# REÁLNÝ ZÁPAS                               #}
+                                {# ========================================== #}
+
+                                {% if match.is_finished %}
+                                    <!-- STAV 0: Zápas je již dohraný -->
+                                    <div>
+                                        {# Hráč A #}
+                                        {% if match.player_A.__class__.__name__ == 'Player' %}
+                                            <strong>{{ match.player_A.name }}</strong>
+                                            {% if match.player_A.group_rank%}<small>({{ match.player_A.group_rank }}{{ match.player_A.group_name }})</small>{% endif %}
+                                        {% else %}
+                                            <strong>{{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
+                                        {% endif %}
+
+                                        <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
+
+                                        {# Hráč B #}
+                                        {% if match.player_B is none %}
+                                            {% if round_num == 1 %}
+                                                <strong>BYE</strong>
+                                            {% else %}
+                                                <strong>Čeká se..</strong>
+                                            {% endif %}
+                                        {% elif match.player_B.__class__.__name__ == 'Player' %}
+                                            <strong>{{ match.player_B.name }}</strong>
+                                            {% if match.player_B.group_rank %}<small>({{ match.player_B.group_rank }}{{ match.player_B.group_name}})</small>{% endif %}
+                                        {% else %}
+                                            <strong> {{ match.player_B if match.player_B else 'Čeká se..'}}</strong>
+                                        {% endif %}
+
+                                        <div style="margin-top: 5px; font-size: 0.9em;">Vítěz: <strong>{{ match.winner.name }}</strong></div>
+                                    </div>
+
+                                {% elif not match.is_in_progress %}
+                                    <!-- STAV 1: ZAVŘENO -> Hráči pod sebou vlevo, tlačítko + vpravo -->
+                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                        <div>
+                                            {# Hráč A #}
+                                            {% if match.player_A.__class__.__name__ == 'Player' %}
+                                                <strong>{{ match.player_A.name }}</strong>
+                                                {% if match.player_A.group_rank%}<small>({{ match.player_A.group_rank }}{{ match.player_A.group_name }})</small>{% endif %}
+                                            {% else %}
+                                                <strong>{{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
+                                            {% endif %}
+
+                                            <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
+
+                                            {# Hráč B #}
+                                            {% if match.player_B is none %}
+                                                {% if round_num == 1 %}
+                                                    <strong>BYE</strong>
+                                                {% else %}
+                                                    <strong>Čeká se..</strong>
+                                                {% endif %}
+                                            {% elif match.player_B.__class__.__name__ == 'Player' %}
+                                                <strong>{{ match.player_B.name }}</strong>
+                                                {% if match.player_B.group_rank %}<small>({{ match.player_B.group_rank }}{{ match.player_B.group_name}})</small>{% endif %}
+                                            {% else %}
+                                                <strong> {{ match.player_B if match.player_B else 'Čeká se..'}}</strong>
+                                            {% endif %}
+                                        </div>
+
+                                        <form action="/consolation_playoff" method="POST" style="margin: 0;">
+                                            <input type="hidden" name="match_id" value="{{ match.match_id }}">
+                                            <button type="submit" name="action" value="toggle_progress"><strong>+</strong></button>
+                                        </form>
+                                    </div>
+
+                                {% else %}
+                                    <!-- STAV 2: ROZKLIKNUTO -> Hráči vlevo, tlačítko - vpravo, sety uprostřed -->
+                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                                        <div>
+                                            {# Hráč A #}
+                                            {% if match.player_A.__class__.__name__ == 'Player' %}
+                                                <strong>{{ match.player_A.name }}</strong>
+                                                {% if match.player_A.group_rank%}<small>({{ match.player_A.group_rank }}{{ match.player_A.group_name }})</small>{% endif %}
+                                            {% else %}
+                                                <strong>{{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
+                                            {% endif %}
+
+                                            <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
+
+                                            {# Hráč B #}
+                                            {% if match.player_B is none %}
+                                                {% if round_num == 1 %}
+                                                    <strong>BYE</strong>
+                                                {% else %}
+                                                    <strong>Čeká se..</strong>
+                                                {% endif %}
+                                            {% elif match.player_B.__class__.__name__ == 'Player' %}
+                                                <strong>{{ match.player_B.name }}</strong>
+                                                {% if match.player_B.group_rank %}<small>({{ match.player_B.group_rank }}{{ match.player_B.group_name}})</small>{% endif %}
+                                            {% else %}
+                                                <strong> {{ match.player_B if match.player_B else 'Čeká se..'}}</strong>
+                                            {% endif %}
+                                        </div>
+
+                                        <form action="/consolation_playoff" method="POST" style="margin: 0;">
+                                            <input type="hidden" name="match_id" value="{{ match.match_id }}">
+                                            <button type="submit" name="action" value="toggle_progress"><strong>-</strong></button>
+                                        </form>
+                                    </div>
+
+                                    {# FORMULÁŘ / VÝSLEDEK #}
+                                    <form action="/consolation_playoff" method="POST" style="display: flex; flex-direction: column; align-items: center;">
+                                        <input type="hidden" name="match_id" value="{{ match.match_id }}">
+
+                                        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
+                                            {% for i in range(1, match.match_format | int + 1) %}
+                                                <div class="set-container">
+                                                    <strong>{{ i }}. set</strong>
+                                                    <input type="number" class="match-input" name="game_a[]" min="0" style="width: 40px;">:
+                                                    <input type="number" class="match-input" name="game_b[]" min="0" style="width: 40px;">
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                        <button type="submit" name="action" value="submit_result">Uložit výsledek</button>
+                                    </form>
+                                {% endif %}
+
+                            {% else %}
+
+                                {# ========================================== #}
+                                {# SLOTOVÁ N-TICE (TUPLE)                      #}
+                                {# ========================================== #}
+                                {% set slot_a = match[0] %}
+                                {% set slot_b = match[1] %}
+
+                                {# Hráč A #}
+                                {% if slot_a.__class__.__name__ == "Player" %}
+                                    <strong>{{ slot_a.name}}</strong><small>({{ slot_a.group_rank}}{{slot_a.group_name}})</small>
+                                {% else %}
+                                    <strong>{{ slot_a }}</strong>
+                                {% endif %}
+
+                                <br>vs<br>
+
+                                {# Hráč B #}
+                                {% if slot_b is none %}
+                                    <strong>BYE</strong>
+                                {% elif slot_b.__class__.__name__ == "Player" %}
+                                    <strong>{{ slot_b.name }}</strong><small>({{ slot_b.group_rank }}{{ slot_b.group_name }})</small>
+                                {% else %}
+                                    <strong>{{ slot_b}}</strong>
+                                {% endif %}
+
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+{% if tournament.branches['consolation'].placement_rounds %}
+        <div class="placement-section">
+
+            <h2> Zápasy o konečné umístění</h2>
+
+            <div class="placement-container">
+                {% for name, data in tournament.branches['consolation'].get_sorted_placement_rounds() %}
+                    <div class="round">
+                        <h3>O {{name}}. místo</h3>
+
+                        {% for match in data.matches %}
+                            <div class="match">
+                                {% if match.__class__.__name__ == 'Match' %}
+                                    {# REÁLNÝ ZÁPAS V UMÍSTĚNÍ #}
+
+                                    {% if match.is_finished %}
+                                        <!-- STAV 0: Dohráno -->
+                                        <div>
+                                            {% if match.player_A is none %}
+                                                <strong>BYE</strong>
+                                            {% elif match.player_A.__class__.__name__ == 'Player' %}
+                                                <strong>{{ match.player_A.name }}</strong>
+                                                {% if match.player_A.group_rank %}<small>({{ match.player_A.group_rank}}{{match.player_A.group_name}})</small>{% endif %}
+                                            {% else %}
+                                                <strong> {{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
+                                            {% endif %}
+
+                                            <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
+
+                                            {% if match.player_B is none %}
+                                                <strong>BYE</strong>
+                                            {% elif match.player_B.__class__.__name__ == 'Player' %}
+                                                <strong>{{ match.player_B.name }}</strong>
+                                                {% if match.player_B.group_rank %}<small>({{ match.player_B.group_rank}}{{match.player_B.group_name}})</small>{% endif %}
+                                            {% else %}
+                                                <strong> {{ match.player_B if match.player_B else 'Čeká se..' }}</strong>
+                                            {% endif %}
+
+                                            <div style="margin-top: 5px; font-size: 0.9em;">Vítěz: <strong>{{ match.winner.name }}</strong></div>
+                                        </div>
+
+                                    {% elif not match.is_in_progress %}
+                                        <!-- STAV 1: Zavřeno -->
+                                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                            <div>
+                                                {% if match.player_A is none %}
+                                                <strong>BYE</strong>
+                                                {% elif match.player_A.__class__.__name__ == 'Player' %}
+                                                    <strong>{{ match.player_A.name }}</strong>
+                                                    {% if match.player_A.group_rank %}<small>({{ match.player_A.group_rank}}{{match.player_A.group_name}})</small>{% endif %}
+                                                {% else %}
+                                                    <strong> {{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
+                                                {% endif %}
+
+                                                <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
+
+                                                {% if match.player_B is none %}
+                                                    <strong>BYE</strong>
+                                                {% elif match.player_B.__class__.__name__ == 'Player' %}
+                                                    <strong>{{ match.player_B.name }}</strong>
+                                                    {% if match.player_B.group_rank %}<small>({{ match.player_B.group_rank}}{{match.player_B.group_name}})</small>{% endif %}
+                                                {% else %}
+                                                    <strong> {{ match.player_B if match.player_B else 'Čeká se..' }}</strong>
+                                                {% endif %}
+                                            </div>
+
+                                            <form action="/consolation_playoff" method="POST" style="margin: 0;">
+                                                <input type="hidden" name="match_id" value="{{ match.match_id }}">
+                                                <button type="submit" name="action" value="toggle_progress"><strong>+</strong></button>
+                                            </form>
+                                        </div>
+
+                                    {% else %}
+                                        <!-- STAV 2: Rozkliknuto -->
+                                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                                            <div>
+                                                {% if match.player_A is none %}
+                                                <strong>BYE</strong>
+                                                {% elif match.player_A.__class__.__name__ == 'Player' %}
+                                                    <strong>{{ match.player_A.name }}</strong>
+                                                    {% if match.player_A.group_rank %}<small>({{ match.player_A.group_rank}}{{match.player_A.group_name}})</small>{% endif %}
+                                                {% else %}
+                                                    <strong> {{ match.player_A if match.player_A else 'Čeká se..' }}</strong>
+                                                {% endif %}
+
+                                                <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
+
+                                                {% if match.player_B is none %}
+                                                    <strong>BYE</strong>
+                                                {% elif match.player_B.__class__.__name__ == 'Player' %}
+                                                    <strong>{{ match.player_B.name }}</strong>
+                                                    {% if match.player_B.group_rank %}<small>({{ match.player_B.group_rank }}{{ match.player_B.group_name }})</small>{% endif %}
+                                                {% else %}
+                                                    <strong>{{ match.player_B if match.player_B else 'Čeká se..' }}</strong>
+                                                {% endif %}
+                                            </div>
+
+                                            <form action="/consolation_playoff" method="POST" style="margin: 0;">
+                                                <input type="hidden" name="match_id" value="{{ match.match_id }}">
+                                                <button type="submit" name="action" value="toggle_progress"><strong>-</strong></button>
+                                            </form>
+                                        </div>
+
+                                        <form action="/consolation_playoff" method="POST" style="display: flex; flex-direction: column; align-items: center;">
+                                            <input type="hidden" name="match_id" value="{{ match.match_id }}">
+
+                                            <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
+                                                {% for i in range(1, match.match_format | int + 1) %}
+                                                    <div class="set-container">
+                                                        <span>{{ i }}. set</span>
+                                                        <input type="number" class="match-input" name="game_a[]" min="0" style="width: 40px;"> :
+                                                        <input type="number" class="match-input" name="game_b[]" min="0" style="width: 40px;">
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                            <button type="submit" name="action" value="submit_result">Uložit výsledek</button>
+                                        </form>
+                                    {% endif %}
+
+                                {% else %}
+                                    {# SLOTOVÁ N-TICE #}
+                                    {% set slot_a = match[0] %}
+                                    {% set slot_b = match[1] %}
+
+                                    {% if slot_a is none %}
+                                        <strong>BYE</strong>
+                                    {% elif slot_a.__class__.__name__ == 'Player'%}
+                                        <strong>{{ slot_a.name }}</strong><small>({{ slot_a.group_rank }}{{ slot_a.group_name }})</small>
+                                    {% else %}
+                                        <strong> {{ slot_a }}</strong>
+                                    {% endif %}
+                                    <br>vs<br>
+
+                                    {% if slot_b is none %}
+                                        <strong>BYE</strong>
+                                    {% elif slot_b.__class__.__name__ == 'Player'%}
+                                        <strong>{{ slot_b.name }}</strong><small>({{ slot_b.group_rank }}{{ slot_b.group_name }})</small>
+                                    {% else %}
+                                        <strong> {{ slot_b }}</strong>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
