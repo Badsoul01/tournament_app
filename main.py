@@ -2,9 +2,6 @@ from flask import Flask,render_template,request,redirect,session
 from config import TOURNAMENT_RULES, GROUPS_RULES, PLAYOFF_RULES, STATE_OF_WIZARD
 from setupwizard import SetupWizard
 from tournament import Tournament
-from match import Match
-from group import Group
-from playoff import Playoff
 
 app = Flask(__name__)
 app.secret_key = "Ultra tajny kod"
@@ -13,7 +10,6 @@ active_tournament = None
 @app.route("/")
 def home():
     return render_template("index.html")
-
 
 @app.route("/settings_basic", methods=["GET","POST"])
 def settings_basic():
@@ -40,7 +36,6 @@ def settings_basic():
                            wizard=wizard,
                            all_formats = TOURNAMENT_RULES["available_formats"])
 
-
 @app.route("/settings_groups", methods=["GET","POST"])
 def settings_groups():
     wizard = SetupWizard()
@@ -50,58 +45,13 @@ def settings_groups():
     if request.method == "POST":
         action = request.form.get("action")
         print(f"DEBUG: Přišla akce: {action}")
-        print(f"DEBUG:Form data: {request.form}")
+        print(f"DEBUG: Form data: {request.form}")
 
-        if action == "add_players":
-            player_text = request.form.get("players_text")
-            if player_text:
-                wizard.add_players(player_text)
-
-        if action == "create_groups":
-            count= int(request.form.get("groups_count"))
-            wizard.create_groups(count)
-
-        if action == "assign_players":
-            player_name = request.form.get("player_name")
-            group_letter = request.form.get("group_letter")
-            if player_name and group_letter:
-                wizard.assign_player_to_group(player_name=player_name,group_letter=group_letter)
-
-        if action == "remove_player":
-            player_name = request.form.get("player_name")
-            if player_name:
-                wizard.remove_player(player_name)
-
-        if action == "remove_group":
-            group_letter = request.form.get("group_letter")
-            wizard.remove_group(group_letter)
-
-        if action == "scrap_players":
-            url = request.form.get("scrap_url")
-            if url:
-                wizard.scrapped_url(url)
-
+        wizard.process_form_action(form_data=request.form)
         session["wizard_data"] = wizard.import_to_dict()
-
-        if action == "back":
-            return redirect("/settings_basic")
 
         if action == "next":
-            wizard.group_match_format = request.form.get("group_match_format")
-            value = request.form.get("advance_per_group")
-            if value:
-                print(value)
-                wizard.advance_per_group= int(value)
-            wizard.group_elimination_action = request.form.get("group_elimination_action")
-            wizard.state = STATE_OF_WIZARD[2]
-            wizard.clean_empty_groups()
-            session["wizard_data"] = wizard.import_to_dict()
-
             return redirect("/settings_playoff")
-
-
-        session["wizard_data"] = wizard.import_to_dict()
-
 
     return render_template("settings_groups.html",
                            wizard=wizard,
@@ -143,50 +93,22 @@ def settings_playoff():
                            wizard=wizard,
                            PLAYOFF_RULES=PLAYOFF_RULES)
 
-
 @app.route("/groups", methods=["GET", "POST"])
 def update_match():
     if active_tournament is None:
         return redirect("/")
+
     if request.method == "POST":
-        action = request.form.get("action")
-        match_id = int(request.form.get("match_id"))
-        # Zpracování přepnutí stavu rozkliknutí
-        if action == "toggle_progress":
-            for group_name, matches in active_tournament.group_stage.group_matches.items():
-                for match in matches:
-                    if match.match_id == match_id:
-                        match.toggle_in_progress()
-                        break
-            return redirect("/groups")
-
-        # Zpracování výsledku
-        if action == "submit_result":
-            games_a = request.form.getlist("game_a[]")
-            games_b = request.form.getlist("game_b[]")
-
-            played_games =[]
-            for a,b in zip(games_a,games_b):
-                if a != "" and b != "":
-                    played_games.append((int(a), int(b)))
-
-
-            found_match = None
-
-            for group_name,matches in active_tournament.group_stage.group_matches.items():
-                for match in matches:
-                    if match.match_id == match_id:
-                        found_match =match
-                        break
-
-            if found_match:
-                found_match.evaluate_match(played_games)
-                active_tournament.check_stage_progression()
+        active_tournament.process_match_action(
+           match_id= int(request.form.get("match_id")),
+           action=request.form.get("action"),
+           games_a=request.form.getlist("game_a[]"),
+           games_b=request.form.getlist("game_b[]")
+        )
 
         return redirect("/groups")
 
     return render_template("groups.html",tournament=active_tournament)
-
 
 @app.route("/playoff", methods=["GET","POST"])
 def playoff_view():
@@ -196,67 +118,16 @@ def playoff_view():
     active_tournament.check_stage_progression()
 
     if request.method == "POST":
-        action= request.form.get("action")
-        match_id = int(request.form.get("match_id"))
+        active_tournament.process_match_action(
+            match_id=int(request.form.get("match_id")),
+            action=request.form.get("action"),
+            games_a=request.form.getlist("game_a[]"),
+            games_b=request.form.getlist("game_b[]")
+        )
 
-        if action == "toggle_progress":
-            current_playoff = active_tournament.branches["main"]
-            found_match = None
-
-            # Hledáme v kolech playoff
-            for round_num, matches in current_playoff.rounds.items():
-                found_match = next((m for m in matches if isinstance(m, Match) and m.match_id == match_id), None)
-                if found_match:
-                    break
-
-            if not found_match:
-                for bracket_name in current_playoff.placement_rounds:
-                    matches = current_playoff.placement_rounds[bracket_name]["matches"]
-                    found_match = next((m for m in matches if isinstance(m, Match) and m.match_id == match_id), None)
-                    if found_match:
-                        break
-
-            if found_match:
-                found_match.toggle_in_progress()
-
-            return redirect("/playoff")
-
-
-
-        if action == "submit_result":
-            games_a = request.form.getlist("game_a[]")
-            games_b = request.form.getlist("game_b[]")
-
-            played_games= []
-            for a, b in zip(games_a, games_b):
-                if a != "" and b != "":
-                    played_games.append((int(a), int(b)))
-
-
-            current_playoff = active_tournament.branches["main"]
-            found_match = None
-
-            for round_num,matches in current_playoff.rounds.items():
-                found_match = next((m for m in matches if isinstance(m, Match) and m.match_id == match_id), None)
-                if found_match:
-                    break
-
-            if not found_match:
-                for bracket_name in current_playoff.placement_rounds:
-                    matches = current_playoff.placement_rounds[bracket_name]["matches"]
-                    found_match= next((m for m in matches if  isinstance(m, Match) and m.match_id == match_id),None)
-                    if found_match:
-                        break
-
-            if found_match:
-                found_match.evaluate_match(played_games)
-                print(f"DEBUG: Zápas {match_id} vyhodnocen, volám check_and_proceed()...")
-                current_playoff.check_and_proceed(tournament=active_tournament)
-
-            return redirect("/playoff")
+        return redirect("/playoff")
 
     return render_template("playoff.html",tournament = active_tournament)
-
 
 @app.route("/results")
 def results():
@@ -277,47 +148,18 @@ def reset_settings():
 
     return redirect("settings_basic")
 
-
 @app.route("/consolation_minigroup", methods=["GET", "POST"])
 def consolation_minigroup():
     if active_tournament is None:
         return redirect("/")
 
-    consolation_branch = active_tournament.branches.get("consolation")
-
-    if request.method == "POST" and isinstance(consolation_branch, Group):
-        action = request.form.get("action")
-        match_id = int(request.form.get("match_id"))
-
-        if action == "toggle_progress":
-            for group_name, matches in consolation_branch.group_matches.items():
-                for match in matches:
-                    if match.match_id == match_id:
-                        match.toggle_in_progress()
-                        break
-            return redirect("/consolation_minigroup")
-
-        if action == "submit_result":
-            games_a = request.form.getlist("game_a[]")
-            games_b = request.form.getlist("game_b[]")
-
-            played_games = []
-
-            for a, b in zip(games_a, games_b):
-                if a != "" and b !="":
-                    played_games.append((int(a),int(b)))
-
-            found_match = None
-            for group_name,matches in consolation_branch.group_matches.items():
-                for match in matches:
-                    if match.match_id == match_id:
-                        found_match = match
-                        break
-
-                if found_match:
-                    found_match.evaluate_match(played_games)
-                    # Voláme kontrolu postupu pro celý turnaj
-                    active_tournament.check_stage_progression()
+    if request.method == "POST":
+        active_tournament.process_match_action(
+            match_id=int(request.form.get("match_id")),
+            action=request.form.get("action"),
+            games_a=request.form.getlist("game_a[]"),
+            games_b=request.form.getlist("game_b[]")
+        )
 
         return redirect("/consolation_minigroup")
 
@@ -336,63 +178,13 @@ def consolation_playoff():
     # průběžně kontrolujeme, jestli se nám v turnaji něco neodemklo
     active_tournament.check_stage_progression()
 
-    consolation_branch = active_tournament.branches.get("consolation")
-
-    if request.method == "POST" and isinstance(consolation_branch, Playoff):
-        action = request.form.get("action")
-        match_id = int(request.form.get("match_id"))
-
-        if action == "toggle_progress":
-            found_match = None
-
-            # hledáme v halvních kolech pavouka
-            for round_num, matches in consolation_branch.rounds.items():
-                found_match = next((m for m in matches if isinstance(m, Match) and m.match_id == match_id), None)
-                if found_match:
-                    break
-
-            # hledáme v dohrávkovém pavouku
-            if not found_match:
-                for bracket_name in consolation_branch.placement_rounds:
-                    matches = consolation_branch.placement_rounds[bracket_name]["matches"]
-                    found_match = next((m for m in matches if isinstance(m, Match) and m.match_id == match_id), None)
-                    if found_match:
-                        break
-
-            if found_match:
-                found_match.toggle_in_progress()
-
-            return redirect("/consolation_playoff")
-
-        if action == "submit_result":
-            games_a = request.form.getlist("game_a[]")
-            games_b = request.form.getlist("game_b[]")
-
-            played_games = []
-            for a, b in zip(games_a, games_b):
-                if a !="" and b != "":
-                    played_games.append((int(a),int(b)))
-
-            found_match = None
-            # Hledáme v hlavních kolech pavouka
-            for round_num, matches in consolation_branch.rounds.items():
-                found_match = next((m for m in matches if isinstance(m, Match) and m.match_id == match_id), None)
-                if found_match:
-                    break
-
-            # Hledáme v dohrávkách pavouka
-            if not found_match:
-                for bracket_name in consolation_branch.placement_rounds:
-                    matches = consolation_branch.placement_rounds[bracket_name]["matches"]
-                    found_match = next((m for m in matches if isinstance(m, Match) and m.match_id == match_id), None)
-                    if found_match:
-                        break
-
-            if found_match:
-                found_match.evaluate_match(played_games)
-                print(f"DEBUG: Zápas {match_id} z útěchy vyhodnocen.")
-                # Pokud dohrál zápas v útěše, řekneme konkrétně této větvi, ať vygeneruje další kolo
-                consolation_branch.check_and_proceed(tournament=active_tournament)
+    if request.method == "POST":
+        active_tournament.process_match_action(
+            match_id=int(request.form.get("match_id")),
+            action=request.form.get("action"),
+            games_a=request.form.getlist("game_a[]"),
+            games_b=request.form.getlist("game_b[]")
+        )
 
         return redirect("/consolation_playoff")
 
@@ -401,7 +193,6 @@ def consolation_playoff():
     return render_template("/consolation_playoff.html",
                            tournament = active_tournament,
                            playoff_data= playoff_data)
-
 
 if __name__ == "__main__":
     app.run(debug=True,host="0.0.0.0")
