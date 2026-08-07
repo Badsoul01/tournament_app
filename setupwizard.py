@@ -3,6 +3,7 @@ import requests
 from datetime import date
 
 import group
+import player
 from config import TOURNAMENT_RULES, GROUPS_RULES, PLAYOFF_RULES, STATE_OF_WIZARD
 
 class SetupWizard:
@@ -65,7 +66,6 @@ class SetupWizard:
         else:
             print("Maximální povolené množství skupin.")
 
-
     def add_players(self,names:str):
         players = names.replace("\n",",").split(",")
         added_count = 0
@@ -79,8 +79,6 @@ class SetupWizard:
             # Kontrola 1: je hráč v neřařazených hráčích?
             if clear_name in self.players:
                 continue
-
-
 
             # Kontrola 2: je hráč už v nějaké skupině?
             is_in_any_group = any(clear_name in group_players for group_players in self.groups.values())
@@ -260,6 +258,48 @@ class SetupWizard:
 
         return errors
 
+    def process_form_action(self,form_data):
+        action = form_data.get("action")
+
+        if action == "add_players":
+            player_text = form_data.get("players_text")
+            if player_text:
+                self.add_players(names=player_text)
+
+        elif action == "create_groups":
+            count = int(form_data.get("groups_count"))
+            self.create_groups(count_to_add=count)
+
+        elif action == "assign_players":
+            player_name = form_data.get("player_name")
+            group_letter = form_data.get("group_letter")
+            if player_name and group_letter:
+                self.assign_player_to_group(player_name=player_name,group_letter=group_letter)
+
+        elif action == "remove_player":
+            player_name = form_data.get("player_name")
+            if player_name:
+                self.remove_player(player_name=player_name)
+
+        elif action == "remove_group":
+            group_letter = form_data.get("group_letter")
+            if group_letter:
+                self.remove_group(group_letter=group_letter)
+
+        elif action == "scrap_players":
+            url = form_data.get("scrap_url")
+            if url:
+                self.scrapped_url(url=url)
+
+        elif action == "next":
+            self.group_match_format = form_data.get("group_match_format")
+            value = form_data.get("advance_per_group")
+            if value and value.isdigit():
+                self.advance_per_group = int(value)
+
+            self.group_elimination_action = form_data.get("group_elimination_action")
+            self.state = STATE_OF_WIZARD[2]
+            self.clean_empty_groups()
 
 
 
