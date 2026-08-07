@@ -309,3 +309,77 @@ class Tournament:
         Vrátí konečné počadí turnaje pomocí results_manageru.
         """
         return self.results_manager.compute_final_ranking(self.branches)
+
+    def find_match_and_context(self,match_id: int):
+        """
+        Univerzální metoda pro nalezení zápasu podle ID napříč celým turnajem.
+        Vrací tuple: (nalezený zápas, objekt_fáze_ve_které_se_nachází)
+        """
+        #1. hledání v základních skupinách
+        if hasattr(self,"group_stage") and self.group_stage:
+            for matches in self.group_stage.group_matches.values():
+                for match in matches:
+                    if match.match_id == match_id:
+                        return match, self.group_stage
+
+        #2. Hledíní ve všech dalších větvích(hlavní playoff,útěcha)
+        for branch_name, branch in self.branches.items():
+            if not branch:
+                continue
+
+            # Pokud je to Playoff pavouk(obsahuje rounds a placement_rounds
+            if isinstance(branch, Playoff):
+                for matches in branch.rounds.values():
+                    for match in matches:
+                        if hasattr(match, "match_id") and match.match_id == match_id:
+                            return match, branch
+
+                if hasattr(branch, "placement_rounds") and branch.placement_rounds:
+                    for bracket_data in branch.placement_rounds.values():
+                        for match in bracket_data.get("matches", []):
+                            if hasattr(match, "match_id") and match.match_id == match_id:
+                                return match, branch
+
+            # Pokud je to skupinová fáze (minitabulka)
+            elif isinstance(branch, Group):
+                for matches in branch.group_matches.values():
+                    for match in matches:
+                        if match.match_id == match_id:
+                            return match, branch
+
+        return None, None
+
+    def process_match_action(self,match_id: int, action: str,games_a:list = None, games_b:list = None):
+        """
+        Kompletně zpracuje akci nad zápasem z webu.
+        Najde zápas, přepne stav nebo zapíše výsledek a vyvolá postup do další fáze.
+        """
+        match, branch_context = self.find_match_and_context(match_id=match_id)
+
+        if not match:
+            return
+
+        # Zpracování přepnutí stavu rozkliknutí
+        if action == "toggle_progress":
+            match.toggle_in_progress()
+
+        # Zpracování odeslaného výsledku
+        elif action == "submit_result" and games_a is not None and games_b is not None:
+            played_games = []
+            for a, b in zip(games_a, games_b):
+                if a != "" and b != "":
+                    played_games.append((int(a), int(b)))
+
+            match.evaluate_match(played_sets=played_games)
+
+            # Automaticky zavoláme správnou kontrolu postupu podle toho, kde se zápas nachází
+            if isinstance(branch_context, Playoff):
+                branch_context.check_and_proceed(tournament=self)
+            else:
+                # pro základní skupiny i minitabulky útěchy
+                self.check_stage_progression()
+
+
+
+
+
