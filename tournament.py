@@ -18,7 +18,6 @@ class Tournament:
         self.results_manager = Results()
         self.name: str = setup.name
         self.tournament_format: str = setup.tournament_format
-        self.raw_groups_data: dict = setup.groups
         self.stage: str = "groups"  # Aktualní fáze turnaje (začíná se ve skupinách)
         self.match_counter: int = 1 # počítadlo zápasů
 
@@ -26,7 +25,6 @@ class Tournament:
         self.branches: dict = {
             "main":None,  # Hlavní pavouk playoff
             "consolation":None, # útěcha
-            "placement": {}  # dohrávkové zápasy o kontrétní umístění
         }
 
         #---- Pravidla turnaje načtená ze setupu ----
@@ -36,26 +34,23 @@ class Tournament:
         self.playoff_match_format: str = setup.playoff_match_format
         self.playoff_elimination_action: str = setup.playoff_elimination_action
 
+        # Fyzická stavba turnaje (delegováno na privátní metody)
+        self._build_group_stage(raw_groups=setup.groups)
+        self._build_main_playoff()
+        self._build_consolation()
 
-
-        #Inicializace a transformace skupin
-        transformed_groups_dict = {}
-        for group_name,player_names in self.raw_groups_data.items():
-            player_objects = []
-            for name in player_names:
-                # každému jménu vytvoříme plnohodnotný objekt hráče
-                player_objects.append(Player(name=name))
-            transformed_groups_dict[group_name]=player_objects
-
-        # Vytvoření instance skupinové fáze a vygenerování zápasů
-        self.group_stage = Group(
-            groups_dict=transformed_groups_dict,
+    def _build_group_stage(self,raw_groups: dict) -> None:
+        """Svěří tvorbu skupin a instanci hráčů přímo třídě Group."""
+        self.group_stage = Group.create_from_raw_data(
+            raw_groups_dict=raw_groups,
             match_format=self.group_match_format,
             stage_name="Group"
         )
         self.group_stage.generate_matches(self)
         self.processed_groups: set = set()
 
+    def _build_main_playoff(self) -> None:
+        """Připraví hlavní Playoff a zavoláý seedingEngine pro prvnotní pavouk"""
         self.main_playoff = Playoff(
             qualified_players=[],
             match_format=self.playoff_match_format,
@@ -65,16 +60,21 @@ class Tournament:
         self.branches["main"] = self.main_playoff
 
         engine = SeedingEngine(tournament_format=self.tournament_format)
+        self.main_playoff.generate_full_bracket_structure(
+            groups=self.group_stage.groups,
+            seeding_engine=engine,
+            start_rank=1,
+            end_rank=int(self.advance_per_group)
+        )
 
-        self.main_playoff.generate_full_bracket_structure(groups=transformed_groups_dict,
-                                                          start_rank=1,
-                                                          end_rank=int(self.advance_per_group),
-                                                          seeding_engine = engine)
-
-        max_group_size = max(len(players) for players in transformed_groups_dict.values())
+    def _build_consolation(self) -> None:
+        """Dynamicky vygeneruje větev pro nepostupující ze skupin, pokud je aktivní"""
+        max_group_size = max(len(players) for players in self.group_stage.groups.values())
         start_rank = int(self.advance_per_group) + 1
-        # PLAYOFF_B
-        if self.group_elimination_action == "playoff_b" and start_rank <=max_group_size:
+
+        # PLAYOFF B
+        if self.group_elimination_action == "playoff_b" and start_rank <= max_group_size:
+            engine = SeedingEngine(tournament_format=self.tournament_format)
             self.branches["consolation"] = Playoff(
                 qualified_players=[],
                 match_format=self.playoff_match_format,
@@ -82,27 +82,26 @@ class Tournament:
                 playoff_elimination_action=self.playoff_elimination_action
             )
             self.branches["consolation"].generate_full_bracket_structure(
-                groups=transformed_groups_dict,
+                groups=self.group_stage.groups,
                 seeding_engine=engine,
-                start_rank=int(self.advance_per_group)+1,
-                end_rank= max_group_size
+                start_rank=start_rank,
+                end_rank=max_group_size
             )
-            print(f"DEBUG: Playoff B pro nepostupujícíc bylo vygenerováno.")
+            print(f"DEBUG: Playoff B pro nepostupující bylo vygenerováno.")
 
-        #MINIGROUP
+        # MINIGROUP
         elif self.group_elimination_action == "minigroup" and start_rank <= max_group_size:
             consolation_players = []
-            for group_name in transformed_groups_dict:
-                for rank in range(int(self.advance_per_group)+1, max_group_size+1):
+            for group_name in self.group_stage.groups.keys():
+                for rank in range(start_rank,max_group_size + 1):
                     consolation_players.append(f"{rank}{group_name}")
 
             self.branches["consolation"] = Group(
-                groups_dict={"Útěcha": consolation_players},
+                groups_dict={"Útěcha":consolation_players},
                 match_format=self.group_match_format,
                 stage_name="consolation"
             )
             self.branches["consolation"].generate_matches(self)
-
 
     def get_next_match_id(self) -> int:
         """
@@ -171,71 +170,17 @@ class Tournament:
                 print(f"DEBUG: Nepostupující z {group_name} přidáni do playoff B")
 
             if self.group_elimination_action == "minigroup":
-                matches_to_update = consolation_branch.group_matches.get("Útěcha",[])
-                group_players_list = consolation_branch.groups.get("Útěcha", [])
                 for i, real_player in enumerate(eliminated_players):
                     rank = advance_count + 1 + i
                     placeholder_name = f"{rank}{group_name}"
 
-                    for match in matches_to_update:
-                        if match.player_A == placeholder_name:
-                            match.player_A = real_player
-                        if match.player_B == placeholder_name:
-                            match.player_B = real_player
-
-                    for idx, player_item in enumerate(group_players_list):
-                        if player_item == placeholder_name:
-                            group_players_list[idx] = real_player
-
+                    # elegantní  delegace na třídu Group
+                    consolation_branch.replace_placeholder(
+                        group_name="Útěcha",
+                        placeholder= placeholder_name,
+                        real_player= real_player
+                    )
                 print(f"DEBUG: Nepostupující z {group_name} přidání do minitabulky.")
-
-
-    def get_groups_for_web(self,stage:str = "main")-> dict:
-        """
-        Vrátí slovník skupin a jejich aktuální pořadí ve formátu vhodném pro webové zobrazení.
-        - stage: "main" pro základní skupiny, "consolation" pro útěchovou mini-skupinu.
-        """
-        # Určíme, ze kterého objektu budeme tahat data
-        target_group = None
-
-        if stage == "main":
-            target_group = self.group_stage
-        elif stage == "consolation":
-            branch = self.branches.get("consolation")
-            # Pro útěchu musíme ověřit, že je to opravdu instance Group
-            if isinstance(branch, Group):
-                target_group = branch
-            else:
-                return None
-
-        if not target_group:
-            return None
-
-        # Skládáme slovník bezpečně s ohledem na placeholdery
-        result = {}
-        for name in target_group.groups.keys():
-            web_players = []
-
-            for p in target_group.rank_players(name):
-                # Pokud je to pouze textový zástupce (např. "3A")
-                if isinstance(p, str):
-                    web_players.append({"name": p, "points": 0})
-                # Pokud je to reálný hráč (objekt Player)
-                else:
-                    # Použijeme .get() pro bezpečné vytažení bodů
-                    web_players.append({"name": p.name, "points": p.stats.get("points", 0)})
-
-            result[name] = web_players
-
-        return result
-
-    def get_playoff_structure_for_web(self,branch_key: str="main") -> dict|None:
-        """
-        Vrátí strukturu kol a zápasů pro danou větev playoff (pro vykreslení na webu)
-        -brach_key: Klíč větve (např. "main", "consolation")
-        """
-        playoff = self.branches.get(branch_key)
-        return playoff.rounds if playoff else None
 
     def is_tournament_fully_finished(self) -> bool:
         """
@@ -249,29 +194,29 @@ class Tournament:
             return False
 
         # Projdeme všechny dohrávkové pavouky a zkontrolujeme, zda mají všechny zápasy hotové.
-        if main_playoff and main_playoff.placement_rounds:
-            for key, bracket_data in main_playoff.placement_rounds.items():
-                for match in bracket_data.get("matches",[]):
-                    if isinstance(match, Match) and not match.is_finished:
+        if hasattr(main_playoff,"placement_rounds") and main_playoff.placement_rounds:
+            for bracket_data in main_playoff.placement_rounds.values():
+                for match in bracket_data.get("matches", []):
+                    if hasattr(match,"is_finished") and not match.is_finished:
                         return False
 
         consolation = self.branches.get("consolation")
         # Pokud proměnná obsahuje instanci
         if consolation:
             # pokud se hraje Playoff B (instance Playoff)
-            if isinstance(consolation, Playoff):
+            if hasattr(consolation, "rounds"):
                 # musí být vítěz
                 if not consolation.winner:
                     return False
                 # musí být dohrané dohrávky o umístění
-                if consolation.placement_rounds:
-                    for key, bracket_data in consolation.placement_rounds.items():
+                if hasattr(consolation, "placement_rounds") and consolation.placement_rounds:
+                    for bracket_data in consolation.placement_rounds.values():
                         for match in bracket_data.get("matches", []):
-                            if isinstance(match, Match) and not match.is_finished:
+                            if hasattr(match,"is_finished") and not match.is_finished:
                                 return False
 
             # hraná minitabulka o umístění
-            elif isinstance(consolation,Group):
+            elif hasattr(consolation,"groups"):
                 # Projdeme všechny skupiny v rámci útěchy
                 for group_name in consolation.groups.keys():
                     # Použijeme existující metodu pro kontrolu dohranosti skupin
@@ -279,107 +224,3 @@ class Tournament:
                         return False
 
         return True
-
-    def has_active_consolation(self)-> bool:
-        """
-        Vrací True, pokud větev útěchy existuje a reálně obsahuje data/hráče,
-        jinak vrací False
-        """
-        consolation = self.branches.get("consolation")
-        if not consolation:
-            return False
-
-        # Pokud je útěcha typu Group(minitabulka)
-        if isinstance(consolation, Group):
-            for group_name, players in consolation.groups.items():
-                if players:
-                    return True
-            return False
-
-        # Pokud je útěcha typu Playoff
-        elif isinstance(consolation, Playoff):
-            if consolation.rounds:
-                return True
-            return False
-
-        return False
-
-    def get_final_ranking(self) -> list[dict]:
-        """
-        Vrátí konečné počadí turnaje pomocí results_manageru.
-        """
-        return self.results_manager.compute_final_ranking(self.branches)
-
-    def find_match_and_context(self,match_id: int):
-        """
-        Univerzální metoda pro nalezení zápasu podle ID napříč celým turnajem.
-        Vrací tuple: (nalezený zápas, objekt_fáze_ve_které_se_nachází)
-        """
-        #1. hledání v základních skupinách
-        if hasattr(self,"group_stage") and self.group_stage:
-            for matches in self.group_stage.group_matches.values():
-                for match in matches:
-                    if match.match_id == match_id:
-                        return match, self.group_stage
-
-        #2. Hledíní ve všech dalších větvích(hlavní playoff,útěcha)
-        for branch_name, branch in self.branches.items():
-            if not branch:
-                continue
-
-            # Pokud je to Playoff pavouk(obsahuje rounds a placement_rounds
-            if isinstance(branch, Playoff):
-                for matches in branch.rounds.values():
-                    for match in matches:
-                        if hasattr(match, "match_id") and match.match_id == match_id:
-                            return match, branch
-
-                if hasattr(branch, "placement_rounds") and branch.placement_rounds:
-                    for bracket_data in branch.placement_rounds.values():
-                        for match in bracket_data.get("matches", []):
-                            if hasattr(match, "match_id") and match.match_id == match_id:
-                                return match, branch
-
-            # Pokud je to skupinová fáze (minitabulka)
-            elif isinstance(branch, Group):
-                for matches in branch.group_matches.values():
-                    for match in matches:
-                        if match.match_id == match_id:
-                            return match, branch
-
-        return None, None
-
-    def process_match_action(self,match_id: int, action: str,games_a:list = None, games_b:list = None):
-        """
-        Kompletně zpracuje akci nad zápasem z webu.
-        Najde zápas, přepne stav nebo zapíše výsledek a vyvolá postup do další fáze.
-        """
-        match, branch_context = self.find_match_and_context(match_id=match_id)
-
-        if not match:
-            return
-
-        # Zpracování přepnutí stavu rozkliknutí
-        if action == "toggle_progress":
-            match.toggle_in_progress()
-
-        # Zpracování odeslaného výsledku
-        elif action == "submit_result" and games_a is not None and games_b is not None:
-            played_games = []
-            for a, b in zip(games_a, games_b):
-                if a != "" and b != "":
-                    played_games.append((int(a), int(b)))
-
-            match.evaluate_match(played_sets=played_games)
-
-            # Automaticky zavoláme správnou kontrolu postupu podle toho, kde se zápas nachází
-            if isinstance(branch_context, Playoff):
-                branch_context.check_and_proceed(tournament=self)
-            else:
-                # pro základní skupiny i minitabulky útěchy
-                self.check_stage_progression()
-
-
-
-
-
