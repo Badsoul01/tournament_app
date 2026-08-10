@@ -88,9 +88,9 @@
             <div>
                 <a href="/groups">Základní skupiny</a>
                 <a href="/playoff">Playoff</a>
-                {% if tournament and tournament.has_active_consolation() %}
+                {% if web_manager and web_manager.has_active_consolation() %}
                     <!-- Mini-skupina -->
-                    {% if tournament.branches.get("consolation").__class__.__name__ == "Group" %}
+                    {% if web_manager.get_consolation_type() == "minigroup" %}
                         <a href="/consolation_minigroup">Útěcha</a>
                     {% else %}
                         <a href="/consolation_playoff">Útěcha</a>
