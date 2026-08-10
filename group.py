@@ -21,6 +21,20 @@ class Group:
         # Slovník pro uchování vygenerovaných zápasů pro každou skupinu zvlášť.
         self.group_matches = {key:[] for key in self.groups.keys()}
 
+    @classmethod
+    def create_from_raw_data(cls,raw_groups_dict: dict, match_format: str, stage_name: str):
+        """
+        Tovární metoda: Převezme surová data skupin,
+        sama vyrobí objekty Player a vrátí hotovou instanci Group.
+        """
+        transformed_groups_dict = {}
+        for group_name, player_names in raw_groups_dict.items():
+            player_object = []
+            for name in player_names:
+                player_object.append(Player(name=name))
+            transformed_groups_dict[group_name] = player_object
+
+        return cls(groups_dict=transformed_groups_dict,match_format=match_format,stage_name=stage_name)
 
     def generate_matches(self,tournament)-> None:
         """
@@ -111,6 +125,23 @@ class Group:
         """
         return all(match.is_finished for match in self.group_matches[group_name])
 
+    def replace_placeholders(self,group_name: str, placeholder: str, real_player) -> None:
+        """
+        Nahradí textový zástupce (např. "1A") reálným objektem hráče
+        ve skupině i ve všech jejich vygenerovaných zápasech.
+        """
+        players_list = self.groups.get(group_name,[])
+        for idx, player_item in enumerate(players_list):
+            if player_item == placeholder:
+                players_list[idx] = real_player
+
+        matches = self.group_matches.get(group_name,[])
+        for match in matches:
+            if match.player_A ==  placeholder:
+                match.player_A = real_player
+            if match.player_B == placeholder:
+                match.player_B = real_player
+
     def _resolve_mini_group(self,subgroup: list[Player], matches: list) -> list[Player]:
         """
         Vytvoří a vyhodnotí minitabulku ze vzájemných zápasů pro hráče
@@ -176,3 +207,5 @@ class Group:
         )
 
         return sorted_subgroup
+
+
