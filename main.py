@@ -1,4 +1,5 @@
 from flask import Flask,render_template,request,redirect,session
+from webmanager import WebManager
 from config import TOURNAMENT_RULES, GROUPS_RULES, PLAYOFF_RULES, STATE_OF_WIZARD
 from setupwizard import SetupWizard
 from tournament import Tournament
@@ -6,6 +7,8 @@ from tournament import Tournament
 app = Flask(__name__)
 app.secret_key = "Ultra tajny kod"
 active_tournament = None
+web_manager = None
+
 
 @app.route("/")
 def home():
@@ -83,8 +86,9 @@ def settings_playoff():
             wizard.playoff_match_format = int(request.form.get("playoff_match_format"))
             wizard.playoff_elimination_action = request.form.get("elimination_actions")
             global active_tournament
+            global web_manager
             active_tournament = Tournament(wizard)
-
+            web_manager = WebManager(active_tournament)
             return redirect("/groups")
 
 
@@ -99,7 +103,7 @@ def update_match():
         return redirect("/")
 
     if request.method == "POST":
-        active_tournament.process_match_action(
+        web_manager.process_match_action(
            match_id= int(request.form.get("match_id")),
            action=request.form.get("action"),
            games_a=request.form.getlist("game_a[]"),
@@ -108,7 +112,11 @@ def update_match():
 
         return redirect("/groups")
 
-    return render_template("groups.html",tournament=active_tournament)
+
+    return render_template("groups.html",
+                           tournament=active_tournament,
+                           web_manager=web_manager,
+                           group_data = web_manager.get_groups_for_web("main"))
 
 @app.route("/playoff", methods=["GET","POST"])
 def playoff_view():
@@ -118,7 +126,7 @@ def playoff_view():
     active_tournament.check_stage_progression()
 
     if request.method == "POST":
-        active_tournament.process_match_action(
+        web_manager.process_match_action(
             match_id=int(request.form.get("match_id")),
             action=request.form.get("action"),
             games_a=request.form.getlist("game_a[]"),
@@ -127,26 +135,30 @@ def playoff_view():
 
         return redirect("/playoff")
 
-    return render_template("playoff.html",tournament = active_tournament)
+    return render_template("playoff.html",
+                           tournament = active_tournament,
+                           web_manager=web_manager)
 
 @app.route("/results")
 def results():
     if active_tournament is None:
         return redirect("/")
 
-    ranking = active_tournament.get_final_ranking()
+    ranking = web_manager.get_final_ranking()
     return render_template("results.html",
                            tournament=active_tournament,
+                           web_manager=web_manager,
                            ranking=ranking if ranking else [])
 
 @app.route("/reset_settings", methods=["POST"])
 def reset_settings():
     global active_tournament
+    global web_manager
     session.pop("wizard_data", None)
-
     active_tournament= None
+    web_manager = None
 
-    return redirect("settings_basic")
+    return redirect("/settings_basic")
 
 @app.route("/consolation_minigroup", methods=["GET", "POST"])
 def consolation_minigroup():
@@ -154,7 +166,7 @@ def consolation_minigroup():
         return redirect("/")
 
     if request.method == "POST":
-        active_tournament.process_match_action(
+        web_manager.process_match_action(
             match_id=int(request.form.get("match_id")),
             action=request.form.get("action"),
             games_a=request.form.getlist("game_a[]"),
@@ -164,10 +176,11 @@ def consolation_minigroup():
         return redirect("/consolation_minigroup")
 
     # pokud je to GET požadavek, získáme data pomocí naší nové metody
-    group_data = active_tournament.get_groups_for_web(stage="consolation")
+    group_data = web_manager.get_groups_for_web(stage="consolation")
 
     return render_template("consolation_minigroup.html",
                             tournament= active_tournament,
+                            web_manager=web_manager,
                             group_data = group_data)
 
 @app.route("/consolation_playoff", methods=["POST", "GET"])
@@ -179,7 +192,7 @@ def consolation_playoff():
     active_tournament.check_stage_progression()
 
     if request.method == "POST":
-        active_tournament.process_match_action(
+        web_manager.process_match_action(
             match_id=int(request.form.get("match_id")),
             action=request.form.get("action"),
             games_a=request.form.getlist("game_a[]"),
@@ -189,9 +202,10 @@ def consolation_playoff():
         return redirect("/consolation_playoff")
 
     #Poslání dat pro vykreslení HTML
-    playoff_data = active_tournament.get_playoff_structure_for_web(branch_key= "consolation")
+    playoff_data = web_manager.get_playoff_structure_for_web(branch_key= "consolation")
     return render_template("/consolation_playoff.html",
                            tournament = active_tournament,
+                           web_manager=web_manager,
                            playoff_data= playoff_data)
 
 if __name__ == "__main__":
