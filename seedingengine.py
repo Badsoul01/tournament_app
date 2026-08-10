@@ -190,196 +190,202 @@ class SeedingEngine:
 
         return final_matches
 
-
-    def _generate_smart_grouped_bracket(self,groups: dict, start_rank: int, end_rank: int) -> list:
+    def _generate_smart_grouped_bracket(self,groups:dict,start_rank:int, end_rank:int) -> list:
         """
         lineární/chytrý algoritmus pro nestandartní počty skupin
         Hlídá fixní BYE indexy a zamezuje kolizím v 2.kole.
         """
-        pots = {}
-        group_names = sorted(groups.keys())
-
-        # 1. Sestavení dostupných slotů
-        for group_name in group_names:
-            players = groups[group_name]
-            for rank_idx in range(start_rank, end_rank+1):
-                # Kontrola, zuda skupina má dostatek hráčů pro tento rank
-                if rank_idx - 1 < len(players):
-                    slot_id = f"{rank_idx}{group_name}"
-                    slot_info = {"name": slot_id,"group":group_name,"rank":rank_idx}
-                    pots.setdefault(rank_idx,[]).append(slot_info)
-
+        #1. Rozřazení hráčů do "košů" podle umístění ve skupině
+        pots = self._prepare_pots(groups=groups,start_rank=start_rank,end_rank= end_rank)
+        if not pots:
+            return []
         all_advancing = [slot for pot in pots.values() for slot in pot]
         total_slot_count = len(all_advancing)
-        bracket_size,byes_count = self._get_smart_bracket_config(total_slot_count)
 
-        total_matches = bracket_size //2
-        final_matches = [None] * total_matches
+        # Zjištění velikosti pavouka a počtu BYE
+        bracket_size, byes_count = self._get_smart_bracket_config(total_slot_count)
+        total_matches = bracket_size // 2
 
+        # 2. Určení přesných indexů pro volné losy (BYE)
+        byes_indices = self._get_byes_indices(total_matches,byes_count)
+
+        # 3. Získání nejlepších a nehorších košů pro párování kotev
+        top_rank = min(pots.keys()) if pots else start_rank
+        worst_rank = max(pots.keys()) if pots else start_rank
+        top_pot = pots.get(top_rank, []).copy()
+        worst_pool = pots.get(worst_rank,[]).copy()
+
+        # 4. Kotvení favoritů (A,B,C,D) a nasazení BYE
+        final_matches = self._assign_anchors_and_byes(
+            total_matches=total_matches,
+            byes_indices=byes_indices,
+            top_pot=top_pot,
+            worst_pool= worst_pool
+        )
+
+        # 5. Křížové spárování zbytku (zamezí kolizuím ze stejných skupin)
+        final_matches = self._pair_remaining_slots(
+            final_matches = final_matches,
+            pots = pots,
+            top_rank=top_rank,
+            end_rank=end_rank
+        )
+
+        return final_matches
+
+    def _prepare_pots(self,groups:dict, start_rank: int, end_rank:int) -> dict:
+        """Vyextrahuje hráče ze skupin a rozdělí je do košů (pots) podle umístění."""
+        pots = {}
+        for group_name in sorted(groups.keys()):
+            players = groups[group_name]
+            for rank_idx in range(start_rank,end_rank + 1):
+                # Kontrola, zda má skupina dostatek hráčů pro tento rank
+                if rank_idx -1 < len(players):
+                    slot_info = {"name": f"{rank_idx}{group_name}", "group":group_name, "rank": rank_idx}
+                    pots.setdefault(rank_idx,[]).append(slot_info)
+        return pots
+
+    def _get_byes_indices(self,total_matches: int, bye_count: int) -> list[int]:
+        """Určí, na kterých indexech zápasů budou umísstěny volné losy (BYE) tak, aby byli rovnoměrné."""
         if total_matches == 4:
-            if byes_count == 1:
-                byes_indices = [0]
-            elif byes_count == 2:
-                byes_indices = [0, 3]  # První a poslední zápas (vrchol a dno pavouka)
-
-            else:
-                byes_indices = list(range(byes_count))
+            if bye_count == 1: return [0]
+            if bye_count == 2: return [0,3]
 
         elif total_matches == 8:
-            if byes_count == 1:
-                byes_indices = [0]
-            elif byes_count == 2:
-                byes_indices = [0,7]
-            elif byes_count == 3:
-                byes_indices = [0,3,7]
-            elif byes_count == 4:
-                byes_indices = [0,3,4,7]
-            else:
-                byes_indices = list(range(byes_count))
-        else:
-            byes_indices = list(range(byes_count))
+            if bye_count == 1: return [0]
+            if bye_count == 2: return [0,7]
+            if bye_count == 3: return [0,3,7]
+            if bye_count == 4: return [0,3,4,7]
 
-        # Dynamicky najdeme nejvyšší možný rank v tomto pavouku
-        top_rank =  min(pots.keys()) if pots else start_rank
-        top_pot = pots.get(top_rank, []).copy()
+        return list(range(bye_count))
 
-        worst_rank = max(pots.keys()) if pots else  start_rank
-        worst_pool = pots.get(worst_rank, []).copy()
-
-
+    def _assign_anchors_and_byes(self,total_matches: int, byes_indices: list, top_pot: list, worst_pool: list) -> list:
+        """
+        Pevně ukotví vítěze skupin na kontrétní místa v pavouku (C, D fixně na střřed)
+        Následně k nm přidělí buď BYE, nebo nejslabšího dostupného soupeře.
+        """
+        final_matches = [None] * total_matches
         assigned_slots = {}
+
         # Definice kotevních pozic pro jednotlivé skupiny
-        anchor_map = {
-            "A":0,
-            "B": total_matches -1,
-        }
-        if total_matches >=8:
+        anchor_map = {"A": 0, "B": total_matches-1}
+        if total_matches>=8:
             anchor_map["C"] = 3
             anchor_map["D"] = 4
 
+        # Nasazení favoritů na kotvy
         for group_letter, idx in anchor_map.items():
             if idx >= total_matches:
                 continue
+
             slot_info = next((s for s in top_pot if s["group"] == group_letter), None)
             if slot_info:
                 top_pot.remove(slot_info)
+
                 if idx in byes_indices:
+                    # Favorit dosává BYE
                     assigned_slots[idx] = (slot_info["name"], None)
                 else:
-                    # Spárování s nejhorším dostupným soupěřem z worst_pool
+                    # Spárování s nejhorším dostupným soupeřem z jiné skupiny
                     p2 = next((w for w in worst_pool if w["group"] != group_letter), None)
                     if not p2 and worst_pool:
                         p2 = worst_pool[0]
+
                     if p2:
                         worst_pool.remove(p2)
                         assigned_slots[idx] = (slot_info["name"], p2["name"])
                     else:
                         assigned_slots[idx] = (slot_info["name"], None)
 
-       # Doplnění zbývajících BYE Slotů
+        # 2. Doplění zbýávajících BYE slotů pro případné další vítěze v top koši
         for idx in byes_indices:
             if idx not in assigned_slots and top_pot:
                 slot_info = top_pot.pop(0)
-                assigned_slots[idx] = (slot_info["name"],None)
+                assigned_slots[idx] = (slot_info["name"], None)
 
+        # 3. Zápis  do výsledného pole zápasů
         for idx, match in assigned_slots.items():
-            final_matches[idx]= match
+            final_matches[idx] = match
 
+        return final_matches
+
+    def _pair_remaining_slots(self, final_matches: list, pots: dict, top_rank: int, end_rank: int) -> list:
+        """
+        Doplní volná místa v pavouku. Řeší křížové párování a zamezuje kolizím,
+        aby se hráči ze stejné skupiny nepotkali hned ve 2. kole.
+        """
+        # 1. Evidence už nasazených hráčů (z předchozí kotevní metody)
         used_player_names = set()
         for match in final_matches:
             if match is not None:
-                if match[0]:
-                    used_player_names.add(match[0])
-                if match[1]:
-                    used_player_names.add(match[1])
+                if match[0]: used_player_names.add(match[0])
+                if match[1]: used_player_names.add(match[1])
 
-        # 4. Přípraga zbytku na párování
-        active_pot_1 = [s for s in pots.get(top_rank,[]) if s["name"] not in used_player_names]
-
+        # 2. Vytvoření bazénů volných hráčů
+        active_pot_1 = [s for s in pots.get(top_rank, []) if s["name"] not in used_player_names]
         lower_pool = []
         for rank in range(end_rank, 1, -1):
-            for s in pots.get(rank,[]):
+            for s in pots.get(rank, []):
                 if s["name"] not in used_player_names:
                     lower_pool.append(s)
 
+        # 3. Získání a propletení prázdných slotů (interleaving), abychom pavouka plnili rovnoměrně
+        total_matches = len(final_matches)
         normal_slots = [i for i in range(total_matches) if final_matches[i] is None]
 
         mid = total_matches // 2
         top_normals = [s for s in normal_slots if s < mid]
         bottom_normals = [s for s in normal_slots if s >= mid]
 
-        iterleaved_slots = []
-        for t, b in zip(top_normals,bottom_normals):
-            iterleaved_slots.append(t)
-            iterleaved_slots.append(b)
+        interleaved_slots = []
+        for t, b in zip(top_normals, bottom_normals):
+            interleaved_slots.append(t)
+            interleaved_slots.append(b)
 
-        # kdybychom měli v jedné polovině více  slotů, zbytek připojíme nakonec
+        # Pokud by byla jedna polovina větší (lichý počet volných)
         if len(top_normals) > len(bottom_normals):
-            iterleaved_slots.extend(top_normals[len(bottom_normals):])
-        elif len(bottom_normals)> len(top_normals):
-            iterleaved_slots.extend(bottom_normals[len(top_normals):])
+            interleaved_slots.extend(top_normals[len(bottom_normals):])
+        elif len(bottom_normals) > len(top_normals):
+            interleaved_slots.extend(bottom_normals[len(top_normals):])
 
-
-        # 5. Párování zbývajících slotů s ohledme na kolive ve 2.kole (s ^ 1)
-        for s in iterleaved_slots:
+        # 4. Spárování slotů strategiemi s hlídáním kolizí (XOR logikou ^ 1)
+        for s in interleaved_slots:
             partner_slot = s ^ 1
             forbidden_group = None
             if partner_slot < len(final_matches) and final_matches[partner_slot] is not None:
-                # Zjistíme skupinu ze sousedního slotu (pokud to není BYE)
                 partner_match = final_matches[partner_slot]
                 if partner_match[0] is not None:
-                    #Zjistíme písmenko skupiny z násvu slotu
-                    forbidden_group = partner_match[0][-1]
+                    forbidden_group = partner_match[0][-1]  # Písmeno skupiny soupeře pro další kolo
 
             p1, p2 = None, None
 
-            # Strategie A : křížové párování (zbylá 1.místa vs 2+ místa)
-            if active_pot_1 and lower_pool:
-                for i, c1 in enumerate(active_pot_1):
-                    if c1["group"]== forbidden_group:
-                        continue
-                    for j, c2 in enumerate(lower_pool):
-                        if c2["group"] != c1["group"] and c2["group"] != forbidden_group:
-                            p1, p2 = c1, c2
-                            active_pot_1.pop(i)
-                            lower_pool.pop(j)
-                            break
-                    if p1:
-                        break
+            # STRATEGIE A: Zbylá první místa vs 2+ místa z nižších košů
+            p1, p2, idx1, idx2 = self._find_valid_pair(active_pot_1, lower_pool, forbidden_group)
+            if p1:
+                active_pot_1.pop(idx1)
+                lower_pool.pop(idx2)
 
-            # Strategie B: pokud došla 1.místa
+            # STRATEGIE B: Pokud došla první místa (párujeme nižší s nižšími - předáme stejný seznam 2x)
             if not p1 and len(lower_pool) >= 2:
-                for i, c1 in enumerate(lower_pool):
-                    if c1["group"] == forbidden_group:
-                        continue
-                    for j, c2 in enumerate(lower_pool):
-                        if i != j and c2["group"] != c1["group"] and c2["group"] != forbidden_group:
-                            p1, p2 = c1, c2
-                            for idx_to_rem in sorted([i, j], reverse=True):
-                                lower_pool.pop(idx_to_rem)
-                            break
-                    if p1:
-                        break
+                p1, p2, idx1, idx2 = self._find_valid_pair(lower_pool, lower_pool, forbidden_group)
+                if p1:
+                    # Musíme smazat odzadu, aby se nám nerozhodily indexy
+                    for idx_to_rem in sorted([idx1, idx2], reverse=True):
+                        lower_pool.pop(idx_to_rem)
 
-            # STRATEGIE C: Zbyly už pouze jedničky (velmi ojedinělá situace / pojistka)
+            # STRATEGIE C: Zbyly už pouze jedničky navzájem (předáme stejný seznam 2x)
             if not p1 and len(active_pot_1) >= 2:
-                for i, c1 in enumerate(active_pot_1):
-                    if c1["group"] == forbidden_group:
-                        continue
-                    for j, c2 in enumerate(active_pot_1):
-                        if i != j and c2["group"] != c1["group"] and c2["group"] != forbidden_group:
-                            p1, p2 = c1, c2
-                            for idx_to_rem in sorted([i, j], reverse=True):
-                                active_pot_1.pop(idx_to_rem)
-                            break
-                    if p1:
-                        break
+                p1, p2, idx1, idx2 = self._find_valid_pair(active_pot_1, active_pot_1, forbidden_group)
+                if p1:
+                    for idx_to_rem in sorted([idx1, idx2], reverse=True):
+                        active_pot_1.pop(idx_to_rem)
 
-            # NOUZOVÁ POJISTKA: (např. zbydou 2 stejné skupiny, ignorujeme pravidla)
+            # NOUZOVÁ POJISTKA: Ignorujeme pravidla
             if not p1:
                 emergency_pool = active_pot_1 + lower_pool
                 if len(emergency_pool) >= 2:
-                    p1, p2 = emergency_pool[0], emergency_pool[1]
+                    p1, p2 = emergency_pool.pop(0), emergency_pool.pop(0)
+                    # Syncneme odstranění s původními seznamy
                     if p1 in active_pot_1:
                         active_pot_1.remove(p1)
                     else:
@@ -394,5 +400,26 @@ class SeedingEngine:
 
         return final_matches
 
+    def _find_valid_pair(self, pool1: list, pool2: list, forbidden_group: str) -> tuple:
+        """
+        Pokusí se najít platný pár hráčů (jeden z pool1, druhý z pool2),
+        kteří nejsou ze stejné skupiny a ani jeden není ze zakázané skupiny.
+        Vrací (hráč1, hráč2, index1, index2) nebo (None, None, -1, -1).
+        """
+        if not pool1 or not pool2:
+            return None, None, -1, -1
 
+        for i, c1 in enumerate(pool1):
+            if c1["group"] == forbidden_group:
+                continue
 
+            # Pokud hledáme ve stejném seznamu (pool1 je stejný objekt jako pool2),
+            # musíme začít hledat od dalšího hráče, abychom nespárovali hráče se sebou samým
+            start_j = i + 1 if pool1 is pool2 else 0
+
+            for j in range(start_j, len(pool2)):
+                c2 = pool2[j]
+                if c2["group"] != c1["group"] and c2["group"] != forbidden_group:
+                    return c1, c2, i, j
+
+        return None, None, -1, -1
