@@ -60,7 +60,7 @@
                                         <!-- STAV 1: Zápas je zavřený -->
                                         <div style="display: flex;justify-content: space-between; align-items: center; width: 100%;">
                                             <strong style="white-space: nowrap;">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
-                                            <form action="/groups" method="POST" style="margin-top: 5px">
+                                            <form action="/tournament/{{ tournament.id }}/groups" method="POST" style="margin-top: 5px">
                                                 <input type="hidden" name="match_id" value="{{ match.match_id }}">
                                                 <button type="submit" name="action" value="toggle_progress"><strong>+</strong></button>
                                             </form>
@@ -69,13 +69,13 @@
                                         <!-- STAV 2: Zápas je rozkliknutý -->
                                         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
                                             <strong style="white-space: nowrap;">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
-                                            <form action="/groups" method="POST" style="margin: 0;">
+                                            <form action="/tournament/{{ tournament.id }}/groups" method="POST" style="margin: 0;">
                                                 <input type="hidden" name="match_id" value="{{ match.match_id }}">
                                                 <button type="submit" name="action" value="toggle_progress"><strong>-</strong></button>
                                             </form>
                                         </div>
 
-                                        <form action="/groups" method="POST" style="display: flex; flex-direction: column; align-items: center;">
+                                        <form action="/tournament/{{ tournament.id }}/groups" method="POST" style="display: flex; flex-direction: column; align-items: center;">
                                             <input type="hidden" name="match_id" value="{{ match.match_id }}">
                                             <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
                                                 {% for i in range(1, match.match_format | int + 1) %}
