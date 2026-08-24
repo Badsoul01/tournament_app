@@ -2,16 +2,27 @@
 {% block content %}
 
 <h2>VÝSLEDKY</h2>
-{% if ranking %}
-    <ul>
-        {% for entry in ranking %}
-        <li><strong>{{ entry.place }}. místo:</strong> {{entry.name }}</li>
-        {% endfor %}
 
-    </ul>
+{% if results %}
+    <table style="width: 100%; max-width: 400px; text-align: left; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 2px solid #ccc;">
+                <th style="padding: 8px;">Pořadí</th>
+                <th style="padding: 8px;">Hráč</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for player, rank in results %}
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 8px;"><strong>{{ rank }}.</strong></td>
+                <td style="padding: 8px;">{{ player.name }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 {% else %}
     <div class="status-box">
-        <p>Turnaj se stále hraje</p>
+        <p>Turnaj se stále hraje.</p>
     </div>
 {% endif %}
 
