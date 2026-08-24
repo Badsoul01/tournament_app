@@ -1,73 +1,100 @@
-class Player:
+from models import db, PlayerStats, Match as MatchModel
+
+class PlayerHelper:
     """
-    Třída reprezentující hráče turnaje.
-    Uchovává jeho iudentitu,příslušnost ke skupině, umístění a statistiky v jednotlivých fázích
+    Pomocná třída pro správu statistik a výpočtů nad databázovým modelem hráče.
     """
-    def __init__(self,name: str) -> None:
-        self.name: str = name
-        self.group_name: str | None = None
-        self.group_rank: int | None = None
-        self.stats: dict = {}
 
-    def _ensure_stage(self,stage_name: str) -> None:
-        """
-        Zajistí, že pro danou fázi turnaje existují ve statistice výchozí hodnoty.
-        """
-        if stage_name not in self.stats:
-            self.stats[stage_name] = {
-                "balls_win": 0,
-                "balls_lost": 0,
-                "games_win": 0,
-                "games_lost": 0,
-                "points": 0
-            }
+    @staticmethod
+    def get_or_create_stats(player_id: int, stage_name: str) -> PlayerStats:
+        """Zajistí, že pro daného hráče a fázi existuje záznam statistik v DB."""
+        stats = PlayerStats.query.filter_by(player_id=player_id, stage_name=stage_name).first()
+        if not stats:
+            stats = PlayerStats(player_id=player_id, stage_name=stage_name, points=0, games_win=0, games_lost=0,
+                                balls_win=0, balls_lost=0)
+            db.session.add(stats)
+            db.session.commit()
+        return stats
 
-    def write_result(
-            self,
-            tournament_stage: str,
-            balls_win: int,
-            balls_lost: int,
-            games_win: int,
-            games_lost: int,
-            points: int=0
-    ) -> None:
-        """
-        Zapíše nebo přičte výsledky zápasu do statistik pro kontrétní fázi turnnaje.
-        """
-        self._ensure_stage(tournament_stage)
-        s = self.stats[tournament_stage]
-        s["balls_win"] +=balls_win
-        s["balls_lost"] +=balls_lost
-        s["games_win"] += games_win
-        s["games_lost"] += games_lost
-        s["points"] += points
-
-    def difference_of_score(self,tournament_stage: str) -> dict[str, int]:
-        """
-        Vrátí rozdíl skóre (míčků i setů) pro danou fázi turnaje.
-        """
-        if tournament_stage not in self.stats:
-            return {"Balls":0, "Games":0}
-
-        s = self.stats[tournament_stage]
+    @staticmethod
+    def difference_of_score(player_id: int, tournament_stage: str) -> dict[str, int]:
+        """Vrátí rozdíl skóre (míčků i setů) pro danou fázi turnaje z DB."""
+        stats = PlayerStats.query.filter_by(player_id=player_id, stage_name=tournament_stage).first()
+        if not stats:
+            return {"Balls": 0, "Games": 0}
 
         return {
-            "Balls":s["balls_win"]-s["balls_lost"],
-            "Games":s["games_win"]- s["games_lost"]
+            "Balls": stats.balls_win - stats.balls_lost,
+            "Games": stats.games_win - stats.games_lost
         }
 
-    def get_sorting_stats(self,stage_name: str) -> tuple[int, int, int]:
-        """
-        Vrátí n-tici statistik (body, rozdíl setů, rozdíl míčků)
-        používanou pro řazení a porovnávání hráčů v tabulce.
-        """
-        if stage_name not in self.stats:
-            return (0,0,0)
-        s = self.stats[stage_name]
-        diff = self.difference_of_score(stage_name)
+    @staticmethod
+    def get_sorting_stats(player_id: int, stage_name: str) -> tuple[int, int, int]:
+        """Vrátí n-tici statistik (body, rozdíl setů, rozdíl míčků) pro řazení v tabulce."""
+        stats = PlayerStats.query.filter_by(player_id=player_id, stage_name=stage_name).first()
+        if not stats:
+            return (0, 0, 0)
 
+        diff = PlayerHelper.difference_of_score(player_id, stage_name)
         return (
-            s.get("points",0),
+            stats.points,
             diff["Games"],
             diff["Balls"]
         )
+
+    @staticmethod
+    def set_final_rank(player_id: int, rank: int, stage_name: str) -> None:
+        """Uloží hráči jeho konečné umístění v turnaji do PlayerStats."""
+        stats = PlayerHelper.get_or_create_stats(player_id, stage_name)
+        stats.final_rank = rank
+        db.session.commit()
+        print(f"DEBUG: Hráč {player_id} dokončil turnaj na {rank}. místě!")
+
+
+    @staticmethod
+    def recalculate_player_stats(player_id: int, stage_name: str) -> None:
+        """Kompletně přepočítá statistiky hráče ze všech jeho dohraných zápasů v dané fázi."""
+
+
+        stats = PlayerHelper.get_or_create_stats(player_id, stage_name)
+
+        # Vynulujeme aktuální hodnoty před přepočtem
+        stats.points = 0
+        stats.games_win = 0
+        stats.games_lost = 0
+        stats.balls_win = 0
+        stats.balls_lost = 0
+
+        # Najdeme všechny dohrané zápasy, kde tento hráč figuroval
+        finished_matches = MatchModel.query.filter(
+            MatchModel.is_finished == True,
+            (MatchModel.player_a_id == player_id) | (MatchModel.player_b_id == player_id)
+        ).all()
+
+        for m in finished_matches:
+            is_player_a = (m.player_a_id == player_id)
+
+            # Sety
+            p_games = m.score_a if is_player_a else m.score_b
+            opp_games = m.score_b if is_player_a else m.score_a
+
+            stats.games_win += p_games
+            stats.games_lost += opp_games
+
+            # Body (3 za výhru, 1 za remízu)
+            if p_games > opp_games:
+                stats.points += 3
+            elif p_games == opp_games:
+                stats.points += 1
+
+            # Míčky (zparsováním textového řetězce "11:5,11:2")
+            if m.sets_data:
+                for set_str in m.sets_data.split(","):
+                    if ":" in set_str:
+                        parts = set_str.split(":")
+                        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+                            ba, bb = int(parts[0]), int(parts[1])
+                            stats.balls_win += ba if is_player_a else bb
+                            stats.balls_lost += bb if is_player_a else ba
+
+        db.session.commit()
