@@ -2,8 +2,6 @@ from bs4 import BeautifulSoup
 import requests
 from datetime import date
 
-import groupmanager
-import player
 from config import TOURNAMENT_RULES, GROUPS_RULES, PLAYOFF_RULES, STATE_OF_WIZARD
 
 class SetupWizard:
