@@ -1,23 +1,26 @@
 {% extends "base_tournament.html" %}
 
-{# DEFINICE MAKRA (RAZÍTKA) PRO VYKRESLENÍ JAKÉHOKOLIV ZÁPASU #}
 {% macro render_match(match, action_url) %}
-    {% if match.type == 'match' %}
+    {% if match.is_real_match %}
         {% if match.is_finished %}
             <!-- STAV 0: Dohráno -->
             <div>
-                <strong>{{ match.player_A.name }}</strong> <small>{{ match.player_A.rank }}</small>
+                <strong>{{ match.player_a_name }}</strong> <small style="color: #888;">({{match.player_a_seed }})</small>
                 <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
-                <strong>{{ match.player_B.name }}</strong> <small>{{ match.player_B.rank }}</small>
-                <div style="margin-top: 5px; font-size: 0.9em;">Vítěz: <strong>{{ match.winner_name }}</strong></div>
+                <strong>{{ match.player_b_name }}</strong> <small style="color: #888;">({{match.player_b_seed }})</small>
+
+                {# Vypíše vítěze jen tehdy, když není None (tedy vynechá BYE vs BYE) #}
+                {% if match.winner_name %}
+                    <div style="margin-top: 5px; font-size: 0.9em;">Vítěz: <strong>{{ match.winner_name }}</strong></div>
+                {% endif %}
             </div>
         {% elif not match.is_in_progress %}
             <!-- STAV 1: Zavřeno -->
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <div>
-                    <strong>{{ match.player_A.name }}</strong> <small>{{ match.player_A.rank }}</small>
+                    <strong>{{ match.player_a_name }}</strong> <small style="color: #888;">({{ match.player_a_seed }})</small>
                     <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
-                    <strong>{{ match.player_B.name }}</strong> <small>{{ match.player_B.rank }}</small>
+                    <strong>{{ match.player_b_name }}</strong> <small style="color: #888;">({{ match.player_b_seed }})</small>
                 </div>
                 <form action="{{ action_url }}" method="POST" style="margin: 0;">
                     <input type="hidden" name="match_id" value="{{ match.match_id }}">
@@ -28,9 +31,9 @@
             <!-- STAV 2: Rozkliknuto -->
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
                 <div>
-                    <strong>{{ match.player_A.name }}</strong> <small>{{ match.player_A.rank }}</small>
+                    <strong>{{ match.player_a_name }}</strong> <small style="color: #888;">({{ match.player_a_seed }})</small>
                     <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
-                    <strong>{{ match.player_B.name }}</strong> <small>{{ match.player_B.rank }}</small>
+                    <strong>{{ match.player_b_name }}</strong> <small style="color: #888;">({{ match.player_b_seed }})</small>
                 </div>
                 <form action="{{ action_url }}" method="POST" style="margin: 0;">
                     <input type="hidden" name="match_id" value="{{ match.match_id }}">
@@ -40,7 +43,7 @@
             <form action="{{ action_url }}" method="POST" style="display: flex; flex-direction: column; align-items: center;">
                 <input type="hidden" name="match_id" value="{{ match.match_id }}">
                 <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
-                    {% for i in range(1, match.match_format | int + 1) %}
+                    {% for i in range(1, match.match_format + 1) %}
                         <div class="set-container">
                             <span>{{ i }}. set</span>
                             <input type="number" class="match-input" name="game_a[]" min="0" style="width: 40px;"> :
@@ -53,31 +56,26 @@
         {% endif %}
     {% else %}
         <!-- SLOTOVÁ N-TICE -->
-        <strong>{{ match.player_A.name }}</strong> <small>{{ match.player_A.rank }}</small>
+        <strong>{{ match.slot_a }}</strong>
         <br>vs<br>
-        <strong>{{ match.player_B.name }}</strong> <small>{{ match.player_B.rank }}</small>
+        <strong>{{ match.slot_b }}</strong>
     {% endif %}
 {% endmacro %}
 
 
 {# ============================================================== #}
-{# VLASTNÍ STRÁNKA (KTERÁ VYUŽÍVÁ MAKRO VÝŠE)                    #}
+{# VLASTNÍ STRÁNKA                                               #}
 {# ============================================================== #}
 
 {% block content %}
     <h2>PLAYOFF</h2>
 
-    {# Získáme kompletní data pro Playoff jedním dotazem na Mluvčího #}
-    {% set p_data = web_manager.get_playoff_data('main') %}
-
     {% if p_data and p_data.winner %}
         <div class="winner-alert">
             <h3>Vítěz turnaje: {{ p_data.winner }}</h3>
-            {% if tournament.is_tournament_fully_finished() %}
-                <a href="/results" style="text-decoration: none;">
-                    <button type="button"> Konečné výsledky</button>
-                </a>
-            {% endif %}
+            <a href="/tournament/{{ tournament.id }}/results" style="text-decoration: none;">
+                <button type="button">Konečné výsledky</button>
+            </a>
         </div>
     {% endif %}
 
@@ -85,11 +83,10 @@
         {% if p_data and p_data.rounds %}
             {% for round_num, matches in p_data.rounds.items() %}
                 <div class="round">
-                    Kolo {{ round_num }}
+                    <h4>Kolo {{ round_num }}</h4>
                     {% for match in matches %}
                         <div class="match">
-                            {# ZDE POUŽIJEME RAZÍTKO #}
-                            {{ render_match(match, "/playoff") }}
+                            {{ render_match(match, url_for('playoff_view', tournament_id=tournament.id)) }}
                         </div>
                     {% endfor %}
                 </div>
@@ -106,8 +103,7 @@
                         <h3>O {{ placement.name }}. místo</h3>
                         {% for match in placement.matches %}
                             <div class="match">
-                                {# A ZDE HO POUŽIJEME ZNOVU PRO UMÍSTĚNÍ! #}
-                                {{ render_match(match, "/playoff") }}
+                                {{ render_match(match, url_for('playoff_view', tournament_id=tournament.id)) }}
                             </div>
                         {% endfor %}
                     </div>
