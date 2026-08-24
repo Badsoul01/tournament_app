@@ -10,7 +10,7 @@
             <table>
                 <tr>
                     <!-- LEVÝ SLOUPEC -->
-                    <td>
+                    <td style="vertical-align: top; padding-right: 20px;">
                         <table>
                             <tr>
                                 <th>Hráč</th><th>Sety</th><th>Míčky +/-</th><th>Body</th>
@@ -46,55 +46,50 @@
                     </td>
 
                     <!-- PRAVÝ SLOUPEC -->
-                    <td>
+                    <td style="vertical-align: top;">
                         {% for match in data.matches %}
                             {% if not match.is_finished %}
+                                <div class="match-card" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px;">
 
-                                {% if not match.is_ready %}
-                                    <!-- STAV: Čeká se na hráče (jsou to placeholdery) -->
-                                    <div style="display: flex; justify-content: center; align-items: center; width: 100%; color: #777;">
-                                        <strong style="white-space: nowrap;">{{ match.player_a_name }} vs {{ match.player_b_name }} </strong>
-                                    </div>
-                                {% else %}
-                                    <!-- STAV: Zápas je připraven -->
-                                    <div class="match-card" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px;">
+                                    {% if not match.is_in_progress %}
+                                        <!-- STAV 1: Zápas je zavřený, ukážeme jen tlačítko pro rozkliknutí -->
+                                        <div style="display: flex;justify-content: space-between; align-items: center; width: 100%;">
+                                            <strong style="white-space: nowrap;">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
 
-                                        {% if not match.is_in_progress %}
-                                            <!-- STAV 1: Zápas je zavřený, ukážeme jen tlačítko pro rozkliknutí -->
-                                            <div style="display: flex;justify-content: space-between; align-items: center; width: 100%;">
-                                                <strong style="white-space: nowrap;">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
-                                                <form action="/consolation_minigroup" method="POST" style="margin-top: 5px">
-                                                    <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                                                    <button type="submit" name="action" value="toggle_progress"><strong>+</strong></button>
-                                                </form>
-                                            </div>
-                                        {% else %}
-                                            <!-- STAV 2: Zápas je rozkliknutý, zobrazíme formulář -->
-                                            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
-                                                <strong style="white-space: nowrap;">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
-                                                <form action="/consolation_minigroup" method="POST" style="margin: 0;">
-                                                    <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                                                    <button type="submit" name="action" value="toggle_progress"><strong>-</strong></button>
-                                                </form>
-                                            </div>
-
-                                            <form action="/consolation_minigroup" method="POST" style="display: flex; flex-direction: column; align-items: center;">
+                                            <!-- OPRAVA 1: Použito {{ tournament.id }} -->
+                                            <form action="/tournament/{{ tournament.id }}/consolation_minigroup" method="POST" style="margin-top: 5px">
                                                 <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                                                <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
-                                                    {% for i in range(1, match.match_format | int + 1) %}
-                                                        <div class="set-container">
-                                                            <strong>{{ i }}. set:</strong>
-                                                            <input type="number" class="match-input" name="game_a[]" min="0" style="width: 40px;"> :
-                                                            <input type="number" class="match-input" name="game_b[]" min="0" style="width: 40px;">
-                                                        </div>
-                                                    {% endfor %}
-                                                </div>
-                                                <button type="submit" name="action" value="submit_result">Uložit výsledek</button>
+                                                <button type="submit" name="action" value="toggle_progress"><strong>+</strong></button>
                                             </form>
-                                        {% endif %}
-                                    </div>
-                                {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <!-- STAV 2: Zápas je rozkliknutý, zobrazíme formulář -->
+                                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                                            <strong style="white-space: nowrap;">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
 
+                                            <!-- OPRAVA 2: Použito {{ tournament.id }} -->
+                                            <form action="/tournament/{{ tournament.id }}/consolation_minigroup" method="POST" style="margin: 0;">
+                                                <input type="hidden" name="match_id" value="{{ match.match_id }}">
+                                                <button type="submit" name="action" value="toggle_progress"><strong>-</strong></button>
+                                            </form>
+                                        </div>
+
+                                        <!-- OPRAVA 3: Použito {{ tournament.id }} -->
+                                        <form action="/tournament/{{ tournament.id }}/consolation_minigroup" method="POST" style="display: flex; flex-direction: column; align-items: center;">
+                                            <input type="hidden" name="match_id" value="{{ match.match_id }}">
+                                            <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
+                                                {% for i in range(1, match.match_format | int + 1) %}
+                                                    <div class="set-container">
+                                                        <strong>{{ i }}. set:</strong>
+                                                        <input type="number" class="match-input" name="game_a[]" min="0" style="width: 40px;"> :
+                                                        <input type="number" class="match-input" name="game_b[]" min="0" style="width: 40px;">
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                            <button type="submit" name="action" value="submit_result">Uložit výsledek</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
                             {% endif %}
                         {% endfor %}
                     </td>
