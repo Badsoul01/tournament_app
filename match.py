@@ -1,113 +1,74 @@
-from player import Player
+from models import db, Match as MatchModel
+from player import PlayerHelper
 
-class Match:
+
+def evaluate(match_id, player_a_games:list, player_b_games:list) -> bool:
     """
-    Třída reprezentující jeden kontrétní zápas mezi dvěma hráči.
-    Uchovává jeho stav, odehrané sety, vítěze a poraženého.
+    Vyhodnotí zápas na základě odehraných setů:
+    1. Spočítá skóre setů a míčků pro oba hráče.
+    2. Určí vítěze, nebo ošetří remízu (winner_id = None).
+    3. Uloží stav do databázového modelu zápasu.
     """
+    if not player_a_games or not player_b_games:
+        return False
 
-    def __init__(
-            self,
-            player_a:Player,
-            player_b:Player,
-            match_format:str,
-            tournament_stage:str,
-            match_id: int | str,
-            next_match: 'Match | None' = None,
-            target_slot: str | None = None
-    ) -> None:
-        self.player_A: Player = player_a
-        self.player_B: Player = player_b
-        self.match_format: str = match_format
-        self.tournament_stage: str = tournament_stage
-        self.match_id: int | str = match_id
+    played_games = []
+    for a, b in zip(player_a_games, player_b_games):
+        if a != "" and b != "":
+            played_games.append((int(a), int(b)))
 
-        self.next_match: Match | None = next_match
-        self.target_slot: str | None = target_slot
+    db_match = MatchModel.query.get_or_404(match_id)
 
-        self.winner: Player | None = None
-        self.loser: Player | None = None
-        self.is_finished: bool = False
-        self.is_in_progress: bool = False
-        self.played_sets: list[tuple[int, int]] = []
+    games_a_win = 0
+    games_b_win = 0
+    balls_a_total = 0
+    balls_b_total = 0
 
-    def toggle_in_progress(self) -> None:
-        """ Přepne stav rozkliknutí formuláře pro zápas (True <-> False"""
-        self.is_in_progress = not self.is_in_progress
+    for balls_a, balls_b in played_games:
+        balls_a_total += balls_a
+        balls_b_total += balls_b
 
-    def evaluate_match(self,played_sets:list[tuple[int,int]]) -> bool:
-        """
-         Vyhodnotí zápas na zákaladě odehraných setů:
-         1. Spočítá skóre míčků a setů pro oba hráče.
-         2. Určí vítěze, poraženého a body do tabulky.
-         3. Propíše statistiky hráčům a označí zápas jako dohraný.
-        """
-        self.played_sets = played_sets
-        player_a = {
-            "games_win":0,
-            "games_lost":0,
-            "balls_win":0,
-            "balls_lost":0,
-            "points":0
-        }
-        player_b = {
-            "games_win": 0,
-            "games_lost": 0,
-            "balls_win": 0,
-            "balls_lost": 0,
-            "points":0
-        }
+        if balls_a > balls_b:
+            games_a_win += 1
+        elif balls_b > balls_a:
+            games_b_win += 1
+        # Případné čisté 0:0 v setu můžeme ignorovat nebo ošetřit
 
-        for balls_a,balls_b in played_sets:
-            player_a["balls_win"]+=balls_a
-            player_a["balls_lost"] +=balls_b
-            player_b["balls_win"] += balls_b
-            player_b["balls_lost"] += balls_a
+    # Uložíme celkové skóre setů do modelu zápasu
+    db_match.score_a = games_a_win
+    db_match.score_b = games_b_win
+    db_match.sets_data = ",".join([f"{a}:{b}" for a, b in played_games])
 
-            if balls_a > balls_b:
-                player_a["games_win"] += 1
-                player_b["games_lost"] += 1
-            else:
-                player_a["games_lost"] +=1
-                player_b["games_win"] +=1
+    points_a = 0
+    points_b = 0
 
-        if player_a["games_win"]>player_b["games_win"]:
-            player_a["points"] +=3
-            self.winner = self.player_A
-            self.loser = self.player_B
+    # Určení vítěze / remízy
+    if games_a_win > games_b_win:
+        db_match.winner_id = db_match.player_a_id
+        points_a += 3
+    elif games_a_win < games_b_win:
+        db_match.winner_id = db_match.player_b_id
+        points_b += 3
+    else:
+        # Remíza (např. 1:1 na sety při dvouhraném formátu)
+        db_match.winner_id = None
+        points_a += 1
+        points_b += 1
 
-        elif player_a["games_win"] == player_b["games_win"]:
-            player_a["points"] +=1
-            player_b["points"] +=1
+    db_match.is_finished = True
 
-        else:
-            player_b["points"] +=3
-            self.winner = self.player_B
-            self.loser = self.player_A
+    # Uložení změn do databáze
+    db.session.commit()
+    # Tady triggerneš přepočet pro oba hráče
+    stage = "Group" if db_match.group_id else "Playoff"
+    if db_match.player_a_id:
+        PlayerHelper.recalculate_player_stats(db_match.player_a_id, stage_name=stage)
+    if db_match.player_b_id:
+        PlayerHelper.recalculate_player_stats(db_match.player_b_id, stage_name=stage)
+    return db_match.is_finished
 
-        self.player_A.write_result(tournament_stage=self.tournament_stage,
-                                   balls_win=player_a["balls_win"],
-                                   balls_lost=player_a["balls_lost"],
-                                   games_win=player_a["games_win"],
-                                   games_lost=player_a["games_lost"],
-                                   points=player_a["points"]
-                                   )
-        self.player_B.write_result(tournament_stage=self.tournament_stage,
-                                   balls_win=player_b["balls_win"],
-                                   balls_lost=player_b["balls_lost"],
-                                   games_win=player_b["games_win"],
-                                   games_lost=player_b["games_lost"],
-                                   points=player_b["points"]
-                                   )
-        self.is_finished = True
-
-        if self.next_match and self.winner:
-            # Podle target_slot určíme, do kterého slotu v dalším zápase vítěz patří
-            if self.target_slot == "A":
-                self.next_match.player_A = self.winner
-            elif self.target_slot == "B":
-                self.next_match.player_B = self.winner
-
-        return self.is_finished
-
-
+def toggle_match_progress(match_id: int):
+    """Přepne stav rozbalení/zavření zápasu na webu."""
+    db_match = MatchModel.query.get_or_404(match_id)
+    db_match.is_in_progress = not getattr(db_match, "is_in_progress", False)
+    db.session.commit()
