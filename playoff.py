@@ -1,45 +1,76 @@
-from match import Match
-from group import Group
-from config import PLAYOFF_RULES
+from models import db, Match as MatchModel, Player as PlayerModel, Bracket as BracketModel
+from player import PlayerHelper
 import math
 
 class Playoff:
     """
     Třída zodpovědná za správu a logiku playoff, včetně generování kol,
-    nasazovní hráčů, vyhodnocení BYE pozic a rekurzivních dohrávek o umístění.
+    nasazování hráčů, vyhodnocení BYE pozic a dohrávek o umístění.
+    Slouží jako "Slotový manažer", který vytváří databázové zápasy.
     """
 
     def __init__(
             self,
-            qualified_players:list,
-            match_format:str,
-            stage_name:str,
-            playoff_elimination_action
+            tournament_id: int,
+            match_format: int,
+            stage_name: str,
+            playoff_elimination_action: str,
+            rank_offset: int = 0,
+            bracket_id: int = None
     ) -> None:
+
+        # Základní nastavení
+        self.tournament_id: int = tournament_id
         self.stage_name: str = stage_name
-        self.players: list = qualified_players
-        self.match_format: str = match_format
-        self.waiting_room: list = []
-        self.round_one_players: list = []
-        self.eliminated_players: dict[int, list]  = {}
+        self.match_format: int = match_format
+        self.playoff_elimination_action: str = playoff_elimination_action
+        self.rank_offset = rank_offset
+        self.bracket_id = bracket_id
+
+        # Slovníky pro držení in-memory struktury (slotů a ID zápasů)
         self.rounds: dict[int, list] = {}
+        self.placement_rounds: dict[str, dict] = {}
+
         self.winner = None
 
-        self.playoff_elimination_action: str = playoff_elimination_action
-        self.placement_rounds: dict[str, dict] = {}
+        if self.bracket_id:
+            self.load_from_db()
 
     # ==========================================
     # VEŘEJNÉ API (HLAVNÍ METODY)
     # ==========================================
 
-    def generate_full_bracket_structure(self,groups: dict, seeding_engine,start_rank: int = 1, end_rank: int=0) -> None:
+    def load_from_db(self):
+        """Načte stav pavouka z JSON sloupce do paměti Pythonu."""
+        bracket = BracketModel.query.get(self.bracket_id)
+        if bracket and bracket.tree_data:
+            # JSON automaticky mění číselné klíče na texty
+            # Při načtení je zde překlopíme na zpět na čísla, aby fungovala matematika
+            self.rounds = {int(k): v for k, v in bracket.tree_data.get("rounds",{}).items()}
+
+            self.placement_rounds = bracket.tree_data.get("placement_rounds", {})
+
+    def save_to_db(self):
+        """Uloží aktuální úpravy zpět do JSON sloupce v databázi."""
+        if not self.bracket_id:
+            return
+
+        bracket = BracketModel.query.get(self.bracket_id)
+        if bracket:
+            # překlopíme celou hodnotu, aby SQLAlchemy poznalo, že se JSON změnil
+            bracket.tree_data = {
+                "rounds": self.rounds,
+                "placement_rounds": self.placement_rounds
+            }
+            db.session.commit()
+
+    def generate_full_bracket_structure(self, groups: dict, seeding_engine, start_rank: int = 1, end_rank: int = 0) -> None:
         """
         Vygeneruje strukturu celého pavouka:
-        - 1. kolo zůstává jako slotové n-tice (čekájící na dohrání skupin a převod na Match).
-        - 2. a další kolo se generují jako prázdné objekty Match s navázanými vazbami pro postup vítězů.
+        - 1. kolo: Sloty pro nasazení ze skupin (např. "1A", "2B").
+        - 2. a další kolo: Prázdné sloty ("Čeká se..", "Čeká se.."), které čekají na postupující.
         """
-        # KROK 1: vytvoříme první kolo pavouka podle metody build_first_round
-
+        # KROK 1: Vytvoříme první kolo pavouka pomocí seeding enginu
         slot_structure = seeding_engine.build_first_round(
             groups=groups,
             start_rank=start_rank,
@@ -47,126 +78,118 @@ class Playoff:
         )
         self.rounds[1] = slot_structure
 
-        #  KROK 2:Spočítáme celkový počet kol podle velikosti 1.kola
+        # KROK 2: Spočítáme celkový počet kol pavouka (např. 8 zápasů = 4 kola)
         total_matches_in_round = len(slot_structure)
-        # Počet kol je logaritmus o základu 2 (např. 4 zápasy = 2 kola, 8zápasu = 3 kola)
-        num_rounds = math.ceil(math.log2(total_matches_in_round * 2)) if total_matches_in_round >0 else 1
+        num_rounds = math.ceil(math.log2(total_matches_in_round * 2)) if total_matches_in_round > 0 else 1
 
-        if num_rounds <2:
+        if num_rounds < 2:
             return
 
-        # KROK 3: Pro 2. a další kola předpřipravíme prázdné objekty Match
-        # (Pozn.: Propojení s 1. se dokončí dynamicky ve chvíli, kdy se sloty v 1.kole přemění na Match).
-        # Zde si vytvoříme strunkturu prázdných kol
-
-        # Pro zjištění počtu zápasů v 2.kole (a dál)
+        # KROK 3: Pro 2. a další kola předpřipravíme prázdné slotové n-tice
         current_match_count = total_matches_in_round
 
         for r in range(2, num_rounds + 1):
             current_match_count = current_match_count // 2
-            # V každém dalším kole je poloviční počet zápasů
-            self.rounds[r] = [("Čeká se..","Čeká se..") for _ in range(current_match_count)]
+            self.rounds[r] = [("Čeká se..", "Čeká se..") for _ in range(current_match_count)]
 
-        print(f"DEBUG: počet kol v pavouku: {self.rounds}")
-        # KROK 4: vytvoříme slotovou dohrávku
+        print(f"DEBUG: Počet kol v pavouku: {len(self.rounds)}")
+
+        # KROK 4: Příprava struktury pro dohrávky o umístění
         if self.playoff_elimination_action == "consolation":
             self.generate_placement_bracket_structure()
 
-    def generate_placement_bracket_structure(self)-> None:
+    def generate_placement_bracket_structure(self) -> None:
         """
         Vygeneruje předpřipravenou slotovou strukturu pro dohrávkové pavouky
         pro všechna kola hlavního pavouka, abychom pokryli kompletní umístění.
         """
-        # Projdmee všechna kola v hlavním pavouku (kromě posledního, kde se hraje finále)
-        main_rounds = sorted([r for r in self.rounds.keys() if isinstance(r,int)])
+        main_rounds = sorted([r for r in self.rounds.keys() if isinstance(r, int)])
 
         if len(main_rounds) < 1:
             return
 
-        # Celkový počet v 1.kole
-        total_slots_in_main = len(self.rounds[1]) *2 #Celkový počet hráčů v prvním kole
+        total_slots_in_main = len(self.rounds[1]) * 2
 
-        # Postupně projdeme kola hlavního pavouka a vytvoříme pro ně odpovídající dohrávkové bloky
         for r_idx, round_num in enumerate(main_rounds[:-1]):
             round_matches = self.rounds[round_num]
-            num_losers = len(round_matches) # Počet poražených v tomto kole
+            num_losers = len(round_matches)
 
-            if num_losers <1:
+            if num_losers < 1:
                 continue
 
-            # Spočítáme rozsahy umístění (ranks) pro toto patro dohrávek
-            # Z 1. kola padá nejvíce hráčů (spodní polovina pavouka), z dalších kol užší výběr
             if r_idx == 0:
                 start_rank = (total_slots_in_main // 2) + 1
                 end_rank = total_slots_in_main
             else:
-                # Pro vyšší kola hlavního pavouka se umísťují hráči blíže k vrcholu dohrávek
-                end_rank = (total_slots_in_main // (2** r_idx))
+                end_rank = (total_slots_in_main // (2 ** r_idx))
                 start_rank = end_rank - num_losers + 1
 
-            bracket_name = f"{start_rank}-{end_rank}"
+            start_rank += self.rank_offset
+            end_rank += self.rank_offset
 
-            # Počet zápasů v tomto dohrávkovém patře je polovina počtu poražených
+            bracket_name = f"{start_rank}-{end_rank}"
             placement_match_count = max(1, num_losers // 2)
 
-            placement_slots = [("Čeká se..","Čeká se..") for _ in range(placement_match_count)]
-
-            # Uložíme do struktury
             self.placement_rounds[bracket_name] = {
-                "ranks": (start_rank,end_rank),
-                "matches": placement_slots,
+                "ranks": (start_rank, end_rank),
+                "matches": [("Čeká se..", "Čeká se..") for _ in range(placement_match_count)],
                 "processed": False,
-                "source_main_round": round_num # Poznamenáme si, ze kterého kola hlavního pavouka sem padají poražení
+                "source_main_round": round_num
             }
 
-            # Pokud má tento dohrávkový blok 2 nebo více zápasů (např. 4 a více hráčů)
-            # rovnou dopředu předpřipravíme i pod.pavouky (pro vítěze a poražené)
-            if placement_match_count >=2:
-                self._pregenerate_sub_brackets_recursive(low=start_rank,high=end_rank,match_count=placement_match_count,source_main_round=round_num)
+            if placement_match_count >= 2:
+                self._pregenerate_sub_brackets_recursive(
+                    low=start_rank,
+                    high=end_rank,
+                    match_count=placement_match_count,
+                    source_main_round=round_num
+                )
+        print("DEBUG: Vygenerována slotová struktura dohrávek o umístění.")
 
-
-            print(f"DEBUG: Vygenerována slotová struktura dohrávky {bracket_name} pro poražené z hlavního kola #{round_num}.")
-
-    def move_loser_to_placement_bracket(self, finished_match, round_num: int, match_index: int, tournament) -> None:
-        """Posune PORAŽENÉHO  z hlavního pavouka do příslušného dohrávkového pavouka"""
-        # 1. Zkontrolujeme, zda vůbec máme nějaké dohrávky aktivní/předpřipravené
-        if not self.placement_rounds or finished_match.loser is None:
+    def move_loser_to_placement_bracket(self, db_match, round_num: int, match_index: int) -> None:
+        """Posune PORAŽENÉHO z hlavního pavouka do příslušného dohrávkového pavouka."""
+        if not self.placement_rounds or db_match.winner_id is None:
             return
 
-        #Najdeme správný dohrávkový bracket, který odpovídá aktuálnímu kolu hlavního pavouka
+        # Určíme ID poraženého (ten, kdo není vítěz)
+        loser_id = db_match.player_b_id if db_match.winner_id == db_match.player_a_id else db_match.player_a_id
+
         for bracket_name, bracket_data in self.placement_rounds.items():
             if bracket_data.get("source_main_round") == round_num:
-                # Výpočítáme index zápasu a pozici (A/B) v dohrávce stejně jako v hlavním pavouku
                 target_match_index = match_index // 2
                 target_slot_position = "A" if match_index % 2 == 0 else "B"
 
-                self._assign_player_to_slot(player=finished_match.loser, match_list=bracket_data["matches"],
-                                            match_index=target_match_index, slot_position=target_slot_position,
-                                            tournament=tournament)
+                self._assign_player_to_slot(
+                    player_id=loser_id,
+                    match_list=bracket_data["matches"],
+                    match_index=target_match_index,
+                    slot_position=target_slot_position
+                )
                 break
 
-    def move_winner_to_next_round(self,finished_match, round_num: int,match_index: int, tournament) -> None:
-        """Posouvá vítěze dohraného zápasu do slotu v následujícím kole."""
+    def move_winner_to_next_round(self, db_match, round_num: int, match_index: int) -> None:
+        """Posouvá VÍTĚZE dohraného zápasu do slotu v následujícím kole."""
         next_round_num = round_num + 1
-        if next_round_num not in self.rounds or finished_match.winner is None:
+        if next_round_num not in self.rounds or db_match.winner_id is None:
             return
 
-        # Vypočítáme, do kterého zápasu (indexu) v dalším kole vítěz patří
         target_match_index = match_index // 2
         target_slot_position = "A" if match_index % 2 == 0 else "B"
 
-        self._assign_player_to_slot(player=finished_match.winner, match_list=self.rounds[next_round_num],
-                                    match_index=target_match_index, slot_position=target_slot_position,
-                                    tournament=tournament)
+        self._assign_player_to_slot(
+            player_id=db_match.winner_id,
+            match_list=self.rounds[next_round_num],
+            match_index=target_match_index,
+            slot_position=target_slot_position
+        )
 
-    def move_placement_match_result(self,finished_match, bracket_name: str, match_index: int, tournament) -> None:
-        """
-        Okamžitě posune vítěze i poraženého z  dohrávkového zápasu do odpovídajícího slotu v navazujícím pod pavouku.)
-        """
-        if finished_match.winner is None:
+    def move_placement_match_result(self, db_match, bracket_name: str, match_index: int) -> None:
+        """Posune vítěze i poraženého z dohrávkového zápasu hlouběji do pod-pavouka."""
+        if db_match.winner_id is None:
             return
 
-        low,high = self.placement_rounds[bracket_name]["ranks"]
+        loser_id = db_match.player_b_id if db_match.winner_id == db_match.player_a_id else db_match.player_a_id
+        low, high = self.placement_rounds[bracket_name]["ranks"]
         if low >= high:
             return
 
@@ -174,216 +197,323 @@ class Playoff:
         target_match_index = match_index // 2
         target_slot_position = "A" if match_index % 2 == 0 else "B"
 
-        # Posun vítěze
+        # Posun vítěze nahoru
         upper_name = f"{low}-{mid}"
         if upper_name in self.placement_rounds:
             self._assign_player_to_slot(
-                player=finished_match.winner,
+                player_id=db_match.winner_id,
                 match_list=self.placement_rounds[upper_name]["matches"],
                 match_index=target_match_index,
-                slot_position =target_slot_position,
-                tournament=tournament
+                slot_position=target_slot_position
             )
 
-        # Posun poraženého
+        # Posun poraženého dolů
         lower_name = f"{mid + 1}-{high}"
-        if lower_name in self.placement_rounds and finished_match.loser is not None:
+        if lower_name in self.placement_rounds:
             self._assign_player_to_slot(
-                player= finished_match.loser,
+                player_id=loser_id,
                 match_list=self.placement_rounds[lower_name]["matches"],
-                match_index= target_match_index,
-                slot_position = target_slot_position,
-                tournament=tournament
+                match_index=target_match_index,
+                slot_position=target_slot_position
             )
 
-    def update_slots_with_players(self,group_name: str, advancing_players: list, tournament, start_rank: int = 0) ->None:
-        """Nahradí textové sloty (např. "1A") reálnými objekty hráčů po dohrání skupiny."""
-        # 1.připravíme si mapování slotů na hráče pro tuto skupiny (např. "1A":Hráč1, "2A":Hráč2)
+    def update_slots_with_players(self, group_name: str, advancing_players: list, start_rank: int = 0) -> None:
+        """
+        Nahradí textové sloty (např. "1A") reálnými ID HRÁČŮ po dohrání skupiny.
+        """
+        # Vytvoříme mapování: "1A" -> 5 (kde 5 je ID hráče v DB)
         slot_mapping = {}
         for index, player in enumerate(advancing_players, start=start_rank):
             rank = index + 1
             slot_name = f"{rank}{group_name}"
-            slot_mapping[slot_name] = player
+            slot_mapping[slot_name] = player.id  # Ukládáme jen jeho DB ID
 
-            # Můžeme hráči rovnou zapsat jeho umístění
-            player.group_rank = str(rank)
-            player.group_name = group_name
-
-        # 2. Projdme první kolo playoff a pokusíme se nahradit sloty
         updated_round = []
-        for i, item in enumerate(self.rounds[1]):
-            if isinstance(item,tuple):
+        for item in self.rounds[1]:
+            if isinstance(item, (tuple,list)):
                 slot_a, slot_b = item
-                # Zkusíme nahradit slot_a (pokud je to string a patří do právě dohrané skupiny)
-                if isinstance(slot_a, str) and slot_a in slot_mapping:
-                    slot_a=slot_mapping[slot_a]
-                # Zkusíme nahradit slot_b
-                if isinstance(slot_b, str) and slot_b in slot_mapping:
-                    slot_b= slot_mapping[slot_b]
 
-                # 3. Zjistíme, zda jsou oba sloty vyřešené (nejsou to už stringy)
-                resolved = self._resolve_slot_pair_to_match(slot_a=slot_a,slot_b=slot_b,tournament=tournament)
+                # Zkusíme nahradit "1A" za reálné ID
+                if isinstance(slot_a, str) and slot_a in slot_mapping:
+                    slot_a = slot_mapping[slot_a]
+                if isinstance(slot_b, str) and slot_b in slot_mapping:
+                    slot_b = slot_mapping[slot_b]
+
+                # Zkusíme vyřešit a vytvořit Match
+                resolved = self._resolve_slot_pair_to_match(slot_a, slot_b)
                 updated_round.append(resolved)
             else:
-                # Už je to hotový Match (vyřešený dříve), necháme ho být
                 updated_round.append(item)
 
-        # uložíme aktualizované kolo zpět
         self.rounds[1] = updated_round
-        self.check_and_proceed(tournament=tournament)
 
-    def check_and_proceed(self,tournament) -> bool:
+        # PŘIDÁNO: Automaticky zkontrolujeme vytvořené zápasy a posuneme vítěze BYE dál!
+        self.check_and_proceed()
+
+    def check_and_proceed(self) -> None:
         """
-        Zkontroluje stav aktuálního kola hlavního poavouka i všech dohrávek
-        a v případě dohrání automaticky vygeneruje kolo následující.
+        Hlavní motor pavouka. Zkontroluje aktuální stav všech vygenerovaných
+        zápasů v DB. Pokud najde dohraný zápas, automaticky posune hráče dál
+        a zapíše konečná umístění pro dohrané finálové zápasy.
         """
-        main_advance = False
+
         main_rounds = sorted([r for r in self.rounds.keys() if isinstance(r, int)])
 
-        # Projdeme zápasy aktuálního kola hlavního pavouka
+        # 1. HLAVNÍ PAVOUK - kontrola a posun
         for round_num in main_rounds:
-            for idx,match in enumerate(self.rounds[round_num]):
-                if isinstance(match, Match) and match.is_finished and  match.winner is not None:
-                    # A) Standartní posun vítěze do dalšího kola hlavního pavouka
-                    self.move_winner_to_next_round(
-                        finished_match=match,
-                        round_num=round_num,
-                        match_index=idx,
-                        tournament=tournament
-                    )
-                    print(f"DEBUG: Akce v playoff je: '{self.playoff_elimination_action}'")
+            for idx, item in enumerate(self.rounds[round_num]):
+                # Pokud je slot integer, znamená to, že obsahuje ID databázového zápasu
+                if isinstance(item, int):
+                    db_match = MatchModel.query.get(item)
 
-                    # B) Pokud hrajeme dohrávky, pošleme poraženého do dohrávkového slotu!
-                    if self.playoff_elimination_action == "consolation":
-                        self.move_loser_to_placement_bracket(
-                            finished_match=match,
-                            round_num=round_num,
-                            match_index=idx,
-                            tournament=tournament
-                    )
-        # 2. Kontrola, zda skončilo finále (poslední kolo má už jen jeden zápas)
-        for round_num, matches in self.rounds.items():
-            if isinstance(round_num, int) and len(matches) ==1:
-                if isinstance(matches[0], Match) and matches[0].is_finished and matches[0].winner is not None:
-                    self.winner = matches[0].winner
-                    print(f"DEBUG: Turnaj má celkového vítěze: {self.winner}")
+                    if db_match and db_match.is_finished and db_match.winner_id is not None:
+                        # Zápas je hotový -> posouváme hráče dál
+                        self.move_winner_to_next_round(db_match, round_num, idx)
 
-        # 3. Kontrola stavu zápasů v dohrávkách (placement rounds)
+                        if self.playoff_elimination_action == "consolation":
+                            self.move_loser_to_placement_bracket(db_match, round_num, idx)
 
-        for bracket_name,data  in self.placement_rounds.items():
-            for idx, match in enumerate(data["matches"]):
-                if isinstance(match, Match) and match.is_finished and match.winner is not None:
-                    if not getattr(match, "placement_result_moved", False):
-                        self.move_placement_match_result(
-                            finished_match=match,
-                            bracket_name=bracket_name,
-                            match_index=idx,
-                            tournament=tournament
-                        )
-                        match.placement_result_moved = True
+        # 2. URČENÍ CELKOVÉHO VÍTĚZE A ZÁPIS FINÁLE
+        if main_rounds:
+            last_round = main_rounds[-1]
+            if len(self.rounds[last_round]) == 1:
+                item = self.rounds[last_round][0]
+                if isinstance(item, int):
+                    db_match = MatchModel.query.get(item)
+                    if db_match and db_match.is_finished and db_match.winner_id is not None:
+                        self.winner = db_match.winner_id
+                        print(f"DEBUG: Turnaj má celkového vítěze (ID hráče): {self.winner}")
+                        # Vítěz finále bere první pozici s offsetem
+                        PlayerHelper.set_final_rank(self.winner, 1 + self.rank_offset, stage_name=self.stage_name)
 
-        return main_advance
+                        # Poražený ve finále bere hned následující pozici (offset + 2)
+                        loser_id = db_match.player_b_id if db_match.winner_id == db_match.player_a_id else db_match.player_a_id
+                        if loser_id:
+                            PlayerHelper.set_final_rank(loser_id, 2 + self.rank_offset,stage_name=self.stage_name)
+
+        # 3. DOHRÁVKY - kontrola, posun a ZÁPIS KONEČNÝCH UMÍSTĚNÍ
+        for bracket_name, data in self.placement_rounds.items():
+            low, high = data["ranks"]
+
+            for idx, item in enumerate(data["matches"]):
+                if isinstance(item, int):
+                    db_match = MatchModel.query.get(item)
+                    if db_match and db_match.is_finished and db_match.winner_id is not None:
+                        # 1. Posuneme hráče v pavouku dál (např. z 5-8 do 5-6 nebo 7-8)
+                        self.move_placement_match_result(db_match, bracket_name, idx)
+
+                        # 2. Pokud se hraje PŘÍMO o konkrétní dvě místa (rozdíl je 1, např. 3-4, 5-6), zapíšeme to do DB!
+                        if high - low == 1:
+                            loser_id = db_match.player_b_id if db_match.winner_id == db_match.player_a_id else db_match.player_a_id
+
+                            # Vítěz bere nižší číslo (např. 3), poražený vyšší (např. 4)
+                            PlayerHelper.set_final_rank(db_match.winner_id, low, stage_name=self.stage_name)
+                            if loser_id:
+                                PlayerHelper.set_final_rank(loser_id, high, stage_name=self.stage_name)
 
     def get_sorted_placement_rounds(self):
         return sorted(self.placement_rounds.items(), key=lambda x: (x[1]["ranks"][1]-x[1]["ranks"][0], x[1]["ranks"][0]),
                       reverse=True)
 
+
     def _pregenerate_sub_brackets_recursive(self,low: int, high: int,match_count: int,source_main_round: int) -> None:
-        """
-        Rekursivně předpřipraví všechny pod-pavouky dohlubokých pater dohrávek
-        (např. z 9-16 -> 9-12 a 13-16, z toho dál na 9-10, 11-12 atd).
-        """
-        if match_count <2:
+        """Rekurzivně předpřipraví pod-pavouky hlubších pater dohrávek."""
+        if match_count < 2:
             return
 
-        mid= (low + high) // 2
-        sub_match_count = max(1,match_count // 2)
+        mid = (low + high) // 2
+        sub_match_count = max(1, match_count // 2)
 
-        # 1.vštvovité pod-sloty pro vítěze (horní polovina)
-        w_low, w_high = low, mid
-        w_name = f"{w_low}-{w_high}"
+        # Horní polovina (vítězové dohrávky)
+        w_name = f"{low}-{mid}"
         if w_name not in self.placement_rounds:
             self.placement_rounds[w_name] = {
-                "ranks": (w_low, w_high),
-                "matches": [("Čeká se..","Čeká se..") for _ in range(sub_match_count)],
+                "ranks": (low, mid),
+                "matches": [("Čeká se..", "Čeká se..") for _ in range(sub_match_count)],
                 "processed": False,
                 "source_main_round": source_main_round
             }
-            # Rekursivní sestup pro ještě hlubší patra (pokud je co štěpit)
-            self._pregenerate_sub_brackets_recursive(low=w_low,high=w_high,match_count=sub_match_count, source_main_round= source_main_round)
+            self._pregenerate_sub_brackets_recursive(low, mid, sub_match_count, source_main_round)
 
-        # 2. Větvovité= pod-sloty pro poražené (dolní polovina)
-        l_low, l_high = mid + 1, high
-        l_name = f"{l_low}-{l_high}"
-
+        # Dolní polovina (poražení dohrávky)
+        l_name = f"{mid + 1}-{high}"
         if l_name not in self.placement_rounds:
             self.placement_rounds[l_name] = {
-                "ranks": (l_low,l_high),
-                "matches":[("Čeká se..","Čeká se..") for _ in range(sub_match_count)],
+                "ranks": (mid + 1, high),
+                "matches": [("Čeká se..", "Čeká se..") for _ in range(sub_match_count)],
                 "processed": False,
                 "source_main_round": source_main_round
             }
-            # Rekursivní sestup pro dolní větev
-            self._pregenerate_sub_brackets_recursive(low=l_low,high=l_high,match_count=sub_match_count,source_main_round= source_main_round)
+            self._pregenerate_sub_brackets_recursive(mid + 1, high, sub_match_count, source_main_round)
 
-    def _resolve_slot_pair_to_match(self, slot_a, slot_b, tournament):
+    def _resolve_slot_pair_to_match(self, slot_a, slot_b):
         """
-        Pomocná metoda: zkrontroluje, zda jsou oba sloty v n-tici plné (vyřešené),
-        a pokud ano, vytvoří a vrátí realný Match objekt. Jinak vrací zpět tuple.
+        Zkontroluje, zda jsou oba sloty plné (obsahují ID hráče nebo 'BYE' / None).
+        Pokud ano, založí MatchModel v databázi a vrátí jeho ID.
+        Jinak vrátí původní tuple (např. (15, 'Čeká se..')).
         """
 
-        # Slot je vytvořený, pokud to není string( což je "1A" nebo čeká se..")
-        is_a_resolved = not isinstance(slot_a, str)
-        is_b_resolved = not isinstance(slot_b, str)
+        # OPRAVA 1: Zpracujeme "BYE", textové "None" i skutečný Python objekt None
+        def is_resolved(slot):
+            return isinstance(slot, int) or slot in ("BYE", None, "None")
 
-        if is_a_resolved and is_b_resolved:
-            # Oba hráči pro další kola jsou známí -> vytvoříme reálný Match!
-            match = Match(
-                player_a=slot_a,
-                player_b=slot_b,
-                match_format=self.match_format,
-                tournament_stage=self.stage_name,
-                match_id=tournament.get_next_match_id()
+        if is_resolved(slot_a) and is_resolved(slot_b):
+            # Zjistíme reálná IDs (pokud je to BYE nebo None, ID bude None)
+            p_a_id = slot_a if isinstance(slot_a, int) else None
+            p_b_id = slot_b if isinstance(slot_b, int) else None
+
+            # Vytvoříme databázový zápas
+            db_match = MatchModel(
+                match_type="playoff",
+                match_format=str(self.match_format),
+                tournament_id=self.tournament_id,
+                bracket_id=self.bracket_id,
+                player_a_id=p_a_id,
+                player_b_id=p_b_id,
+                is_finished=False
             )
-            # Automotické vyhodnocení BYE zápasů.
-            if slot_b is None and slot_a is not None:
-                match.winner = slot_a
-                match.is_finished = True
-            elif slot_a is None and slot_b is not None:
-                match.winner = slot_b
-                match.is_finished = True
-            elif slot_a is None and slot_b is None:
-                match.is_finished = True
 
-            return match
+            # OPRAVA 2: Vyhodnocení BYE rovnou na základě None IDček
+            if p_b_id is None and p_a_id is not None:
+                db_match.winner_id = p_a_id
+                db_match.is_finished = True
+            elif p_a_id is None and p_b_id is not None:
+                db_match.winner_id = p_b_id
+                db_match.is_finished = True
+            elif p_a_id is None and p_b_id is None:
+                # Velmi vzácné (dvě prázdná místa jdou proti sobě)
+                db_match.is_finished = True
+                db_match.winner_id = None
+
+            db.session.add(db_match)
+            db.session.commit()
+
+            return db_match.id
 
         else:
-            return (slot_a, slot_b)
+            # Ještě chybí hráč, vracíme původní tuple
+            return slot_a, slot_b
 
-    def _assign_player_to_slot(self,player, match_list: list, match_index:int, slot_position: str, tournament) -> None:
+    def _assign_player_to_slot(self, player_id: int, match_list: list, match_index: int, slot_position: str) -> None:
         """
-        Univerzální zapisovač: Vezme hráče a bezpečně ho zapíše do správného slotu.
-        Pokud se tím slot zaplní oběma hráči, automaticky ho přemění na Match objekt.
-        Tuto metodu využívají všechny funkce posouvající vítěze a poražené.
+        Univerzální zapisovač pro posouvání hráčů (vítězů/poražených) do dalších kol.
         """
-        if match_index >=len(match_list):
+        if match_index >= len(match_list):
             return
 
         target_item = match_list[match_index]
 
-        # 1. varianta: V sezanmu je ještě prázdný tuple -> dosadíme hráče a zkusíme vytvořit Match
-        if isinstance(target_item, tuple):
+        # A) V daném místě je ještě tuple (čeká se na spojení dvou hráčů)
+        if isinstance(target_item, (tuple, list)):
             slot_a, slot_b = target_item
             if slot_position == "A":
-                slot_a = player
+                slot_a = player_id
             else:
-                slot_b = player
+                slot_b = player_id
 
-            # Pokus o vytvoření zápasu (pokud jsou oba hotoví)
-            match_list[match_index] = self._resolve_slot_pair_to_match(slot_a=slot_a,slot_b=slot_b,tournament=tournament)
+            # Zkusíme rovnou vyřešit, zda už náhodou nejsou oba plné
+            match_list[match_index] = self._resolve_slot_pair_to_match(slot_a, slot_b)
 
-        elif isinstance(target_item, Match):
-            if slot_position == "A":
-                target_item.player_A = player
-            else:
-                target_item.player_B = player
+        # B) V daném místě už je číslo (ID zápasu) - což se stane, pokud se dříve vytvořil zápas
+        elif isinstance(target_item, int):
+            db_match = MatchModel.query.get(target_item)
+            if db_match:
+                if slot_position == "A":
+                    db_match.player_a_id = player_id
+                else:
+                    db_match.player_b_id = player_id
+                db.session.commit()
+
+    def get_ui_data(self) -> dict:
+        """Vygeneruje data o pavouku ve formátu vhodném pro HTML šablonu."""
+        p_data = {"rounds": {}, "placement_rounds": [], "winner": None}
+
+        # Zpracování hlavních kol
+        for round_num, matches in self.rounds.items():
+            round_ui = []
+            for item in matches:
+                if isinstance(item, int):  # Je to vygenerovaný databázový zápas
+                    m = MatchModel.query.get(item)
+                    round_ui.append({
+                        "is_real_match": True,
+                        "match_id": m.id,
+                        "player_a_name": m.player_a.name if m.player_a else "BYE",
+                        "player_a_seed": m.player_a.group_seed if m.player_a else "",
+                        "player_b_name": m.player_b.name if m.player_b else "BYE",
+                        "player_b_seed": m.player_b.group_seed if m.player_b else "",
+                        "is_finished": m.is_finished,
+                        "is_in_progress": getattr(m, "is_in_progress", False),
+                        "match_format": int(m.match_format),
+                        "winner_name": m.winner.name if m.winner else None
+                    })
+                else:  # Prázdný slot ("1A", "2B") nebo "Čeká se.."
+                    slot_a, slot_b = item
+                    slot_a_seed, slot_b_seed = "", ""
+
+                    if isinstance(slot_a, int):
+                        p = PlayerModel.query.get(slot_a)
+                        slot_a = p.name if p else "TBD"
+                        slot_a_seed = p.group_seed if p else ""
+                    elif slot_a is None or slot_a == "None":
+                        slot_a = "BYE"
+                    if isinstance(slot_b, int):
+                        p = PlayerModel.query.get(slot_b)
+                        slot_b = p.name if p else "TBD"
+                        slot_b_seed = p.group_seed if p else ""
+                    elif slot_b is None or slot_b == "None":
+                        slot_b = "BYE"
+
+                    round_ui.append({
+                        "is_real_match": False,
+                        "slot_a": slot_a,
+                        "slot_a_seed": slot_a_seed,
+                        "slot_b": slot_b,
+                        "slot_b_seed": slot_b_seed
+                    })
+            p_data["rounds"][round_num] = round_ui
+
+        # Zpracování dohrávek (placement rounds)
+        for bracket_name, data in self.placement_rounds.items():
+            placement_ui = {"name": bracket_name, "matches": []}
+            for item in data["matches"]:
+                if isinstance(item, int):
+                    m = MatchModel.query.get(item)
+                    placement_ui["matches"].append({
+                        "is_real_match": True,
+                        "match_id": m.id,
+                        "player_a_name": m.player_a.name if m.player_a else "BYE",
+                        "player_a_seed": m.player_a.group_seed if m.player_a else "",
+                        "player_b_name": m.player_b.name if m.player_b else "BYE",
+                        "player_b_seed": m.player_b.group_seed if m.player_b else "",
+                        "is_finished": m.is_finished,
+                        "is_in_progress": getattr(m, "is_in_progress", False),
+                        "match_format": int(m.match_format),
+                        "winner_name": m.winner.name if m.winner else None
+                    })
+                else:
+                    slot_a, slot_b = item
+                    if isinstance(slot_a, int):
+                        p = PlayerModel.query.get(slot_a)
+                        slot_a = p.name if p else "TBD"
+                    elif slot_a is None or slot_a == "None":
+                        slot_a = "BYE"
+
+                    if isinstance(slot_b, int):
+                        p = PlayerModel.query.get(slot_b)
+                        slot_b = p.name if p else "TBD"
+                    elif slot_b is None or slot_b == "None":
+                        slot_b = "BYE"
+
+                    placement_ui["matches"].append({
+                        "is_real_match": False,
+                        "slot_a": slot_a,
+                        "slot_b": slot_b
+                    })
+            p_data["placement_rounds"].append(placement_ui)
+
+        # Zjištění celkového vítěze pavouka
+        if self.winner:
+            w = PlayerModel.query.get(self.winner)
+            p_data["winner"] = w.name if w else None
+
+        return p_data
