@@ -14,6 +14,8 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "zalozni_tajny_kod")
 db_url = os.environ.get("DATABASE_URL")
+if not db_url:
+    db_url = "postgresql://postgres:Cdd9VbGzVfzeZ2AV@db.vlgumdlyjuefpwmjubru.supabase.co:6543/postgres"
 print(bytes(f"DEBUG DATABASE URL: {db_url}", "utf-8")) # vytiskne se to do logů Renderu
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
