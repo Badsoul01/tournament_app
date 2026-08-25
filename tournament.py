@@ -38,27 +38,31 @@ class Tournament:
         self._build_playoff(setup=setup)
 
 
-    def _build_database_structure(self, raw_groups:dict) -> None:
-        """Vezme surová data ze setupu a uloží skupiny a hráče do databáze."""
+    def _build_database_structure(self, raw_groups: dict) -> None:
+        """Vezme surová data ze setupu a uloží skupiny a hráče do databáze hromadně."""
 
-        for group_letter,player_names in raw_groups.items():
-            # Vytvoříme záznam skupin v DB
+        for group_letter, player_names in raw_groups.items():
+            # 1. Vytvoříme záznam skupiny v paměti session (bez commitu)
             db_group = GroupModel(
                 name=f"Skupina {group_letter}",
                 is_consolation=False,
                 tournament_id=self.id
             )
             db.session.add(db_group)
-            db.session.commit()
+            # Flush zajistí, že databáze vygeneruje ID pro db_group,
+            # abychom ho mohli hned přiřadit hráčům, ale nezatěžuje to sítě finálním commitem
+            db.session.flush()
 
-            # Projdeme hráče v této skupině a uložíme je do DB
+            # 2. Přidáme hráče této skupiny do paměti session
             for name in player_names:
                 db_player = PlayerModel(
                     name=name,
-                    tournament_id = self.id,
-                    group_id = db_group.id
+                    tournament_id=self.id,
+                    group_id=db_group.id
                 )
                 db.session.add(db_player)
+
+        # 3. Jeden jediný hromadný commit pro všechny skupiny i hráče naráz
         db.session.commit()
 
     def _build_playoff(self, setup) -> None:
