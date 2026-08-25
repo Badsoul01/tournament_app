@@ -115,18 +115,42 @@ class WebManager:
     # ==========================================
     # PRIVÁTNÍ POMOCNÉ METODY PRO FORMÁTOVÁNÍ
     # ==========================================
+
     @staticmethod
     def _format_players(players: list, stage_name: str) -> list:
+        if not players:
+            return []
+
+        # 1. Získáme ID všech hráčů najednou
+        player_ids = [p.id for p in players]
+
+        # 2. Vytáhneme statistiky pro VŠECHNY tyto hráče jediným SQL dotazem
+        from models import PlayerStats
+        all_stats = PlayerStats.query.filter(
+            PlayerStats.player_id.in_(player_ids),
+            PlayerStats.stage_name == stage_name
+        ).all()
+
+        # Uložíme do slovníku pro okamžitý přístup O(1)
+        stats_map = {s.player_id: s for s in all_stats}
+
         ui_data = []
         for p in players:
-            stats = PlayerHelper.get_or_create_stats(p.id, stage_name)
-            diff = PlayerHelper.difference_of_score(p.id, stage_name)
+            stats = stats_map.get(p.id)
+            if stats:
+                games_win = stats.games_win
+                games_lost = stats.games_lost
+                balls_diff = stats.balls_win - stats.balls_lost
+                points = stats.points
+            else:
+                games_win, games_lost, balls_diff, points = 0, 0, 0, 0
+
             ui_data.append({
                 "name": p.name,
-                "games_win": stats.games_win,
-                "games_lost": stats.games_lost,
-                "balls_diff": diff["Balls"],
-                "points": stats.points
+                "games_win": games_win,
+                "games_lost": games_lost,
+                "balls_diff": balls_diff,
+                "points": points
             })
         return ui_data
 
