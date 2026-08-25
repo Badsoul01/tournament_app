@@ -13,7 +13,9 @@ from webmanager import WebManager
 load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "zalozni_tajny_kod")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+db_url = os.environ.get("DATABASE_URL")
+print(bytes(f"DEBUG DATABASE URL: {db_url}", "utf-8")) # vytiskne se to do logů Renderu
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
