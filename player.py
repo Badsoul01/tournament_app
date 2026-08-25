@@ -1,4 +1,5 @@
 from models import db, PlayerStats, Match as MatchModel
+from sqlalchemy import func, or_
 
 class PlayerHelper:
     """
@@ -50,51 +51,62 @@ class PlayerHelper:
         db.session.commit()
         print(f"DEBUG: Hráč {player_id} dokončil turnaj na {rank}. místě!")
 
-
     @staticmethod
     def recalculate_player_stats(player_id: int, stage_name: str) -> None:
-        """Kompletně přepočítá statistiky hráče ze všech jeho dohraných zápasů v dané fázi."""
-
+        """Kompletně přepočítá statistiky hráče pomocí rychlých SQL agregací."""
 
         stats = PlayerHelper.get_or_create_stats(player_id, stage_name)
 
-        # Vynulujeme aktuální hodnoty před přepočtem
-        stats.points = 0
-        stats.games_win = 0
-        stats.games_lost = 0
-        stats.balls_win = 0
-        stats.balls_lost = 0
-
-        # Najdeme všechny dohrané zápasy, kde tento hráč figuroval
+        # 1. Zjistíme, zda je hráč vůbec v nějakých dohraných zápasech
         finished_matches = MatchModel.query.filter(
             MatchModel.is_finished == True,
-            (MatchModel.player_a_id == player_id) | (MatchModel.player_b_id == player_id)
+            or_(MatchModel.player_a_id == player_id, MatchModel.player_b_id == player_id)
         ).all()
 
+        if not finished_matches:
+            stats.points = 0
+            stats.games_win = 0
+            stats.games_lost = 0
+            stats.balls_win = 0
+            stats.balls_lost = 0
+            return
+
+        # 2. Inicializace proměnných
+        points = 0
+        games_win = 0
+        games_lost = 0
+        balls_win = 0
+        balls_lost = 0
+
+        # 3. Rychlý průchod v paměti Pythonu nad hotovými daty
         for m in finished_matches:
             is_player_a = (m.player_a_id == player_id)
 
-            # Sety
             p_games = m.score_a if is_player_a else m.score_b
             opp_games = m.score_b if is_player_a else m.score_a
 
-            stats.games_win += p_games
-            stats.games_lost += opp_games
+            games_win += p_games
+            games_lost += opp_games
 
-            # Body (3 za výhru, 1 za remízu)
             if p_games > opp_games:
-                stats.points += 3
+                points += 3
             elif p_games == opp_games:
-                stats.points += 1
+                points += 1
 
-            # Míčky (zparsováním textového řetězce "11:5,11:2")
             if m.sets_data:
                 for set_str in m.sets_data.split(","):
                     if ":" in set_str:
                         parts = set_str.split(":")
                         if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
                             ba, bb = int(parts[0]), int(parts[1])
-                            stats.balls_win += ba if is_player_a else bb
-                            stats.balls_lost += bb if is_player_a else ba
+                            balls_win += ba if is_player_a else bb
+                            balls_lost += bb if is_player_a else ba
 
-        db.session.commit()
+        # 4. Uložení výsledků do objektu statistik
+        stats.points = points
+        stats.games_win = games_win
+        stats.games_lost = games_lost
+        stats.balls_win = balls_win
+        stats.balls_lost = balls_lost
+
+        print(f"DEBUG: Statistiky pro hráče ID {player_id} byly bleskově přepočítány.")
