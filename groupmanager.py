@@ -2,7 +2,6 @@ import itertools
 from models import db, Group as GroupModel,Player as PlayerModel, Match as MatchModel, Bracket as BracketModel
 from player import PlayerHelper
 from playoff import Playoff
-from sqlalchemy.orm import joinedload
 
 class GroupManager:
     """
@@ -17,18 +16,16 @@ class GroupManager:
     def generate_group_matches(self) -> None:
         """
         Vygeneruje zápasy pro všechny skupiny daného turnaje spravedlivou
-        kruhovou metodou (round-robin) a uloží je do tabulky matches hromadně.
+        kruhovou metodou (round-robin) a uloží je do tabulky matches.
         """
-        # Načteme všechny hlavní skupiny a rovnou si přednačteme jejich hráče (joinedload),
-        # abychom se vyhnuli dodatečným dotazům do databáze za běhu.
-
-        groups = GroupModel.query.options(joinedload(GroupModel.players)).filter_by(
+        # Načteme všechny hlavní skupiny tohoto turnaje z databáze
+        groups = GroupModel.query.filter_by(
             tournament_id=self.tournament_id,
             is_consolation=False
         ).all()
 
         for group in groups:
-            # Získáme seznam hráčů přiřazených k této skupině přes přednačtenou relaci
+            # Získáme seznam hráčů přiřazených k této skupině přes SQLAlchemy relaci
             match_players = list(group.players)
 
             # Pokud je lichý počet hráčů, přidáme None (volno / BYE)
@@ -91,6 +88,8 @@ class GroupManager:
         """Privátní metoda: Vyhodnotí zápas ve skupině a případně posune hráče dál."""
         if db_match.player_a_id: PlayerHelper.recalculate_player_stats(db_match.player_a_id, "Group")
         if db_match.player_b_id: PlayerHelper.recalculate_player_stats(db_match.player_b_id, "Group")
+
+        db.session.commit()
 
         group = GroupModel.query.get(db_match.group_id)
         if not self.are_all_matches_played(group.id):
