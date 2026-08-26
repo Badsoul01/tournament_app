@@ -51,6 +51,19 @@
             color: #000;            /* Číslo bude černé, aby vyniklo */
             margin-left: 5px;
         }
+        /* --- TADY JSEM PŘIDAL RESPONSIVE GRID PRO TABLETY A MOBILY --- */
+        .responsive-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        /* Na menších displejích (mobil / tablet na výšku) se to srovná pod sebe do jednoho sloupce */
+        @media (max-width: 768px) {
+            .responsive-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -60,8 +73,6 @@
     <nav style="display:flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #ccc;">
         <a href="/">Domů</a>
         <div>
-
-            <a href="/settings_basic">Základní nastavení</a>|
             <a href="/settings_groups">Nastavení skupin</a>|
             <a href="/settings_playoff">Nastavení playoff</a>
         </div>
