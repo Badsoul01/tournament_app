@@ -2,7 +2,7 @@ import os
 from flask import Flask, render_template, request, redirect, session
 from dotenv import load_dotenv
 from flask_migrate import Migrate
-from config import TOURNAMENT_RULES, GROUPS_RULES, PLAYOFF_RULES
+from config import GROUPS_RULES, PLAYOFF_RULES
 from setupwizard import SetupWizard
 from models import db, Tournament as TournamentModel, Player as PlayerModel, PlayerStats as PlayerStatsModel
 from tournament import Tournament as TournamentOrchestrator
@@ -29,31 +29,6 @@ migrate = Migrate(app,db)
 def home():
     return render_template("index.html")
 
-@app.route("/settings_basic", methods=["GET","POST"])
-def settings_basic():
-    wizard = SetupWizard()
-    if "wizard_data" in session:
-        wizard.import_from_dict(session["wizard_data"])
-
-    if request.method== "POST":
-        action = request.form.get("action")
-        print(f"DEBUG: Přišla akce: {action}")
-        print(f"DEBUG:Form data: {request.form}")
-
-        wizard.selected_format = request.form.get("available_formats")
-        if action == "cancel":
-            session.pop("wizard_data", None)
-            return redirect("/")
-
-
-        wizard.import_from_dict(request.form.to_dict())
-        session["wizard_data"] = wizard.import_to_dict()
-        return redirect("/settings_groups")
-
-    return render_template("settings_basic.html",
-                           wizard=wizard,
-                           all_formats = TOURNAMENT_RULES["available_formats"])
-
 @app.route("/settings_groups", methods=["GET","POST"])
 def settings_groups():
     wizard = SetupWizard()
@@ -66,10 +41,17 @@ def settings_groups():
         print(f"DEBUG: Form data: {request.form}")
 
         wizard.process_form_action(form_data=request.form)
-        session["wizard_data"] = wizard.import_to_dict()
+
+
+        if action == "cancel":
+            session.pop("wizard_data", None)
+            return redirect("/")
 
         if action == "next":
+            session["wizard_data"] = wizard.import_to_dict()
             return redirect("/settings_playoff")
+
+        session["wizard_data"] = wizard.import_to_dict()
 
     return render_template("settings_groups.html",
                            wizard=wizard,
@@ -212,7 +194,7 @@ def results_view(tournament_id):
 @app.route("/reset_settings", methods=["POST"])
 def reset_settings():
     session.pop("wizard_data", None)
-    return redirect("/settings_basic")
+    return redirect("/settings_groups")
 
 if __name__ == "__main__":
     app.run(debug=True,host="0.0.0.0")
