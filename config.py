@@ -1,13 +1,5 @@
 STATE_OF_WIZARD= ["tournament_rules","groups_rules","playoff_rules"]
 
-TOURNAMENT_RULES= {
-    "available_formats": {
-        "groups_and_playoff": "skupiny a playoff",
-        "group": "skupina",
-        "playoff": "playoff"
-    },
-}
-
 GROUPS_RULES = {
     "group_match_format": {
         2: "2 hrané sety",
@@ -18,7 +10,7 @@ GROUPS_RULES = {
 
     "max_players_per_group": 8,
     "min_group": 1,
-    "max_group": 1 if TOURNAMENT_RULES["available_formats"]== "group" else  8,
+    "max_group": 8,
     "group_creation_options":[1,2,3,4,5,6,7,8],
     "min_advance_per_group": 1,
     "max_advance_per_group": 4,
