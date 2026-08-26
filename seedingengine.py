@@ -1,9 +1,6 @@
 
 class SeedingEngine:
 
-    def __init__(self,tournament_format: str):
-        self.tournament_format: str = tournament_format
-
     # ==========================================
     # VEŘEJNÉ API (HLAVNÍ METODY)
     # ==========================================
@@ -13,15 +10,10 @@ class SeedingEngine:
         Hlavní metoda, která funguje jako vyhybka.
         Podle formátu turnaje rozhodne, jaký matematický algoritmus se použije.
         """
-        if self.tournament_format == "groups_and_playoff":
-            print(F"DEBUG: POUŽIT GROUPED METODA {self.tournament_format}")
-            return self._generate_grouped_bracket(groups, start_rank=start_rank,end_rank=end_rank)
 
-        elif self.tournament_format == "playoff":
-            print(F"DEBUG: POUŽIT ATP METODA {self.tournament_format}")
-            return self._generate_atp_bracket(players=players)
+        print(f"DEBUG: POUŽIT GROUPED METODA ")
+        return self._generate_grouped_bracket(groups, start_rank=start_rank,end_rank=end_rank)
 
-        return []
 
 
     # ==========================================
