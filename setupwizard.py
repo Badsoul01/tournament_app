@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 import requests
 from datetime import date
 
-from config import TOURNAMENT_RULES, GROUPS_RULES, PLAYOFF_RULES, STATE_OF_WIZARD
+from config import GROUPS_RULES, PLAYOFF_RULES, STATE_OF_WIZARD
 
 class SetupWizard:
 
@@ -11,7 +11,6 @@ class SetupWizard:
         #základní informace
         self.name = ""
         self.date = date.today().strftime("%Y-%m-%d")
-        self.tournament_format = TOURNAMENT_RULES["available_formats"]["groups_and_playoff"]
         self.selected_format= ""
 
         #skupiny
@@ -290,6 +289,10 @@ class SetupWizard:
                 self.scrapped_url(url=url)
 
         elif action == "next":
+            name = form_data.get("name")
+            if name:
+                self.name = form_data.get("name")
+
             self.group_match_format = form_data.get("group_match_format")
             value = form_data.get("advance_per_group")
             if value and value.isdigit():
