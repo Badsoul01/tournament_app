@@ -14,7 +14,6 @@ class Tournament:
 
         db_tournament = TournamentModel(
             name = setup.name,
-            tournament_format=setup.tournament_format,
             group_match_format=setup.group_match_format,
             advance_per_group=setup.advance_per_group,
             group_elimination_action=setup.group_elimination_action,
@@ -76,7 +75,7 @@ class Tournament:
 
 
         # 3. Inicializujeme Playoff a necháme ho vygenerovat strukturu v paměti
-        engine = SeedingEngine(tournament_format= setup.tournament_format)
+        engine = SeedingEngine()
 
         main_playoff = Playoff(
             tournament_id=self.id,
