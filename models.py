@@ -9,12 +9,9 @@ class Tournament(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     date = db.Column(db.Date, default=lambda: datetime.now().date())
-    group_match_format = db.Column(db.Integer)
-    playoff_match_format= db.Column(db.Integer)
     advance_per_group = db.Column(db.Integer)  # Stačí nám číslo
     group_elimination_action = db.Column(db.String(50))
     playoff_elimination_action = db.Column(db.String(50))
-
 
     has_consolation = db.Column(db.Boolean, default=True)
     consolation_format = db.Column(db.String(50))
@@ -56,6 +53,37 @@ class Player(db.Model):
     tournament_id = db.Column(db.Integer, db.ForeignKey("tournaments.id"), nullable=False)
     group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), nullable=True)
 
+    global_player_id = db.Column(db.Integer, db.ForeignKey("global_players.id"), nullable=True)
+
+class GlobalPlayer(db.Model):
+    __tablename__ = "global_players"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable= False)
+
+    # Celkové statistiky
+    total_points = db.Column(db.Integer, default=0)
+    matches_played = db.Column(db.Integer, default=0)
+    matches_won = db.Column(db.Integer, default=0)
+    matches_lost = db.Column(db.Integer, default= 0)
+    matches_drawn = db.Column(db.Integer, default = 0)
+
+    # Pro sledování průměrného umístění:
+    tournaments_played = db.Column(db.Integer, default=0)
+    sum_of_ranks = db.Column(db.Integer, default=0)
+
+    last_rank = db.Column(db.Integer, nullable=True)
+    last_tournament_date = db.Column(db.Date, nullable=True)
+
+    #Vlastnost
+    @property
+    def average_rank(self):
+        if self.tournaments_played == 0:
+            return None
+        return  round(self.sum_of_ranks/ self.tournaments_played, 2)
+
+    tournament_entries = db.relationship("Player", backref="global_profile", lazy="dynamic")
+
 
 class Match(db.Model):
     __tablename__= "matches"
@@ -70,12 +98,6 @@ class Match(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     match_type = db.Column(db.String(20), nullable=False)
     match_format= db.Column(db.String(50))
-
-    # údaje pro statistiky
-    score_a = db.Column(db.Integer, default=0)
-    score_b = db.Column(db.Integer, default=0)
-    sets_data = db.Column(db.String(200), nullable=True)
-
 
     is_finished = db.Column(db.Boolean,default=False)
     is_in_progress = db.Column(db.Boolean, default=False)
@@ -94,6 +116,17 @@ class Match(db.Model):
     player_b = db.relationship("Player", foreign_keys=[player_b_id])
     winner = db.relationship("Player", foreign_keys= [winner_id])
 
+class MatchResults(db.Model):
+    __tablename__= "match_results"
+
+    id = db.Column(db.Integer, primary_key=True)
+    match_id = db.Column(db.Integer, db.ForeignKey("matches.id"), nullable=False)
+    set_number = db.Column(db.Integer, nullable=False)
+    score_a=db.Column(db.Integer, default=0)
+    score_b=db.Column(db.Integer, default=0)
+
+    match = db.relationship("Match", backref=db.backref("sets", cascade="all,delete-orphan",lazy="dynamic"))
+
 class PlayerStats(db.Model):
     __tablename__ = "player_stats"
 
@@ -108,7 +141,6 @@ class PlayerStats(db.Model):
     balls_lost = db.Column(db.Integer, default=0)
 
     final_rank = db.Column(db.Integer, nullable=True)
-
 
     player = db.relationship("Player", backref=db.backref("stats_records", lazy=True))
 
