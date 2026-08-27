@@ -14,12 +14,10 @@ class Tournament:
 
         db_tournament = TournamentModel(
             name = setup.name,
-            group_match_format=setup.group_match_format,
             advance_per_group=setup.advance_per_group,
             group_elimination_action=setup.group_elimination_action,
             has_consolation=is_consolation,
             playoff_elimination_action=setup.playoff_elimination_action,
-            playoff_match_format=setup.playoff_match_format
         )
         db.session.add(db_tournament)
         db.session.commit()
