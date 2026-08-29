@@ -9,6 +9,8 @@ class Tournament(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     date = db.Column(db.Date, default=lambda: datetime.now().date())
+    group_match_format = db.Column(db.Integer)
+    playoff_match_format= db.Column(db.Integer)
     advance_per_group = db.Column(db.Integer)  # Stačí nám číslo
     group_elimination_action = db.Column(db.String(50))
     playoff_elimination_action = db.Column(db.String(50))
