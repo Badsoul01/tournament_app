@@ -81,3 +81,10 @@ def toggle_match_progress(match_id: int):
     db_match = MatchModel.query.get_or_404(match_id)
     db_match.is_in_progress = not getattr(db_match, "is_in_progress", False)
     db.session.commit()
+
+def unlock_match(match_id: int):
+    """Odemkne již ukončený zápas pro úpravu výsledku."""
+    db_match = MatchModel.query.get_or_404(match_id)
+    db_match.is_finished = False
+    db_match.is_in_progress = True
+    db.session.commit()
