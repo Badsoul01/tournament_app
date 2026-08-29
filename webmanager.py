@@ -40,10 +40,28 @@ class WebManager:
         ).first()
 
         if cons_bracket:
+            # 1. Vytáhneme reálné zápasy minitabulky z DB
             matches = MatchModel.query.filter_by(bracket_id=cons_bracket.id).all()
-            player_ids = {m.player_a_id for m in matches if m.player_a_id} | {m.player_b_id for m in matches if
-                                                                              m.player_b_id}
-            players = PlayerModel.query.filter(PlayerModel.id.in_(player_ids)).all()
+
+            # 2. Sesbíráme hráče, kteří už v minitabulce mají zápasy, NEBO už mají group_seed odpovídající vyřazeným
+            match_player_ids = {m.player_a_id for m in matches if m.player_a_id} | {m.player_b_id for m in matches if
+                                                                                    m.player_b_id}
+
+            # Navíc se podíváme do tree_data, jaké seedy (např "3A", "3B") tato minitabulka vůbec očekává
+            tree_data = cons_bracket.tree_data or {}
+            expected_seeds = set()
+            for slot_a, slot_b in tree_data.get("matches", []):
+                if isinstance(slot_a, str): expected_seeds.add(slot_a)
+                if isinstance(slot_b, str): expected_seeds.add(slot_b)
+
+            # Najdeme hráče, kteří odpovídají těmto seedům a už mají přiřazené ID / dohráli skupinu
+            seeded_players = PlayerModel.query.filter(
+                PlayerModel.tournament_id == self.tournament_id,
+                PlayerModel.group_seed.in_(expected_seeds)
+            ).all()
+
+            all_player_ids = match_player_ids | {p.id for p in seeded_players}
+            players = PlayerModel.query.filter(PlayerModel.id.in_(all_player_ids)).all()
 
             ranked = sorted(
                 players,
@@ -58,6 +76,7 @@ class WebManager:
                 "players": self._format_players(ranked, "minigroup"),
                 "matches": self._format_matches(matches)
             }
+
         return group_data
 
     def get_playoff_page_data(self, is_consolation: bool = False) -> dict:
@@ -159,11 +178,11 @@ class WebManager:
         ui_data = []
         for m in sorted(matches, key=lambda x: x.id):
             played_sets = []
-            if m.sets_data:
-                for s in m.sets_data.split(","):
-                    if ":" in s:
-                        a, b = s.split(":")
-                        played_sets.append((int(a), int(b)))
+            if hasattr(m, 'sets') and m.sets:
+                # Seřadíme je podle čísla setu, aby šly popořadě (1. set, 2. set...)
+                sorted_sets = sorted(m.sets, key=lambda s: s.set_number)
+                for s in sorted_sets:
+                    played_sets.append((s.score_a, s.score_b))
             ui_data.append({
                 "match_id": m.id,
                 "player_a_name": m.player_a.name if m.player_a else "TBD",
