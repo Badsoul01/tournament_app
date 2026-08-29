@@ -128,6 +128,51 @@ class GroupManager:
                 cons_engine.update_slots_with_players(letter, eliminated, start_rank=adv_count)
                 cons_engine.save_to_db()
 
+            elif cons_bracket and cons_bracket.bracket_type == "round_robin":
+                # 1. Načteme aktuální šablonu minitabulky z JSONu
+                tree_data = cons_bracket.tree_data or {}
+                matches_list = tree_data.get("matches", [])
+
+                # 2. Projdeme všechny definované dvojice v minitabulce
+                for slot_a, slot_b in matches_list:
+                    p_a_id = slot_a if isinstance(slot_a, int) else None
+                    p_b_id = slot_b if isinstance(slot_b, int) else None
+
+                    # Pokud je slot textový (např. "3A"), zkusíme najít reálné ID hráče podle group_seed
+                    if isinstance(slot_a, str):
+                        p_obj = PlayerModel.query.filter_by(tournament_id=self.tournament_id, group_seed=slot_a).first()
+                        if p_obj:
+                            p_a_id = p_obj.id
+
+                    if isinstance(slot_b, str):
+                        p_obj = PlayerModel.query.filter_by(tournament_id=self.tournament_id, group_seed=slot_b).first()
+                        if p_obj:
+                            p_b_id = p_obj.id
+
+                    # 3. Jakmile máme oba hráče reálně dostupné (žádné textové seedy), vytvoříme zápas!
+                    if p_a_id is not None and p_b_id is not None:
+                        # Zkontrolujeme, jestli už tento vzájemný zápas v minitabulce existuje (obě strany)
+                        existing_match = MatchModel.query.filter(
+                            MatchModel.bracket_id == cons_bracket.id,
+                            ((MatchModel.player_a_id == p_a_id) & (MatchModel.player_b_id == p_b_id)) |
+                            ((MatchModel.player_a_id == p_b_id) & (MatchModel.player_b_id == p_a_id))
+                        ).first()
+
+                        if not existing_match:
+                            db_match = MatchModel(
+                                match_type="minigroup",
+                                match_format=str(current_tournament.group_match_format),
+                                tournament_id=self.tournament_id,
+                                bracket_id=cons_bracket.id,
+                                player_a_id=p_a_id,
+                                player_b_id=p_b_id,
+                                is_finished=False
+                            )
+                            db.session.add(db_match)
+                            db.session.commit()
+
+                db.session.commit()
+
     def _process_minigroup_finish(self, db_match, current_tournament) -> None:
         """Privátní metoda: Vyhodnotí zápas v minitabulce a rozdělí konečná umístění."""
         if db_match.player_a_id: PlayerHelper.recalculate_player_stats(db_match.player_a_id, "minigroup")
@@ -137,22 +182,23 @@ class GroupManager:
         if not cons_bracket or cons_bracket.bracket_type != "round_robin":
             return
 
+        # 1. Zkontrolujeme, zda už dohrály VŠECHNY základní skupiny v turnaji
+        all_groups = GroupModel.query.filter_by(tournament_id=self.tournament_id, is_consolation=False).all()
+        if not all(g.is_finished for g in all_groups):
+            return  # Pokud základní skupiny ještě neskončily, minitabulku NEVYHODNOCUJEME do konce!
+
         matches = MatchModel.query.filter_by(bracket_id=cons_bracket.id).all()
         if matches and all(m.is_finished for m in matches):
-            player_ids = {m.player_a_id for m in matches if m.player_a_id} | {m.player_b_id for m in matches if
-                                                                              m.player_b_id}
+            player_ids = {m.player_a_id for m in matches if m.player_a_id} | {m.player_b_id for m in matches if m.player_b_id}
             players = PlayerModel.query.filter(PlayerModel.id.in_(player_ids)).all()
-
             main_groups_count = GroupModel.query.filter_by(tournament_id=self.tournament_id,
                                                            is_consolation=False).count()
             start_rank = (current_tournament.advance_per_group * main_groups_count) + 1
-
             ranked = sorted(players, key=lambda p: (PlayerHelper.get_or_create_stats(p.id, "minigroup").points,
                                                     PlayerHelper.difference_of_score(p.id, "minigroup")["Balls"]),
                             reverse=True)
             for idx, p in enumerate(ranked):
                 PlayerHelper.set_final_rank(p.id, start_rank + idx, stage_name="minigroup")
-
 
     def rank_players(self, group_id: int, stage_name: str = "Group") -> list:
         group = GroupModel.query.get(group_id)
@@ -184,12 +230,22 @@ class GroupManager:
 
         mini_stats = {p.id: {"points": 0, "game_diff": 0, "ball_diff": 0} for p in subgroup}
         for m in rel_matches:
-            if m.score_a > m.score_b: mini_stats[m.player_a_id]["points"] += 3
-            elif m.score_a == m.score_b:
+            # Spočítáme celkové skóre setů z nové tabulky match_results
+            p_a_sets = 0
+            p_b_sets = 0
+            if hasattr(m, 'match_results') and m.match_results:
+                for s in m.results:
+                    if s.score_a > s.score_b:
+                        p_a_sets += 1
+                    elif s.score_b > s.score_a:
+                        p_b_sets += 1
+
+            if p_a_sets > p_b_sets:
+                mini_stats[m.player_a_id]["points"] += 3
+            elif p_a_sets == p_b_sets:
                 mini_stats[m.player_a_id]["points"] += 1
                 mini_stats[m.player_b_id]["points"] += 1
-            else: mini_stats[m.player_b_id]["points"] += 3
-            mini_stats[m.player_a_id]["game_diff"] += (m.score_a - m.score_b)
-            mini_stats[m.player_b_id]["game_diff"] += (m.score_b - m.score_a)
+            else:
+                mini_stats[m.player_b_id]["points"] += 3
 
-        return sorted(subgroup, key=lambda p: (mini_stats[p.id]["points"], mini_stats[p.id]["game_diff"]), reverse=True)
+        return sorted(subgroup, key=lambda p: (mini_stats[p.id]["points"], PlayerHelper.get_sorting_stats(p.id, "Group")), reverse=True)
