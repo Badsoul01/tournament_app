@@ -429,8 +429,8 @@ class Playoff:
         """Vygeneruje data o pavouku ve formátu vhodném pro HTML šablonu."""
         p_data = {"rounds": {}, "placement_rounds": [], "winner": None}
         tournament = TournamentModel.query.get(self.tournament_id)
-
-
+        default_format = tournament.playoff_match_format if tournament and tournament.playoff_match_format else 3
+        print(default_format)
         # Zpracování hlavních kol
         for round_num, matches in self.rounds.items():
             round_ui = []
@@ -446,7 +446,7 @@ class Playoff:
                         "player_b_seed": m.player_b.group_seed if m.player_b else "",
                         "is_finished": m.is_finished,
                         "is_in_progress": getattr(m, "is_in_progress", False),
-                        "match_format": m.playoff_match_format,
+                        "match_format": default_format,
                         "winner_name": m.winner.name if m.winner else None
                     })
                 else:  # Prázdný slot ("1A", "2B") nebo "Čeká se.."
@@ -490,7 +490,7 @@ class Playoff:
                         "player_b_seed": m.player_b.group_seed if m.player_b else "",
                         "is_finished": m.is_finished,
                         "is_in_progress": getattr(m, "is_in_progress", False),
-                        "match_format": m.playoff_match_format,
+                        "match_format": default_format,
                         "winner_name": m.winner.name if m.winner else None
                     })
                 else:
