@@ -18,6 +18,8 @@ class Tournament:
             group_elimination_action=setup.group_elimination_action,
             has_consolation=is_consolation,
             playoff_elimination_action=setup.playoff_elimination_action,
+            group_match_format =setup.group_match_format,
+            playoff_match_format = setup.playoff_match_format
         )
         db.session.add(db_tournament)
         db.session.commit()
@@ -174,6 +176,13 @@ class Tournament:
                         "group_id": db_cons_bracket.id,
                         "matches": minigroup_slots
                     }
+            else:
+                # Žádní hráči na vyřazení nezbyli (např. všichni postupují do hlavního pavouka)
+                # Takže v DB natvrdo vypneme konzoli, aby zmizela z menu
+                db_tournament = TournamentModel.query.get(self.id)
+                if db_tournament:
+                    db_tournament.has_consolation = False
+                    db.session.commit()
 
         db.session.commit()
 
