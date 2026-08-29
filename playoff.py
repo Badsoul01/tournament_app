@@ -1,4 +1,5 @@
-from models import db, Match as MatchModel, Player as PlayerModel, Bracket as BracketModel
+import tournament
+from models import db, Match as MatchModel, Player as PlayerModel, Bracket as BracketModel, Tournament as TournamentModel
 from player import PlayerHelper
 import math
 
@@ -427,6 +428,8 @@ class Playoff:
     def get_ui_data(self) -> dict:
         """Vygeneruje data o pavouku ve formátu vhodném pro HTML šablonu."""
         p_data = {"rounds": {}, "placement_rounds": [], "winner": None}
+        tournament = TournamentModel.query.get(self.tournament_id)
+
 
         # Zpracování hlavních kol
         for round_num, matches in self.rounds.items():
@@ -443,7 +446,7 @@ class Playoff:
                         "player_b_seed": m.player_b.group_seed if m.player_b else "",
                         "is_finished": m.is_finished,
                         "is_in_progress": getattr(m, "is_in_progress", False),
-                        "match_format": int(m.match_format),
+                        "match_format": m.playoff_match_format,
                         "winner_name": m.winner.name if m.winner else None
                     })
                 else:  # Prázdný slot ("1A", "2B") nebo "Čeká se.."
@@ -487,7 +490,7 @@ class Playoff:
                         "player_b_seed": m.player_b.group_seed if m.player_b else "",
                         "is_finished": m.is_finished,
                         "is_in_progress": getattr(m, "is_in_progress", False),
-                        "match_format": int(m.match_format),
+                        "match_format": m.playoff_match_format,
                         "winner_name": m.winner.name if m.winner else None
                     })
                 else:
