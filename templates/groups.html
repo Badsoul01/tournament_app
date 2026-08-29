@@ -28,85 +28,12 @@
     <h2>ZÁKLADNÍ SKUPINY</h2>
 
     {% for group_name, data in group_data.items() %}
-        <details open style="margin-bottom: 20px;">
-            <summary style="font-size: 1.2em; cursor: pointer; margin-bottom: 10px;"><strong>SKUPINA {{ group_name }}</strong></summary>
+        <details open>
+            <summary><strong>Skupina {{ group_name }}</strong></summary>
 
-            <div class="group-container">
-                <!-- LEVÝ SLOUPEC: Tabulka a odehrané zápasy -->
-                <div class="group-left">
-                    <table class="table" style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                            <th style="text-align: left;">Hráč</th><th>Sety</th><th>Míčky +/-</th><th>Body</th>
-                        </tr>
-                        {% for p in data.players %}
-                            <tr class="{% if loop.index|int <= tournament.advance_per_group|int %}qualifying-row{% endif %}">
-                                <td style="text-align: left;">{{ p.name }}</td>
-                                <td>{{ p.games_win }}:{{ p.games_lost }}</td>
-                                <td>{{ p.balls_diff }}</td>
-                                <td>{{ p.points }}</td>
-                            </tr>
-                        {% endfor %}
-                    </table>
-                    <p style="font-size: 0.8em; color:#555; margin-top: 5px;">
-                        V případě shody pořadí určuje: Vzájemný zápas, Sety, Míčky.
-                    </p>
-
-                    <h4 style="margin-top: 15px;">Odehrané zápasy</h4>
-                    <table style="width: 100%; font-size: 0.9em;">
-                        {% for match in data.matches if match.is_finished %}
-                            <tr>
-                                <td>{{ match.player_a_name }} - {{ match.player_b_name }}</td>
-                                <td>
-                                    {% for game_a, game_b in match.played_sets %}
-                                        {{ game_a }}:{{ game_b }}{% if not loop.last %}, {% endif %}
-                                    {% endfor %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </table>
-                </div>
-
-                <!-- PRAVÝ SLOUPEC: Nerozehrané / aktivní zápasy k vyplnění -->
-                <div class="group-right">
-                    <h4>Zápasy k odehrání</h4>
-                    {% for match in data.matches if not match.is_finished %}
-                        <div class="match-card">
-                            {% if not match.is_in_progress %}
-                                <!-- STAV 1: Zápas je zavřený -->
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <strong style="white-space: nowrap;">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
-                                    <form action="/tournament/{{ tournament.id }}/groups" method="POST" style="margin: 0;">
-                                        <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                                        <button type="submit" name="action" value="toggle_progress"><strong>+</strong></button>
-                                    </form>
-                                </div>
-                            {% else %}
-                                <!-- STAV 2: Zápas je rozkliknutý -->
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
-                                    <strong style="white-space: nowrap;">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
-                                    <form action="/tournament/{{ tournament.id }}/groups" method="POST" style="margin: 0;">
-                                        <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                                        <button type="submit" name="action" value="toggle_progress"><strong>-</strong></button>
-                                    </form>
-                                </div>
-
-                                <form action="/tournament/{{ tournament.id }}/groups" method="POST" style="display: flex; flex-direction: column; align-items: center;">
-                                    <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                                    <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
-                                        {% for i in range(1, match.match_format | int + 1) %}
-                                            <div class="set-container">
-                                                <strong>{{ i }}. set:</strong>
-                                                <input type="number" class="match-input" name="game_a[]" min="0" style="width: 50px;"> :
-                                                <input type="number" class="match-input" name="game_b[]" min="0" style="width: 50px;">
-                                            </div>
-                                        {% endfor %}
-                                    </div>
-                                    <button type="submit" name="action" value="submit_result">Uložit výsledek</button>
-                                </form>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
+            <!-- Cílový kontejner pro HTMX. Při odeslání dat se překreslí jen jeho vnitřek -->
+            <div id="group-{{ group_name }}">
+                {% include "partials/_group_content.html" %}
             </div>
         </details>
         <hr>
