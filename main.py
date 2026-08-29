@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, send_file
 from dotenv import load_dotenv
 from flask_migrate import Migrate
 from config import GROUPS_RULES, PLAYOFF_RULES
@@ -245,18 +245,39 @@ def consolation_playoff_view(tournament_id):
     p_data = web_manager.get_playoff_page_data(is_consolation=True)
     return render_template("consolation_playoff.html", tournament=web_manager.tournament, p_data=p_data)
 
-@app.route("/tournament/<int:tournament_id>/results", methods=["GET"])
+
+@app.route("/tournament/<int:tournament_id>/results", methods=["GET", "POST"])
 def results_view(tournament_id):
-        current_tournament = TournamentModel.query.get_or_404(tournament_id)
+    current_tournament = TournamentModel.query.get_or_404(tournament_id)
+    web_manager = WebManager(tournament_id)
 
-        results_data = db.session.query(PlayerModel, PlayerStatsModel.final_rank) \
-            .join(PlayerStatsModel, PlayerModel.id == PlayerStatsModel.player_id) \
-            .filter(PlayerModel.tournament_id == tournament_id) \
-            .filter(PlayerStatsModel.final_rank.isnot(None)) \
-            .order_by(PlayerStatsModel.final_rank.asc()) \
-            .all()
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "download":
+            file_stream = web_manager.generate_results_excel()
 
-        return render_template("results.html", tournament=current_tournament, results=results_data)
+            safe_tournament_name = "".join(
+                c for c in web_manager.tournament.name if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+            filename = f"vysledky_{safe_tournament_name}.xlsx"
+
+            return send_file(
+                file_stream,
+                as_attachment=True,
+                download_name=filename,
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        elif action == "finish_tournament":
+            TournamentOrchestrator.finish_existing_tournament(tournament_id)
+            return redirect(f"/tournament/{tournament_id}/results")
+
+    results_data = db.session.query(PlayerModel, PlayerStatsModel.final_rank) \
+        .join(PlayerStatsModel, PlayerModel.id == PlayerStatsModel.player_id) \
+        .filter(PlayerModel.tournament_id == tournament_id) \
+        .filter(PlayerStatsModel.final_rank.isnot(None)) \
+        .order_by(PlayerStatsModel.final_rank.asc()) \
+        .all()
+
+    return render_template("results.html", tournament=current_tournament, results=results_data)
 
 @app.route("/reset_settings", methods=["POST"])
 def reset_settings():
