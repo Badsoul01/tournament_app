@@ -1,105 +1,10 @@
 {% extends "base_tournament.html" %}
 
-{% macro render_match(match, action_url) %}
-    {% if match.is_real_match %}
-        {% if match.is_finished %}
-            <!-- STAV 0: Dohráno -->
-            <div>
-                <strong>{{ match.player_a_name }}</strong> <small style="color: #888;"> ({{match.player_a_seed }})</small>
-                <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
-                <strong>{{ match.player_b_name }}</strong>
-
-                {# Vypíše vítěze jen tehdy, když není None (tedy vynechá BYE vs BYE) #}
-                {% if match.winner_name %}
-                    <div style="margin-top: 5px; font-size: 0.9em;">Vítěz: <strong>{{ match.winner_name }}</strong></div>
-                {% endif %}
-            </div>
-        {% elif not match.is_in_progress %}
-            <!-- STAV 1: Zavřeno -->
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div>
-                    <strong>{{ match.player_a_name }}</strong> <small style="color: #888;">({{ match.player_a_seed }})</small>
-                    <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
-                    <strong>{{ match.player_b_name }}</strong> <small style="color: #888;">({{ match.player_b_seed }})</small>
-                </div>
-                <form action="{{ action_url }}" method="POST" style="margin: 0;">
-                    <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                    <button type="submit" name="action" value="toggle_progress"><strong>+</strong></button>
-                </form>
-            </div>
-        {% else %}
-            <!-- STAV 2: Rozkliknuto -->
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
-                <div>
-                    <strong>{{ match.player_a_name }}</strong> <small style="color: #888;">({{ match.player_a_seed }})</small>
-                    <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
-                    <strong>{{ match.player_b_name }}</strong> <small style="color: #888;">({{ match.player_b_seed }})</small>
-                </div>
-                <form action="{{ action_url }}" method="POST" style="margin: 0;">
-                    <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                    <button type="submit" name="action" value="toggle_progress"><strong>-</strong></button>
-                </form>
-            </div>
-            <form action="{{ action_url }}" method="POST" style="display: flex; flex-direction: column; align-items: center;">
-                <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
-                    {% for i in range(1, match.match_format + 1) %}
-                        <div class="set-container">
-                            <span>{{ i }}. set</span>
-                            <input type="number" class="match-input" name="game_a[]" min="0" style="width: 40px;"> :
-                            <input type="number" class="match-input" name="game_b[]" min="0" style="width: 40px;">
-                        </div>
-                    {% endfor %}
-                </div>
-                <button type="submit" name="action" value="submit_result">Uložit výsledek</button>
-            </form>
-        {% endif %}
-    {% else %}
-        <!-- SLOTOVÁ N-TICE -->
-        <strong>{{ match.slot_a }}</strong>
-        <br>vs<br>
-        <strong>{{ match.slot_b }}</strong>
-    {% endif %}
-{% endmacro %}
-
-
-{# ============================================================== #}
-{# VLASTNÍ STRÁNKA                                               #}
-{# ============================================================== #}
-
 {% block content %}
-    <h2>ÚTĚCHA</h2>
+    <h2>PLAYOFF ÚTĚCHY</h2>
 
-    <div class="bracket">
-        {% if p_data and p_data.rounds %}
-            {% for round_num, matches in p_data.rounds.items() %}
-                <div class="round">
-                    <h4>Kolo {{ round_num }}</h4>
-                    {% for match in matches %}
-                        <div class="match">
-                            {{ render_match(match, url_for('consolation_playoff_view', tournament_id=tournament.id)) }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endfor %}
-        {% endif %}
+    <!-- Cílový kontejner, který recykluje stejný partial pro pavouka -->
+    <div id="playoff-container">
+        {% include "partials/_playoff_content.html" %}
     </div>
-
-    {% if p_data and p_data.placement_rounds %}
-        <div class="placement-section">
-            <h2> ZÁPASY O KONEČNÉ UMÍSTĚNÍ</h2>
-            <div class="placement-container">
-                {% for placement in p_data.placement_rounds %}
-                    <div class="round">
-                        <h3>O {{ placement.name }}. místo</h3>
-                        {% for match in placement.matches %}
-                            <div class="match">
-                                {{ render_match(match, url_for('consolation_playoff_view', tournament_id=tournament.id)) }}
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% endfor %}
-            </div>
-        </div>
-    {% endif %}
 {% endblock %}
