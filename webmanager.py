@@ -1,8 +1,10 @@
-from models import Tournament as TournamentModel, Group as GroupModel, Match as MatchModel, Bracket as BracketModel, \
-    Player as PlayerModel
+from models import db, Tournament as TournamentModel, Group as GroupModel, Match as MatchModel, Bracket as BracketModel, \
+    Player as PlayerModel, PlayerStats as PlayerStatsModel
 from player import PlayerHelper
 from groupmanager import GroupManager
 from playoff import Playoff
+import io
+import openpyxl
 
 
 class WebManager:
@@ -193,3 +195,63 @@ class WebManager:
                 "played_sets": played_sets
             })
         return ui_data
+
+    def generate_results_excel(self) -> io.BytesIO:
+        """Vygeneruje Excel soubor s konečným pořadím turnaje a vrátí ho jako BytesIO stream."""
+        results_data = db.session.query(PlayerModel, PlayerStatsModel.final_rank) \
+            .join(PlayerStatsModel, PlayerModel.id == PlayerStatsModel.player_id) \
+            .filter(PlayerModel.tournament_id == self.tournament_id) \
+            .filter(PlayerStatsModel.final_rank.isnot(None)) \
+            .order_by(PlayerStatsModel.final_rank.asc()) \
+            .all()
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Konečné pořadí"
+
+        # Styly
+        header_font = openpyxl.styles.Font(bold=True, color="FFFFFF")
+        header_fill = openpyxl.styles.PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+        align_center = openpyxl.styles.Alignment(horizontal="center", vertical="center")
+        border_thin = openpyxl.styles.Border(
+            left=openpyxl.styles.Side(style='thin', color='D1D5DB'),
+            right=openpyxl.styles.Side(style='thin', color='D1D5DB'),
+            top=openpyxl.styles.Side(style='thin', color='D1D5DB'),
+            bottom=openpyxl.styles.Side(style='thin', color='D1D5DB')
+        )
+
+        # Nadpis v Excelu
+        ws.merge_cells("A1:B1")
+        ws["A1"] = f"Výsledky turnaje: {self.tournament.name}"
+        ws["A1"].font = openpyxl.styles.Font(size=14, bold=True)
+        ws["A1"].alignment = openpyxl.styles.Alignment(horizontal="center")
+
+        # Hlavička tabulky
+        headers = ["Pořadí", "Hráč"]
+        for col_num, header_title in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col_num)
+            cell.value = header_title
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = align_center
+            cell.border = border_thin
+
+        # Zápis dat
+        for row_idx, (player, rank) in enumerate(results_data, start=4):
+            c1 = ws.cell(row=row_idx, column=1, value=f"{rank}.")
+            c2 = ws.cell(row=row_idx, column=2, value=player.name)
+
+            c1.alignment = align_center
+            c1.border = border_thin
+            c2.border = border_thin
+
+        # Šířka sloupců
+        for col in ws.columns:
+            max_length = max(len(str(cell.value or '')) for cell in col)
+            col_letter = openpyxl.utils.get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = max(max_length + 5, 15)
+
+        file_stream = io.BytesIO()
+        wb.save(file_stream)
+        file_stream.seek(0)
+        return file_stream
