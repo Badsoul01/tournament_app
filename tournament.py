@@ -1,5 +1,6 @@
 from setupwizard import SetupWizard
-from models import db, Tournament as TournamentModel, Group as GroupModel, Player as PlayerModel, Match as MatchModel, Bracket as BracketModel
+from models import db, Tournament as TournamentModel, Group as GroupModel, Player as PlayerModel, \
+    Match as MatchModel, Bracket as BracketModel, PlayerStats as PlayerStatsModel, GlobalPlayer as GlobalPlayerModel
 from groupmanager import GroupManager
 from seedingengine import SeedingEngine
 from playoff import Playoff
@@ -197,3 +198,45 @@ class Tournament:
 
         # Pokud se žádný nedohraný nenajde (unfinished_match je None), turnaj je hotový
         return unfinished_match is None
+
+    @staticmethod
+    def finish_existing_tournament(tournament_id: int) -> bool:
+        db_tournament = TournamentModel.query.get(tournament_id)
+        if not db_tournament or db_tournament.is_finished:
+            return False
+
+        # Zkontrolujeme, zda jsou všechny zápasy dohrané
+        # (vytvoříme dočasnou instanci orchestrátoru nebo ověříme přes dotaz na DB)
+        unfinished_match = MatchModel.query.filter_by(
+            tournament_id=tournament_id,
+            is_finished=False
+        ).first()
+
+        if unfinished_match is not None:
+            # Turnaj ještě není dohraný, zamknutí zamítneme
+            return False
+
+        db_tournament.is_finished = True
+
+        from models import PlayerStats as PlayerStatsModel, GlobalPlayer
+        results_data = db.session.query(PlayerModel, PlayerStatsModel.final_rank) \
+            .join(PlayerStatsModel, PlayerModel.id == PlayerStatsModel.player_id) \
+            .filter(PlayerModel.tournament_id == tournament_id) \
+            .filter(PlayerStatsModel.final_rank.isnot(None)) \
+            .all()
+
+        for player, rank in results_data:
+            global_player = GlobalPlayer.query.filter_by(name=player.name).first()
+            if not global_player:
+                global_player = GlobalPlayer(name=player.name)
+                db.session.add(global_player)
+                db.session.flush()
+
+            player.global_player_id = global_player.id
+            global_player.tournaments_played = (global_player.tournaments_played or 0) + 1
+            global_player.sum_of_ranks = (global_player.sum_of_ranks or 0) + rank
+            global_player.last_rank = rank
+            global_player.last_tournament_date = db_tournament.date
+
+        db.session.commit()
+        return True
