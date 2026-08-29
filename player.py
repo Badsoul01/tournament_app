@@ -58,10 +58,19 @@ class PlayerHelper:
         stats = PlayerHelper.get_or_create_stats(player_id, stage_name)
 
         # 1. Zjistíme, zda je hráč vůbec v nějakých dohraných zápasech
-        finished_matches = MatchModel.query.filter(
+        query = MatchModel.query.filter(
             MatchModel.is_finished == True,
             or_(MatchModel.player_a_id == player_id, MatchModel.player_b_id == player_id)
-        ).all()
+        )
+
+        if stage_name == "minigroup":
+            # Pro minitabulku bereme výhradně zápasy, které mají vyplněný bracket_id (patří do útěchy)
+            query = query.filter(MatchModel.bracket_id.isnot(None))
+        elif stage_name == "Group":
+            # Pro základní skupiny bereme výhradně zápasy s group_id
+            query = query.filter(MatchModel.group_id.isnot(None))
+
+        finished_matches = query.all()
 
         if not finished_matches:
             stats.points = 0
@@ -82,8 +91,29 @@ class PlayerHelper:
         for m in finished_matches:
             is_player_a = (m.player_a_id == player_id)
 
-            p_games = m.score_a if is_player_a else m.score_b
-            opp_games = m.score_b if is_player_a else m.score_a
+            p_games = 0
+            opp_games = 0
+
+            # Projdeme sety z nové relace (např. m.results nebo m.match_results)
+            if hasattr(m, 'sets') and m.sets:
+                for s in m.sets:
+                    ba, bb = s.score_a, s.score_b
+
+                    # Sčítání míčků
+                    balls_win += ba if is_player_a else bb
+                    balls_lost += bb if is_player_a else ba
+
+                    # Sčítání vyhraných setů (zda set vyhrál hráč A nebo B)
+                    if ba > bb:
+                        if is_player_a:
+                            p_games += 1
+                        else:
+                            opp_games += 1
+                    elif bb > ba:
+                        if not is_player_a:
+                            p_games += 1
+                        else:
+                            opp_games += 1
 
             games_win += p_games
             games_lost += opp_games
@@ -93,20 +123,13 @@ class PlayerHelper:
             elif p_games == opp_games:
                 points += 1
 
-            if m.sets_data:
-                for set_str in m.sets_data.split(","):
-                    if ":" in set_str:
-                        parts = set_str.split(":")
-                        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
-                            ba, bb = int(parts[0]), int(parts[1])
-                            balls_win += ba if is_player_a else bb
-                            balls_lost += bb if is_player_a else ba
-
         # 4. Uložení výsledků do objektu statistik
         stats.points = points
         stats.games_win = games_win
         stats.games_lost = games_lost
         stats.balls_win = balls_win
         stats.balls_lost = balls_lost
+
+        db.session.commit()
 
         print(f"DEBUG: Statistiky pro hráče ID {player_id} byly bleskově přepočítány.")
