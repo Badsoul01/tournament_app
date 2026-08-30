@@ -1,4 +1,3 @@
-Markdown
 # Tournament App
 
 Webová aplikace vytvořená v Pythonu pro správu a organizaci turnajů (vhodná např. pro stolní tenis a jiné sporty). Systém umožňuje snadnou správu hráčů, automatické generování skupin i vyřazovacího pavouka (play-off) a přehledný export výsledků.
