@@ -146,10 +146,9 @@ class WebManager:
         player_ids = [p.id for p in players]
 
         # 2. Vytáhneme statistiky pro VŠECHNY tyto hráče jediným SQL dotazem
-        from run.models.models import PlayerStats
-        all_stats = PlayerStats.query.filter(
-            PlayerStats.player_id.in_(player_ids),
-            PlayerStats.stage_name == stage_name
+        all_stats = PlayerStatsModel.query.filter(
+            PlayerStatsModel.player_id.in_(player_ids),
+            PlayerStatsModel.stage_name == stage_name
         ).all()
 
         # Uložíme do slovníku pro okamžitý přístup O(1)
