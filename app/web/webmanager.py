@@ -1,8 +1,8 @@
-from models import db, Tournament as TournamentModel, Group as GroupModel, Match as MatchModel, Bracket as BracketModel, \
+from app.models.models import db, Tournament as TournamentModel, Group as GroupModel, Match as MatchModel, Bracket as BracketModel, \
     Player as PlayerModel, PlayerStats as PlayerStatsModel
-from player import PlayerHelper
-from groupmanager import GroupManager
-from playoff import Playoff
+from app.services.player import PlayerHelper
+from app.services.groupmanager import GroupManager
+from app.services.playoff import Playoff
 import io
 import openpyxl
 
@@ -146,7 +146,7 @@ class WebManager:
         player_ids = [p.id for p in players]
 
         # 2. Vytáhneme statistiky pro VŠECHNY tyto hráče jediným SQL dotazem
-        from models import PlayerStats
+        from run.models.models import PlayerStats
         all_stats = PlayerStats.query.filter(
             PlayerStats.player_id.in_(player_ids),
             PlayerStats.stage_name == stage_name

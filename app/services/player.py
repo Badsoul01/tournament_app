@@ -1,5 +1,5 @@
-from models import db, PlayerStats, Match as MatchModel
-from sqlalchemy import func, or_
+from app.models.models import db, PlayerStats, Match as MatchModel
+from sqlalchemy import or_
 
 class PlayerHelper:
     """

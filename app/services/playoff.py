@@ -1,6 +1,5 @@
-import tournament
-from models import db, Match as MatchModel, Player as PlayerModel, Bracket as BracketModel, Tournament as TournamentModel
-from player import PlayerHelper
+from app.models.models import db, Match as MatchModel, Player as PlayerModel, Bracket as BracketModel, Tournament as TournamentModel
+from app.services.player import PlayerHelper
 import math
 
 class Playoff:

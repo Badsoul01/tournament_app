@@ -1,5 +1,5 @@
-from models import db, Match as MatchModel, MatchResults as MatchResultsModel
-from player import PlayerHelper
+from app.models.models import db, Match as MatchModel, MatchResults as MatchResultsModel
+from app.services.player import PlayerHelper
 
 
 def evaluate(match_id, player_a_games: list, player_b_games: list) -> bool:

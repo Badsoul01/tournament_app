@@ -1,9 +1,9 @@
-from setupwizard import SetupWizard
-from models import db, Tournament as TournamentModel, Group as GroupModel, Player as PlayerModel, \
-    Match as MatchModel, Bracket as BracketModel, PlayerStats as PlayerStatsModel, GlobalPlayer as GlobalPlayerModel
-from groupmanager import GroupManager
-from seedingengine import SeedingEngine
-from playoff import Playoff
+from app.services.setupwizard import SetupWizard
+from app.models.models import db, Tournament as TournamentModel, Group as GroupModel, Player as PlayerModel, \
+    Match as MatchModel, Bracket as BracketModel
+from app.services.groupmanager import GroupManager
+from app.services.seedingengine import SeedingEngine
+from app.services.playoff import Playoff
 
 class Tournament:
     """
@@ -218,7 +218,7 @@ class Tournament:
 
         db_tournament.is_finished = True
 
-        from models import PlayerStats as PlayerStatsModel, GlobalPlayer
+        from run.models.models import PlayerStats as PlayerStatsModel, GlobalPlayer
         results_data = db.session.query(PlayerModel, PlayerStatsModel.final_rank) \
             .join(PlayerStatsModel, PlayerModel.id == PlayerStatsModel.player_id) \
             .filter(PlayerModel.tournament_id == tournament_id) \
