@@ -3,6 +3,11 @@ Markdown
 
 Webová aplikace vytvořená v Pythonu pro správu a organizaci turnajů (vhodná např. pro stolní tenis a jiné sporty). Systém umožňuje snadnou správu hráčů, automatické generování skupin i vyřazovacího pavouka (play-off) a přehledný export výsledků.
 
+### 🌐 Živá aplikace
+
+Aplikace běží online na: [www.spravaturnaje.cz](https://www.spravaturnaje.cz)
+
+
 ## 🚀 Hlavní funkce
 
 * **Správa turnajů a hráčů:** Registrace účastníků, rozřazování do skupin a sledování stavu zápasů.
@@ -74,7 +79,11 @@ pip install -r requirements.txt
 ```
 
 #### 3.1 Nastavení proměnných prostředí
-Vytvoř soubor `.env` v kořenovém adresáři (můžeš zkopírovat .env.example]:
+Vytvoř soubor `.env` v kořenovém adresáři (můžeš zkopírovat `.env.example`):
+```bash
+cp .env.example .env
+````
+A uprav v něm přístup k databázi a tajný klíč:
 ```bash
 DATABASE_URL=postgresql://user:password@localhost:5432/tournament_db
 SECRET_KEY=tvoje_tajne_heslo
