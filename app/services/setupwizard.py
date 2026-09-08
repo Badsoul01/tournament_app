@@ -343,11 +343,20 @@ class SetupWizard:
         elif action == "increase_groups":
             self.create_groups(count_to_add=1)
 
+
         elif action == "decrease_groups":
             if self.groups:
-                # Získáme písmeno poslední vytvořené skupiny (např. z ['A', 'B', 'C'] to bude 'C')
-                last_group_letter = sorted(self.groups.keys())[-1]
-                self.remove_group(group_letter=last_group_letter)
+                # Najdeme poslední prázdnou skupinu
+                empty_group = None
+
+                for letter in reversed(sorted(self.groups.keys())):
+                    if len(self.groups[letter]) == 0:
+                        empty_group = letter
+                        break
+
+                # Pokud existuje prázdná skupina, smažeme ji. Pokud ne, smažeme poslední i s hráči (force=True)
+                target_group = empty_group or sorted(self.groups.keys())[-1]
+                self.remove_group(group_letter=target_group, force=False)
 
         elif action == "seed_players":
             criterion = form_data.get("seed_criterion","last_tournament")
