@@ -1,5 +1,3 @@
-STATE_OF_WIZARD= ["tournament_rules","groups_rules","playoff_rules"]
-
 GROUPS_RULES = {
     "group_match_format": {
         2: "2 hrané sety",
@@ -36,6 +34,7 @@ PLAYOFF_RULES = {
         }
 
 }
+
 # PLAYOFF STRUTRURA
 
 starter_edition = {
