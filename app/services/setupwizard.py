@@ -56,6 +56,11 @@ class SetupWizard:
         advance_players = sum(len(group_players[:self.advance_per_group]) for group_players in self.groups.values())
         return advance_players
 
+    @property
+    def has_empty_group(self):
+        """Vrací True, pokud existuje alespoň jedna prázdná skupina."""
+        return any(len(players) == 0 for players in self.groups.values())
+
     def total_players_in_group(self,letter):
         return len(self.groups.get(letter,[]))
 
@@ -64,8 +69,8 @@ class SetupWizard:
             if self.total_groups<self.max_groups:
                 letter = chr(65+self.total_groups)
                 self.groups[letter]=[]
-        else:
-            print("Maximální povolené množství skupin.")
+            else:
+                print("Maximální povolené množství skupin.")
 
     def get_all_current_player_names(self):
         """
@@ -187,6 +192,15 @@ class SetupWizard:
         print(f"Skupina {group_letter} byla smazána.")
         return True
 
+    def clear_all_groups(self):
+        """Smaže všechny skupiny naráz a vrátí všechny hráče do nezařazených."""
+        for players in self.groups.values():
+            for player in players:
+                if player not in self.players:
+                    self.players.append(player)
+
+        self.groups = {}
+        print("Skupiny byly smazány.")
 
     def import_to_dict(self):
         return self.__dict__.copy()
@@ -343,20 +357,19 @@ class SetupWizard:
         elif action == "increase_groups":
             self.create_groups(count_to_add=1)
 
-
         elif action == "decrease_groups":
             if self.groups:
-                # Najdeme poslední prázdnou skupinu
-                empty_group = None
+                # Najdeme od konce abecedy první skupinu, která je 100% prázdná
+                target_group = None
 
-                for letter in reversed(sorted(self.groups.keys())):
+                for letter in reversed(sorted(list(self.groups.keys()))):
                     if len(self.groups[letter]) == 0:
-                        empty_group = letter
+                        target_group = letter
                         break
 
-                # Pokud existuje prázdná skupina, smažeme ji. Pokud ne, smažeme poslední i s hráči (force=True)
-                target_group = empty_group or sorted(self.groups.keys())[-1]
-                self.remove_group(group_letter=target_group, force=False)
+                # Smaže se POUZE v případě, že prázdná skupina existuje
+                if target_group:
+                    self.remove_group(group_letter=target_group, force=False)
 
         elif action == "seed_players":
             criterion = form_data.get("seed_criterion","last_tournament")
@@ -377,19 +390,13 @@ class SetupWizard:
             if player_name:
                 self.remove_player(player_name=player_name)
 
-        elif action == "remove_group":
-            group_letter = form_data.get("group_letter")
-            if group_letter:
-                self.remove_group(group_letter=group_letter)
-
         elif action == "remove_single_group":
             letter = form_data.get("group_letter")
             force = form_data.get("force") == "true"
             self.remove_group(group_letter=letter, force=force)
 
         elif action == "reset_all_groups":
-            for letter in list(self.groups.keys()):
-                self.remove_group(group_letter=letter, force=True)
+            self.clear_all_groups()
 
         elif action == "scrap_players":
             url = form_data.get("scrap_url")
