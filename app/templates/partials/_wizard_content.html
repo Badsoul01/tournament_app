@@ -1,3 +1,18 @@
+{% if request.headers.get('HX-Request') %}
+<!-- OOB blok: Při jakékoliv akci aktualizuje tlačítka nahoře ve formuláři -->
+<div id="group-buttons-wrapper" hx-swap-oob="true" style="display: inline;">
+    <!-- Tlačítko MÍNUS -->
+    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display: inline;">
+        <button type="submit" name="action" value="decrease_groups" {% if not wizard.has_empty_group %}disabled{% endif %}>-</button>
+    </form>
+
+    <!-- Tlačítko PLUS -->
+    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display: inline;">
+        <button type="submit" name="action" value="increase_groups" {% if wizard.total_groups >= wizard.max_groups %}disabled{% endif %}>+</button>
+    </form>
+</div>
+{% endif %}
+
 <!-- INFORMAČNÍ PANEL -->
 <div>
     <span>Celkový počet hráčů: <strong>{{ wizard.total_tournament_players }}</strong></span> |

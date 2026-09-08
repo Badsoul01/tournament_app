@@ -13,23 +13,18 @@
 
                 <label>Přidat nebo odebrat skupinu:</label>
 
-                <!-- Tlačítko MÍNUS -->
-                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display: inline;">
-                    {% if wizard.total_groups == 0 %}
-                        <button type="submit" name="action" value="decrease_groups" disabled>-</button>
-                    {% else %}
-                        <button type="submit" name="action" value="decrease_groups">-</button>
-                    {% endif %}
-                </form>
+                <!-- TLAČÍTKA S TARGETEM NA WIZARD-CONTAINER -->
+                <div id="group-buttons-wrapper" style="display: inline;">
+                    <!-- Tlačítko MÍNUS -->
+                    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display: inline;">
+                        <button type="submit" name="action" value="decrease_groups" {% if not wizard.has_empty_group %}disabled{% endif %}>-</button>
+                    </form>
 
-                <!-- Tlačítko PLUS -->
-                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display: inline;">
-                    {% if wizard.total_groups >= wizard.max_groups %}
-                        <button type="submit" name="action" value="increase_groups" disabled>+</button>
-                    {% else %}
-                        <button type="submit" name="action" value="increase_groups">+</button>
-                    {% endif %}
-                </form>
+                    <!-- Tlačítko PLUS -->
+                    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display: inline;">
+                        <button type="submit" name="action" value="increase_groups" {% if wizard.total_groups >= wizard.max_groups %}disabled{% endif %}>+</button>
+                    </form>
+                </div>
                 <br><br>
 
                 <!-- Přidání hráče -->
@@ -100,13 +95,11 @@
             <fieldset style="height: 100%;">
                 <legend>Minulé turnaje</legend>
 
-                <!-- Vnitřní okno rozdělené na dva pod-sloupce -->
                 <div style="display: table; width: 100%; border: 1px solid #ccc; height: 180px; background: #fff;">
 
                     <!-- Pod-sloupec 1: Seznam a vyhledávání -->
                     <div style="display: table-cell; width: 50%; border-right: 1px solid #ccc; vertical-align: top; padding: 5px; overflow-y: auto;">
 
-                        <!-- Vyhledávací pole SPRÁVNĚ UVNITŘ BUŇKY -->
                         <div style="margin-bottom: 8px;">
                             <input type="text"
                                    name="q"
@@ -137,7 +130,7 @@
 
     </div>
 
-    <!-- Ostatní části stránky zabalené v #wizard-container pro snadný HTMX update -->
+    <!-- Ostatní části stránky zabalené v #wizard-container pro HTMX update -->
     <div id="wizard-container">
         {% include "partials/_wizard_content.html" %}
     </div>
