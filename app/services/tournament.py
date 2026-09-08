@@ -1,6 +1,6 @@
 from app.services.setupwizard import SetupWizard
 from app.models.models import db, Tournament as TournamentModel, Group as GroupModel, Player as PlayerModel, \
-    Match as MatchModel, Bracket as BracketModel
+    Match as MatchModel, Bracket as BracketModel,GlobalPlayer as GlobalPlayerModel, PlayerStats as PlayerStatsModel
 from app.services.groupmanager import GroupManager
 from app.services.seedingengine import SeedingEngine
 from app.services.playoff import Playoff
@@ -20,7 +20,9 @@ class Tournament:
             has_consolation=is_consolation,
             playoff_elimination_action=setup.playoff_elimination_action,
             group_match_format =setup.group_match_format,
-            playoff_match_format = setup.playoff_match_format
+            playoff_match_format = setup.playoff_match_format,
+            total_players = setup.total_tournament_players,
+            total_players_in_playoff = setup.total_players_advance_to_playoff
         )
         db.session.add(db_tournament)
         db.session.commit()
@@ -206,37 +208,41 @@ class Tournament:
             return False
 
         # Zkontrolujeme, zda jsou všechny zápasy dohrané
-        # (vytvoříme dočasnou instanci orchestrátoru nebo ověříme přes dotaz na DB)
         unfinished_match = MatchModel.query.filter_by(
             tournament_id=tournament_id,
             is_finished=False
         ).first()
 
         if unfinished_match is not None:
-            # Turnaj ještě není dohraný, zamknutí zamítneme
             return False
 
         db_tournament.is_finished = True
 
-        from run.models.models import PlayerStats as PlayerStatsModel, GlobalPlayer
-        results_data = db.session.query(PlayerModel, PlayerStatsModel.final_rank) \
+        # Načteme všechny hráče a jejich zapsané finální pořadí v tomto turnaji
+        results_data = db.session.query(PlayerModel, PlayerStatsModel) \
             .join(PlayerStatsModel, PlayerModel.id == PlayerStatsModel.player_id) \
             .filter(PlayerModel.tournament_id == tournament_id) \
-            .filter(PlayerStatsModel.final_rank.isnot(None)) \
             .all()
 
-        for player, rank in results_data:
-            global_player = GlobalPlayer.query.filter_by(name=player.name).first()
+        for player, stats in results_data:
+            global_player = GlobalPlayerModel.query.filter_by(name=player.name.strip().title()).first()
             if not global_player:
-                global_player = GlobalPlayer(name=player.name)
+                global_player = GlobalPlayerModel(name=player.name.strip().title())
                 db.session.add(global_player)
                 db.session.flush()
 
             player.global_player_id = global_player.id
-            global_player.tournaments_played = (global_player.tournaments_played or 0) + 1
-            global_player.sum_of_ranks = (global_player.sum_of_ranks or 0) + rank
-            global_player.last_rank = rank
-            global_player.last_tournament_date = db_tournament.date
+
+            # Vynulujeme last_points_gained pro tento turnaj
+            # (pokud hráč nezískal žádné body, zůstane 0; pokud získal, načte se ze stats.points_gained)
+            global_player.last_points_gained = stats.points_gained or 0
+
+            # Uložení obecných statistik účasti
+            if stats.final_rank:
+                global_player.tournaments_played = (global_player.tournaments_played or 0) + 1
+                global_player.sum_of_ranks = (global_player.sum_of_ranks or 0) + stats.final_rank
+                global_player.last_rank = stats.final_rank
+                global_player.last_tournament_date = db_tournament.date
 
         db.session.commit()
         return True
