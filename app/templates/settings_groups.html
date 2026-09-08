@@ -28,7 +28,10 @@
                 <br><br>
 
                 <!-- Přidání hráče -->
-                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML">
+                <form hx-post="/settings_groups"
+                      hx-target="#wizard-container"
+                      hx-swap="innerHTML"
+                      hx-on::after-request="this.reset()"> <!-- TOTO PŘIDEJ -->
                     <label>Přidání hráče:</label>
                     <input name="players_text"
                            list="global-players-list"
@@ -45,7 +48,10 @@
                 <br>
 
                 <!-- Import z odkazu -->
-                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML">
+                <form hx-post="/settings_groups"
+                      hx-target="#wizard-container"
+                      hx-swap="innerHTML"
+                      hx-on::after-request="this.reset()"> <!-- TOTO PŘIDEJ -->
                     <label>Přidání hráče z odkazu:</label>
                     <input type="url" name="scrap_url" placeholder="Událost Vaší ligy">
                     <button type="submit" name="action" value="scrap_players">Importovat</button>

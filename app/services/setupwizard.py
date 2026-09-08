@@ -1,21 +1,16 @@
 from bs4 import BeautifulSoup
 import requests
-from datetime import date
-from config import GROUPS_RULES, PLAYOFF_RULES, STATE_OF_WIZARD
+from config import GROUPS_RULES, PLAYOFF_RULES
 import math
 import random
-
 from app.services.queries import get_players_ranking_map
 
 
 class SetupWizard:
 
     def __init__(self):
-        self.state = STATE_OF_WIZARD[0]
         #základní informace
         self.name = ""
-        self.date = date.today().strftime("%Y-%m-%d")
-        self.selected_format= ""
 
         #skupiny
         self.min_groups = GROUPS_RULES["min_group"]
@@ -74,7 +69,7 @@ class SetupWizard:
 
     def get_all_current_player_names(self):
         """
-        Varí množinu (set) všech jmen hrůčů aktuálně přidaných ve wizardu
+        Vratí množinu (set) všech jmen hrůčů aktuálně přidaných ve wizardu
         (tj. v nezařazených, tak zapsaných v jednotlivých skupinách)
         """
 
@@ -108,8 +103,12 @@ class SetupWizard:
 
         return added_count>0
 
-    def scrapped_url(self,url):
+    def scrapped_url(self, url):
         url = url.strip()
+
+        # Vynutíme českou verzi URL (odstraníme anglickou mutaci)
+        url = url.replace("/en/", "/")
+
         if url.endswith("/"):
             url = url[:-1]
 
@@ -118,7 +117,9 @@ class SetupWizard:
 
         players = []
         try:
-            r = requests.get(url, timeout=10)
+            # Přidáme hlavičku prohlížeče, aby server neodmítl Python bota
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            r = requests.get(url, headers=headers, timeout=10)
             r.raise_for_status()
             soup = BeautifulSoup(r.content, features="html5lib")
 
@@ -130,8 +131,15 @@ class SetupWizard:
                 if container_div:
                     players = [span.text.strip() for span in container_div.find_all("span")]
                     self.add_players(", ".join(players))
+                    print(f"DEBUG: Scraping úspěšný, přidáno {len(players)} hráčů.")
+                else:
+                    print("DEBUG: Scraping selhal - nenašel se div s hráči.")
+            else:
+                print("DEBUG: Scraping selhal - nenašla se hlavička účastníků.")
 
         except Exception as e:
+            # Zabráníme tichému selhání
+            print(f"DEBUG: Chyba při stahování URL ({url}): {e}")
             return None
 
 
@@ -414,7 +422,6 @@ class SetupWizard:
                 self.advance_per_group = int(value)
 
             self.group_elimination_action = form_data.get("group_elimination_action")
-            self.state = STATE_OF_WIZARD[2]
             self.clean_empty_groups()
 
 
