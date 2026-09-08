@@ -3,107 +3,144 @@
 {% block content %}
     <h1>Správa základních skupin</h1>
 
-    <!-- HORNI ČÁST: Skupiny a hráči -->
-    <fieldset>
-        <legend>Skupiny a hráči</legend>
+    <!-- HORNI ČÁST: Rozdělení na 2 hlavní sloupce -->
+    <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 15px 0;">
 
-        <form action="/settings_groups" method="POST">
-            <label>Přidání nových skupin:</label>
-            <select name="groups_count">
-                {% for count in GROUPS_RULES.group_creation_options %}
-                    <option value="{{ count }}"> {{ count }} </option>
-                {% endfor %}
-            </select>
-            <button type="submit" name="action" value="create_groups">+</button>
-        </form>
-        <br>
-        <form action="/settings_groups" method="POST">
-            <label>Přidaní hráče:</label>
-            <input name="players_text" placeholder="Jména hráčů (oddělena čárkou)">
-            <button type="submit" name="action" value="add_players">Přidat hráče</button>
-        </form>
-        <br>
-        <form action="/settings_groups" method="POST">
-            <label>Přidaní hráče z odkazu:</label>
-            <input type="url" name="scrap_url" placeholder="Událost Vaší ligy">
-            <button type="submit" name="action" value="scrap_players">Importovat</button>
-        </form>
-    </fieldset>
+        <!-- LEVÝ SLOUPEC: Manuální přidávání -->
+        <div style="display: table-cell; vertical-align: top; width: 50%;">
+            <fieldset style="height: 100%;">
+                <legend>Skupiny a hráči</legend>
 
-    <hr>
+                <label>Přidat nebo odebrat skupinu:</label>
 
-    <!-- INFORMAČNÍ PANEL -->
-    <div>
-        <span>Celkový počet hráčů: <strong>{{ wizard.total_tournament_players }}</strong></span> |
-        <span>Počet nezařazených hráčů: <strong>{{ wizard.non_classification_players }}</strong></span> |
-        <span>Počet skupin: <strong>{{ wizard.total_groups }} / {{ wizard.max_groups}}</strong></span>
+                <!-- Tlačítko MÍNUS -->
+                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display: inline;">
+                    {% if wizard.total_groups == 0 %}
+                        <button type="submit" name="action" value="decrease_groups" disabled>-</button>
+                    {% else %}
+                        <button type="submit" name="action" value="decrease_groups">-</button>
+                    {% endif %}
+                </form>
+
+                <!-- Tlačítko PLUS -->
+                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display: inline;">
+                    {% if wizard.total_groups >= wizard.max_groups %}
+                        <button type="submit" name="action" value="increase_groups" disabled>+</button>
+                    {% else %}
+                        <button type="submit" name="action" value="increase_groups">+</button>
+                    {% endif %}
+                </form>
+                <br><br>
+
+                <!-- Přidání hráče -->
+                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML">
+                    <label>Přidání hráče:</label>
+                    <input name="players_text"
+                           list="global-players-list"
+                           placeholder="Jména hráčů (oddělena čárkou)"
+                           autocomplete="off">
+                    <datalist id="global-players-list">
+                        {% for name in global_player_names %}
+                            <option value="{{ name }}">
+                        {% endfor %}
+                    </datalist>
+                    <button type="submit" name="action" value="add_players">Přidat hráče</button>
+                </form>
+
+                <br>
+
+                <!-- Import z odkazu -->
+                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML">
+                    <label>Přidání hráče z odkazu:</label>
+                    <input type="url" name="scrap_url" placeholder="Událost Vaší ligy">
+                    <button type="submit" name="action" value="scrap_players">Importovat</button>
+                </form>
+                <br>
+            </fieldset>
+
+
+            <fieldset style="height: 100%;">
+                <legend>Automatické nasazení (Seeding)</legend>
+                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML">
+
+                        <!-- 1. Kritérium -->
+                        Nasazovat podle:<br>
+                        <input type="radio" id="seed_last" name="seed_criterion" value="last_tournament" checked>
+                        <label for="seed_last">Posledního turnaje</label>
+
+                        <input type="radio" id="seed_global" name="seed_criterion" value="global_rank">
+                        <label for="seed_global">Celkového žebříčku</label><br><br>
+
+                        <!-- 2. Rozsah nasazení -->
+                        Rozsah nasazení:<br>
+                        <input type="radio" id="scope_unassigned" name="seed_scope" value="reset_all" checked>
+                        <label for="scope_reset">Resetovat skupiny a rozlosovat znovu</label>
+
+                        <input type="radio" id="scope_reset" name="seed_scope" value="unassigned_only">
+                        <label for="scope_unassigned">Doplnit jen nezařazené hráče</label><br><br>
+
+                        <!-- 3. Režim skupin -->
+                        Správa skupin při losování:<br>
+                        <input type="radio" id="mode_auto" name="group_mode" value="auto_create" checked>
+                        <label for="mode_auto">Vytvořit/dopočítat skupiny (po 3 hráče)</label>
+
+                        <input type="radio" id="mode_fixed" name="group_mode" value="use_existing">
+                        <label for="mode_fixed">Použít pouze vytvořené skupiny</label><br><br>
+
+                        <button type="submit" name="action" value="seed_players" style="width: 100%;">
+                            🎲 Rozlosovat a nasadit hráče
+                        </button>
+                    </form>
+            </fieldset>
+        </div>
+
+
+        <!-- PRAVÝ SLOUPEC: Minulé turnaje a jejich hráči -->
+        <div style="display: table-cell; vertical-align: top; width: 50%;">
+            <fieldset style="height: 100%;">
+                <legend>Minulé turnaje</legend>
+
+                <!-- Vnitřní okno rozdělené na dva pod-sloupce -->
+                <div style="display: table; width: 100%; border: 1px solid #ccc; height: 180px; background: #fff;">
+
+                    <!-- Pod-sloupec 1: Seznam a vyhledávání -->
+                    <div style="display: table-cell; width: 50%; border-right: 1px solid #ccc; vertical-align: top; padding: 5px; overflow-y: auto;">
+
+                        <!-- Vyhledávací pole SPRÁVNĚ UVNITŘ BUŇKY -->
+                        <div style="margin-bottom: 8px;">
+                            <input type="text"
+                                   name="q"
+                                   placeholder="🔍 Hledat turnaj..."
+                                   style="width: 100%; box-sizing: border-box; padding: 4px 6px; font-size: 0.9em;"
+                                   hx-get="/wizard/search-tournaments"
+                                   hx-trigger="keyup changed delay:300ms, search"
+                                   hx-target="#past-tournaments-list"
+                                   autocomplete="off">
+                        </div>
+
+                        <strong style="display:block; border-bottom:1px solid #eee; padding-bottom:3px; margin-bottom:5px;">Turnaj / Datum</strong>
+
+                        <!-- Seznam turnajů -->
+                        <div id="past-tournaments-list">
+                            {% include "partials/_past_tournaments_list.html" %}
+                        </div>
+                    </div>
+
+                    <!-- Pod-sloupec 2: Hráči vybraného turnaje (vkládá HTMX) -->
+                    <div id="past-players-container" style="display: table-cell; width: 50%; vertical-align: top; padding: 5px; overflow-y: auto;">
+                        {% include "partials/_past_tournament_players.html" %}
+                    </div>
+
+                </div>
+            </fieldset>
+        </div>
+
     </div>
 
-    <hr>
-
-    <!-- SEZNAM HRÁČŮ VE DVOU SLOUPCÍCH (Strukturální Grid zachován) -->
-    <h3>Seznam hráčů:</h3>
-    <ul class="responsive-grid" style="list-style-type: none; padding-left: 0; row-gap: 10px;">
-        {% for player in wizard.players %}
-        <li style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
-
-            <!-- 1. Tlačítko X (smazat) na začátku -->
-            <form action="/settings_groups" method="POST" style="margin: 0;">
-                <input type="hidden" name="player_name" value="{{ player }}">
-                <button type="submit" name="action" value="remove_player" title="Smazat hráče">X</button>
-            </form>
-
-            <!-- 2. Jméno hráče -->
-            <strong>{{ player }}</strong>
-
-            <!-- Pružná mezera odtlačí tlačítka skupin úplně doprava ke kraji sloupce -->
-            <div style="flex-grow: 1;"></div>
-
-            <!-- 3. Tlačítka skupin -->
-            <div style="display: flex; gap: 5px;">
-                {% for letter in wizard.groups.keys() %}
-                <form action="/settings_groups" method="POST" style="margin: 0;">
-                    <input type="hidden" name="player_name" value="{{ player }}">
-                    <input type="hidden" name="group_letter" value="{{ letter }}">
-                    <button type="submit" name="action" value="assign_players">{{ letter }}</button>
-                </form>
-                {% endfor %}
-            </div>
-
-        </li>
-        {% endfor %}
-    </ul>
-
-    <hr>
-
-    <!-- SKUPINY VE DVOU SLOUPCÍCH (Strukturální Grid zachován) -->
-    <h3>Skupiny:</h3>
-    <ul class="responsive-grid" style="list-style-type: none; padding-left: 0;">
-        {% for letter, players in wizard.groups.items() %}
-            <li>
-                <h4>Skupina {{ letter }} ({{ wizard.total_players_in_group(letter) }} / {{ wizard.max_players_per_group}})
-                    {% if players|length == 0 %}
-                    <form action="/settings_groups" method="POST" style="display: inline;">
-                        <input type="hidden" name="group_letter" value="{{ letter }}">
-                        <button type="submit" name="action" value="remove_group">X</button>
-                    </form>
-                    {% endif %}
-                </h4>
-
-                <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-                {% for player in players %}
-                    <span>
-                        {{ player }}
-                        <form action="/settings_groups" method="POST" style="display:inline;">
-                            <input type="hidden" name="player_name" value="{{ player }}">
-                            <button type="submit" name="action" value="remove_player">-</button>
-                        </form>
-                    </span>
-                {% endfor %}
-                </div>
-            </li>
-        {% endfor %}
-    </ul>
+    <!-- Ostatní části stránky zabalené v #wizard-container pro snadný HTMX update -->
+    <div id="wizard-container">
+        {% include "partials/_wizard_content.html" %}
+    </div>
 
     <hr>
 

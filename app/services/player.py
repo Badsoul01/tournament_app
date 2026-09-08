@@ -1,4 +1,4 @@
-from app.models.models import db, PlayerStats, Match as MatchModel
+from app.models.models import db, PlayerStats, Match as MatchModel, GlobalPlayer as GlobalPlayerModel, Player as PlayerModel
 from sqlalchemy import or_
 
 class PlayerHelper:
@@ -18,6 +18,51 @@ class PlayerHelper:
         return stats
 
     @staticmethod
+    def set_final_rank(player_id: int, rank: int, total_advancers: int, stage_name: str = "main_playoff"):
+        """
+        Zapíše finální umístění hráče. Pokud jde o hlavní pavouk,
+        vypočítá dynamické body a přičte je do statistik i celkového žebříčku.
+        """
+        player = PlayerModel.query.get(player_id)
+        if not player:
+            return
+
+        # Najdeme nebo vytvoříme statistiky hráče pro daný turnaj
+        stats = PlayerStats.query.filter_by(player_id=player_id).first()
+        if not stats:
+            stats = PlayerStats(player_id=player_id)
+            db.session.add(stats)
+
+        stats.final_rank = rank
+
+        # BODOVÁNÍ: Pouze pro hlavní pavouk a do hranice total_advancers
+        if stage_name == "main_playoff" and rank <= total_advancers:
+            # Základní bodový zisk
+            base_points = (total_advancers - rank + 1)
+
+            # Bonifikace za stupně vítězů
+            bonus = 0
+            if rank == 1:
+                bonus = 3
+            elif rank == 2:
+                bonus = 2
+            elif rank == 3:
+                bonus = 1
+
+            gained_points = base_points + bonus
+
+            # 1. Zápis bodů pro konkrétní turnaj
+            stats.points_gained = gained_points
+
+            # 2. Přičtení do celkové tabulky v GlobalPlayer
+            global_player = GlobalPlayerModel.query.filter_by(name=player.name.strip().title()).first()
+            if global_player:
+                global_player.total_points += gained_points
+                global_player.last_points_gained = gained_points
+
+        db.session.commit()
+
+    @staticmethod
     def difference_of_score(player_id: int, tournament_stage: str) -> dict[str, int]:
         """Vrátí rozdíl skóre (míčků i setů) pro danou fázi turnaje z DB."""
         stats = PlayerStats.query.filter_by(player_id=player_id, stage_name=tournament_stage).first()
@@ -34,7 +79,7 @@ class PlayerHelper:
         """Vrátí n-tici statistik (body, rozdíl setů, rozdíl míčků) pro řazení v tabulce."""
         stats = PlayerStats.query.filter_by(player_id=player_id, stage_name=stage_name).first()
         if not stats:
-            return (0, 0, 0)
+            return 0, 0, 0
 
         diff = PlayerHelper.difference_of_score(player_id, stage_name)
         return (

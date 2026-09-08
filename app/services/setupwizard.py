@@ -1,8 +1,12 @@
 from bs4 import BeautifulSoup
 import requests
 from datetime import date
-
 from config import GROUPS_RULES, PLAYOFF_RULES, STATE_OF_WIZARD
+import math
+import random
+
+from app.services.queries import get_players_ranking_map
+
 
 class SetupWizard:
 
@@ -62,6 +66,17 @@ class SetupWizard:
                 self.groups[letter]=[]
         else:
             print("Maximální povolené množství skupin.")
+
+    def get_all_current_player_names(self):
+        """
+        Varí množinu (set) všech jmen hrůčů aktuálně přidaných ve wizardu
+        (tj. v nezařazených, tak zapsaných v jednotlivých skupinách)
+        """
+
+        all_names = set(self.players)
+        for group_players in self.groups.values():
+            all_names.update(group_players)
+        return all_names
 
     def add_players(self,names:str):
         players = names.replace("\n",",").split(",")
@@ -255,6 +270,68 @@ class SetupWizard:
 
         return errors
 
+    def auto_seed_players(self, ranking_map, seed_scope="unassigned_only", group_mode="auto_create"):
+        # 1. Pokud je zvolen reset, vrátíme všechny hráče ze skupin zpět do nezařazených
+        if seed_scope == "reset_all":
+            all_names = list(self.get_all_current_player_names())
+            self.players = all_names
+            for letter in self.groups:
+                self.groups[letter] = []
+
+        unassigned_players = list(self.players)
+        if not unassigned_players:
+            return False
+
+        # 2. Úprava/dopočet skupin podle režimu
+        if group_mode == "auto_create":
+            total_players_count = self.total_tournament_players
+            target_groups_count = math.ceil(total_players_count / self.min_players_per_group)
+            target_groups_count = max(self.min_groups, min(target_groups_count, self.max_groups))
+
+            while self.total_groups < target_groups_count:
+                self.create_groups(1)
+
+        if self.total_groups == 0:
+            return False
+
+        # 3. Seřazení nezařazených hráčů podle rankingu
+        def get_rank(name):
+            return ranking_map.get(name, float("inf"))
+
+        sorted_unassigned = sorted(unassigned_players, key=get_rank)
+
+        # 4. Při kompletním resetu nebo do prázdných skupin nasadíme Top hráče jako hlavy
+        empty_group_letters = [letter for letter, p_list in self.groups.items() if len(p_list) == 0]
+        num_top_needed = len(empty_group_letters)
+
+        top_players = sorted_unassigned[:num_top_needed]
+        remaining_players = sorted_unassigned[num_top_needed:]
+
+        random.shuffle(remaining_players)
+
+        # 5. Nasazení TOP hráčů do prázných skupin
+        for i, player in enumerate(top_players):
+            target_letter = empty_group_letters[i]
+            self.assign_player_to_group(player_name=player,group_letter=target_letter)
+
+        # 6. Postupné doplňování zbytku do nejméně zaplněných skupin
+        for player in remaining_players:
+            available_groups = [
+                (letter, len(p_list))
+                for letter, p_list in self.groups.items()
+                if len(p_list) < self.max_players_per_group
+            ]
+
+            if not available_groups:
+                break
+
+            available_groups.sort(key=lambda x: x[1])
+            target_letter = available_groups[0][0]
+
+            self.assign_player_to_group(player_name=player,group_letter=target_letter)
+
+        return True
+
     def process_form_action(self,form_data):
         action = form_data.get("action")
 
@@ -263,9 +340,22 @@ class SetupWizard:
             if player_text:
                 self.add_players(names=player_text)
 
-        elif action == "create_groups":
-            count = int(form_data.get("groups_count"))
-            self.create_groups(count_to_add=count)
+        elif action == "increase_groups":
+            self.create_groups(count_to_add=1)
+
+        elif action == "decrease_groups":
+            if self.groups:
+                # Získáme písmeno poslední vytvořené skupiny (např. z ['A', 'B', 'C'] to bude 'C')
+                last_group_letter = sorted(self.groups.keys())[-1]
+                self.remove_group(group_letter=last_group_letter)
+
+        elif action == "seed_players":
+            criterion = form_data.get("seed_criterion","last_tournament")
+            seed_scope = form_data.get("seed_scope", "unassigned_only")
+            group_mode = form_data.get("group_mode", "auto_create")
+
+            ranking_map = get_players_ranking_map(criterion)
+            self.auto_seed_players(ranking_map=ranking_map,seed_scope=seed_scope,group_mode=group_mode)
 
         elif action == "assign_players":
             player_name = form_data.get("player_name")
@@ -282,6 +372,15 @@ class SetupWizard:
             group_letter = form_data.get("group_letter")
             if group_letter:
                 self.remove_group(group_letter=group_letter)
+
+        elif action == "remove_single_group":
+            letter = form_data.get("group_letter")
+            force = form_data.get("force") == "true"
+            self.remove_group(group_letter=letter, force=force)
+
+        elif action == "reset_all_groups":
+            for letter in list(self.groups.keys()):
+                self.remove_group(group_letter=letter, force=True)
 
         elif action == "scrap_players":
             url = form_data.get("scrap_url")

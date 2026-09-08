@@ -1,8 +1,8 @@
-"""nova db
+"""init migrace
 
-Revision ID: 80b281b3db0e
+Revision ID: 035a7987023f
 Revises: 
-Create Date: 2026-08-29 15:25:23.573002
+Create Date: 2026-09-08 15:10:08.096069
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '80b281b3db0e'
+revision = '035a7987023f'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -22,6 +22,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('total_points', sa.Integer(), nullable=True),
+    sa.Column('last_points_gained', sa.Integer(), nullable=True),
     sa.Column('matches_played', sa.Integer(), nullable=True),
     sa.Column('matches_won', sa.Integer(), nullable=True),
     sa.Column('matches_lost', sa.Integer(), nullable=True),
@@ -110,6 +111,7 @@ def upgrade():
     sa.Column('balls_win', sa.Integer(), nullable=True),
     sa.Column('balls_lost', sa.Integer(), nullable=True),
     sa.Column('final_rank', sa.Integer(), nullable=True),
+    sa.Column('points_gained', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['player_id'], ['players.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

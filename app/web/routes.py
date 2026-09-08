@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, session, send_file
 from config import GROUPS_RULES, PLAYOFF_RULES
 from app.services.setupwizard import SetupWizard
-from app.models.models import db, Tournament as TournamentModel, Player as PlayerModel, PlayerStats as PlayerStatsModel
+from app.models.models import db, Tournament as TournamentModel, Player as PlayerModel, PlayerStats as PlayerStatsModel, GlobalPlayer as GlobalPLayerModel
 from app.services.tournament import Tournament as TournamentOrchestrator
 from app.services.match import evaluate, toggle_match_progress, unlock_match
 from app.web.webmanager import WebManager
+from app.services.queries import get_available_players_from_tournament, get_recent_finished_tournaments
 
 main_bp = Blueprint("main", __name__)
 
@@ -37,12 +38,75 @@ def settings_groups():
 
         session["wizard_data"] = wizard.import_to_dict()
 
+        # Pokud požadavek přišel přes HTMX:
+        if "HX-Request" in request.headers:
+            active_tournament_id = request.form.get("active_tournament_id")
+
+            # 1. Vyrenderujeme hlavní část wizardu
+            main_html = render_template(
+                "partials/_wizard_content.html",
+                wizard=wizard,
+                GROUPS_RULES=GROUPS_RULES
+            )
+
+            # 2. Pokud byl vybraný nějaký turnaj, přibalíme aktualizované okénko hráčů (OOB swap)
+            if active_tournament_id and active_tournament_id.isdigit():
+                t_id = int(active_tournament_id)
+                available_players = get_available_players_from_tournament(t_id, wizard)
+                selected_tournament = TournamentModel.query.get(t_id)
+
+                oob_html = f'<div id="past-players-container" hx-swap-oob="true">' \
+                           f'{render_template("partials/_past_tournament_players.html", available_players=available_players, selected_tournament=selected_tournament)}' \
+                           f'</div>'
+
+                return main_html + oob_html
+
+            return main_html
+
+    recent_tournaments = get_recent_finished_tournaments(limit=5)
+
+    # načteme všechna jména z GlobalPlayer pro našeptávač
+    all_global_players = [g.name for g in GlobalPLayerModel.query.order_by(GlobalPLayerModel.name.asc()).all()]
+
     return render_template(
         "settings_groups.html",
         wizard=wizard,
-        GROUPS_RULES=GROUPS_RULES
+        GROUPS_RULES=GROUPS_RULES,
+        recent_tournaments=recent_tournaments
     )
 
+@main_bp.route("/wizard/search-tournaments")
+def search_tournaments():
+    query = request.args.get("q", "").strip()
+
+    if not query:
+        tournaments = get_recent_finished_tournaments(limit=5)
+    else:
+        tournaments = TournamentModel.query.filter(
+            TournamentModel.is_finished == True,
+            TournamentModel.name.ilike(f"%{query}%")
+        ).order_by(TournamentModel.date.desc()).limit(10).all()
+
+    return render_template("partials/_past_tournaments_list.html", recent_tournaments=tournaments)
+
+@main_bp.route("/wizard/past-tournament/<int:tournament_id>/players")
+def get_past_tournament_players(tournament_id):
+    """
+    Routa určená pro HTMX request při kliknutí na minulý turnaj.
+    Vrátí HTML partial se seznamem hráčů.
+    """
+    wizard = SetupWizard()
+    if "wizard_data" in session:
+        wizard.import_from_dict(session["wizard_data"])
+
+    available_players = get_available_players_from_tournament(tournament_id, wizard)
+    selected_tournament = TournamentModel.query.get(tournament_id)
+
+    return render_template(
+        "partials/_past_tournament_players.html",
+        available_players=available_players,
+        selected_tournament=selected_tournament
+    )
 
 @main_bp.route("/settings_playoff", methods=["GET", "POST"])
 def settings_playoff():

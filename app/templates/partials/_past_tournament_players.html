@@ -1,0 +1,32 @@
+<strong style="display:block; border-bottom:1px solid #eee; padding-bottom:3px; margin-bottom:5px;">
+    Dostupní hráči {% if selected_tournament %}({{ available_players|length }}){% endif %}
+</strong>
+
+{% if available_players %}
+    <!-- Tlačítko: Přidat všechny dostupné -->
+    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="margin-bottom: 8px;">
+        <input type="hidden" name="players_text" value="{{ available_players|join(', ') }}">
+        <input type="hidden" name="active_tournament_id" value="{{ selected_tournament.id }}">
+        <button type="submit" name="action" value="add_players" style="width: 100%; cursor: pointer;">
+            + Přidat všechny
+        </button>
+    </form>
+
+    <!-- Seznam jednotlivých hráčů -->
+    <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.9em;">
+        {% for player_name in available_players %}
+        <li style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+            <span>{{ player_name }}</span>
+            <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="margin: 0;">
+                <input type="hidden" name="players_text" value="{{ player_name }}">
+                <input type="hidden" name="active_tournament_id" value="{{ selected_tournament.id }}">
+                <button type="submit" name="action" value="add_players" title="Přidat hráče">+</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+{% elif selected_tournament %}
+    <span style="color: #888; font-size: 0.85em;">Všichni hráči z tohoto turnaje již byli přidáni.</span>
+{% else %}
+    <span style="color: #888; font-size: 0.85em;">Vyberte turnaj vlevo.</span>
+{% endif %}

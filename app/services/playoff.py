@@ -254,8 +254,10 @@ class Playoff:
         """
         Hlavní motor pavouka. Zkontroluje aktuální stav všech vygenerovaných
         zápasů v DB. Pokud najde dohraný zápas, automaticky posune hráče dál
-        a zapíše konečná umístění pro dohrané finálové zápasy.
+        a zapíše konečná umístění i dynamické body pro dohrané finálové zápasy.
         """
+        tournament = TournamentModel.query.get(self.tournament_id)
+        total_advancers = tournament.total_players_in_playoff if tournament else 0
 
         main_rounds = sorted([r for r in self.rounds.keys() if isinstance(r, int)])
 
@@ -283,13 +285,24 @@ class Playoff:
                     if db_match and db_match.is_finished and db_match.winner_id is not None:
                         self.winner = db_match.winner_id
                         print(f"DEBUG: Turnaj má celkového vítěze (ID hráče): {self.winner}")
-                        # Vítěz finále bere první pozici s offsetem
-                        PlayerHelper.set_final_rank(self.winner, 1 + self.rank_offset, stage_name=self.stage_name)
 
-                        # Poražený ve finále bere hned následující pozici (offset + 2)
+                        # Vítěz finále bere 1. místo (+ přepočet bodů)
+                        PlayerHelper.set_final_rank(
+                            player_id=self.winner,
+                            rank=1 + self.rank_offset,
+                            total_advancers=total_advancers,
+                            stage_name=self.stage_name
+                        )
+
+                        # Poražený ve finále bere 2. místo (+ přepočet bodů)
                         loser_id = db_match.player_b_id if db_match.winner_id == db_match.player_a_id else db_match.player_a_id
                         if loser_id:
-                            PlayerHelper.set_final_rank(loser_id, 2 + self.rank_offset,stage_name=self.stage_name)
+                            PlayerHelper.set_final_rank(
+                                player_id=loser_id,
+                                rank=2 + self.rank_offset,
+                                total_advancers=total_advancers,
+                                stage_name=self.stage_name
+                            )
 
         # 3. DOHRÁVKY - kontrola, posun a ZÁPIS KONEČNÝCH UMÍSTĚNÍ
         for bracket_name, data in self.placement_rounds.items():
@@ -299,17 +312,28 @@ class Playoff:
                 if isinstance(item, int):
                     db_match = MatchModel.query.get(item)
                     if db_match and db_match.is_finished and db_match.winner_id is not None:
-                        # 1. Posuneme hráče v pavouku dál (např. z 5-8 do 5-6 nebo 7-8)
+                        # Posuneme hráče v pavouku dál (např. z 5-8 do 5-6 nebo 7-8)
                         self.move_placement_match_result(db_match, bracket_name, idx)
 
-                        # 2. Pokud se hraje PŘÍMO o konkrétní dvě místa (rozdíl je 1, např. 3-4, 5-6), zapíšeme to do DB!
+                        # Pokud se hraje PŘÍMO o konkrétní dvě místa (např. 3-4, 5-6), zapíšeme to do DB!
                         if high - low == 1:
                             loser_id = db_match.player_b_id if db_match.winner_id == db_match.player_a_id else db_match.player_a_id
 
-                            # Vítěz bere nižší číslo (např. 3), poražený vyšší (např. 4)
-                            PlayerHelper.set_final_rank(db_match.winner_id, low, stage_name=self.stage_name)
+                            # Vítěz bere nižší číslo (např. 3)
+                            PlayerHelper.set_final_rank(
+                                player_id=db_match.winner_id,
+                                rank=low,
+                                total_advancers=total_advancers,
+                                stage_name=self.stage_name
+                            )
+                            # Poražený bere vyšší číslo (např. 4)
                             if loser_id:
-                                PlayerHelper.set_final_rank(loser_id, high, stage_name=self.stage_name)
+                                PlayerHelper.set_final_rank(
+                                    player_id=loser_id,
+                                    rank=high,
+                                    total_advancers=total_advancers,
+                                    stage_name=self.stage_name
+                                )
 
     def get_sorted_placement_rounds(self):
         return sorted(self.placement_rounds.items(), key=lambda x: (x[1]["ranks"][1]-x[1]["ranks"][0], x[1]["ranks"][0]),

@@ -14,6 +14,9 @@ class Tournament(db.Model):
     advance_per_group = db.Column(db.Integer)  # Stačí nám číslo
     group_elimination_action = db.Column(db.String(50))
     playoff_elimination_action = db.Column(db.String(50))
+    total_players = db.Column(db.Integer, nullable=False)
+    total_players_in_playoff = db.Column(db.Integer, default=0)
+
 
     has_consolation = db.Column(db.Boolean, default=True)
     consolation_format = db.Column(db.String(50))
@@ -65,6 +68,7 @@ class GlobalPlayer(db.Model):
 
     # Celkové statistiky
     total_points = db.Column(db.Integer, default=0)
+    last_points_gained = db.Column(db.Integer, default=0)
     matches_played = db.Column(db.Integer, default=0)
     matches_won = db.Column(db.Integer, default=0)
     matches_lost = db.Column(db.Integer, default= 0)
@@ -143,7 +147,7 @@ class PlayerStats(db.Model):
     balls_lost = db.Column(db.Integer, default=0)
 
     final_rank = db.Column(db.Integer, nullable=True)
-
+    points_gained = db.Column(db.Integer, default=0)
     player = db.relationship("Player", backref=db.backref("stats_records", lazy=True))
 
 
