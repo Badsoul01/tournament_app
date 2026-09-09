@@ -24,7 +24,7 @@
     <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;">
 
             <!-- Tlačítko pro Excel (změněno na POST, aby odpovídalo run.py) -->
-            <form method="POST" action="{{ url_for('results_view', tournament_id=tournament.id) }}" style="margin: 0;">
+            <form method="POST" action="{{ url_for('main.results_view', tournament_id=tournament.id) }}" style="margin: 0;">
                 <button type="submit" name="action" value="download"
                         style="background-color: #10B981; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                     📥 Stáhnout Excel
@@ -33,7 +33,7 @@
 
         {% if not tournament.is_finished and results %}
             <!-- Tlačítko pro zamčení turnaje (POST) -->
-            <form method="POST" action="{{ url_for('results_view', tournament_id=tournament.id) }}" style="margin: 0;" onsubmit="return confirm('Opravdu chceš turnaj zamknout a odeslat výsledky do globálních statistik?');">
+            <form method="POST" action="{{ url_for('main.results_view', tournament_id=tournament.id) }}" style="margin: 0;" onsubmit="return confirm('Opravdu chceš turnaj zamknout a odeslat výsledky do globálních statistik?');">
                 <button type="submit" name="action" value="finish_tournament"
                         style="background-color: #EF4444; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                     🔒 Zamknout turnaj

@@ -1,5 +1,6 @@
-from app.models.models import db, Tournament as TournamentModel, Group as GroupModel, Match as MatchModel, Bracket as BracketModel, \
-    Player as PlayerModel, PlayerStats as PlayerStatsModel
+from app.models.models import Tournament as TournamentModel, Group as GroupModel, Match as MatchModel, Bracket as BracketModel, \
+    Player as PlayerModel, PlayoffStats as PlayoffStatsModel, ConsolationStats as ConsolationStatsModel, \
+    GroupStats as GroupStatsModel
 from app.services.player import PlayerHelper
 from app.services.groupmanager import GroupManager
 from app.services.playoff import Playoff
@@ -133,76 +134,26 @@ class WebManager:
             stage_name = "main"
         return bracket, rank_offset, stage_name
 
-    # ==========================================
-    # PRIVÁTNÍ POMOCNÉ METODY PRO FORMÁTOVÁNÍ
-    # ==========================================
-
-    @staticmethod
-    def _format_players(players: list, stage_name: str) -> list:
-        if not players:
-            return []
-
-        # 1. Získáme ID všech hráčů najednou
-        player_ids = [p.id for p in players]
-
-        # 2. Vytáhneme statistiky pro VŠECHNY tyto hráče jediným SQL dotazem
-        all_stats = PlayerStatsModel.query.filter(
-            PlayerStatsModel.player_id.in_(player_ids),
-            PlayerStatsModel.stage_name == stage_name
-        ).all()
-
-        # Uložíme do slovníku pro okamžitý přístup O(1)
-        stats_map = {s.player_id: s for s in all_stats}
-
-        ui_data = []
-        for p in players:
-            stats = stats_map.get(p.id)
-            if stats:
-                games_win = stats.games_win
-                games_lost = stats.games_lost
-                balls_diff = stats.balls_win - stats.balls_lost
-                points = stats.points
-            else:
-                games_win, games_lost, balls_diff, points = 0, 0, 0, 0
-
-            ui_data.append({
-                "name": p.name,
-                "games_win": games_win,
-                "games_lost": games_lost,
-                "balls_diff": balls_diff,
-                "points": points
-            })
-        return ui_data
-
-    @staticmethod
-    def _format_matches(matches: list) -> list:
-        ui_data = []
-        for m in sorted(matches, key=lambda x: x.id):
-            played_sets = []
-            if hasattr(m, 'sets') and m.sets:
-                # Seřadíme je podle čísla setu, aby šly popořadě (1. set, 2. set...)
-                sorted_sets = sorted(m.sets, key=lambda s: s.set_number)
-                for s in sorted_sets:
-                    played_sets.append((s.score_a, s.score_b))
-            ui_data.append({
-                "match_id": m.id,
-                "player_a_name": m.player_a.name if m.player_a else "TBD",
-                "player_b_name": m.player_b.name if m.player_b else "TBD",
-                "is_finished": m.is_finished,
-                "is_in_progress": getattr(m, "is_in_progress", False),
-                "match_format": m.match_format,
-                "played_sets": played_sets
-            })
-        return ui_data
-
     def generate_results_excel(self) -> io.BytesIO:
         """Vygeneruje Excel soubor s konečným pořadím turnaje a vrátí ho jako BytesIO stream."""
-        results_data = db.session.query(PlayerModel, PlayerStatsModel.final_rank) \
-            .join(PlayerStatsModel, PlayerModel.id == PlayerStatsModel.player_id) \
-            .filter(PlayerModel.tournament_id == self.tournament_id) \
-            .filter(PlayerStatsModel.final_rank.isnot(None)) \
-            .order_by(PlayerStatsModel.final_rank.asc()) \
-            .all()
+        players = PlayerModel.query.filter_by(tournament_id=self.tournament_id).all()
+        results_data = []
+
+        for player in players:
+            p_stats = PlayoffStatsModel.query.filter_by(player_id=player.id).first()
+            c_stats = ConsolationStatsModel.query.filter_by(player_id=player.id).first()
+
+            rank = None
+            if p_stats and p_stats.final_rank is not None:
+                rank = p_stats.final_rank
+            elif c_stats and c_stats.final_rank is not None:
+                rank = c_stats.final_rank
+
+            if rank is not None:
+                results_data.append((player, rank))
+
+        # Seřadíme podle pořadí vzestupně
+        results_data.sort(key=lambda x: x[1])
 
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -254,3 +205,64 @@ class WebManager:
         wb.save(file_stream)
         file_stream.seek(0)
         return file_stream
+
+    # ==========================================
+    # PRIVÁTNÍ POMOCNÉ METODY PRO FORMÁTOVÁNÍ
+    # ==========================================
+
+    @staticmethod
+    def _format_players(players: list, stage_name: str) -> list:
+        if not players:
+            return []
+
+        player_ids = [p.id for p in players]
+
+        # Rozhodneme se podle fáze, do které tabulky se podíváme
+        if stage_name == "Group":
+            all_stats = GroupStatsModel.query.filter(GroupStatsModel.player_id.in_(player_ids)).all()
+        else:
+            all_stats = ConsolationStatsModel.query.filter(ConsolationStatsModel.player_id.in_(player_ids)).all()
+
+        stats_map = {s.player_id: s for s in all_stats}
+
+        ui_data = []
+        for p in players:
+            stats = stats_map.get(p.id)
+            if stats:
+                games_win = getattr(stats, 'games_win', 0)
+                games_lost = getattr(stats, 'games_lost', 0)
+                balls_diff = stats.balls_win - stats.balls_lost if hasattr(stats, 'balls_win') else 0
+                points = getattr(stats, 'points', 0)
+            else:
+                games_win, games_lost, balls_diff, points = 0, 0, 0, 0
+
+            ui_data.append({
+                "name": p.name,
+                "games_win": games_win,
+                "games_lost": games_lost,
+                "balls_diff": balls_diff,
+                "points": points
+            })
+        return ui_data
+
+    @staticmethod
+    def _format_matches(matches: list) -> list:
+        ui_data = []
+        for m in sorted(matches, key=lambda x: x.id):
+            played_sets = []
+            if hasattr(m, 'sets') and m.sets:
+                # Seřadíme je podle čísla setu, aby šly popořadě (1. set, 2. set...)
+                sorted_sets = sorted(m.sets, key=lambda s: s.set_number)
+                for s in sorted_sets:
+                    played_sets.append((s.score_a, s.score_b))
+            ui_data.append({
+                "match_id": m.id,
+                "player_a_name": m.player_a.name if m.player_a else "TBD",
+                "player_b_name": m.player_b.name if m.player_b else "TBD",
+                "is_finished": m.is_finished,
+                "is_in_progress": getattr(m, "is_in_progress", False),
+                "match_format": m.match_format,
+                "played_sets": played_sets
+            })
+        return ui_data
+
