@@ -1,8 +1,8 @@
-"""vytvoření nových tabulek místo PlayerStats
+"""nova db
 
-Revision ID: 27ec04c093e6
+Revision ID: 0df4f2c21b41
 Revises: 
-Create Date: 2026-09-09 16:02:14.133601
+Create Date: 2026-09-09 16:51:19.290888
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '27ec04c093e6'
+revision = '0df4f2c21b41'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -130,6 +130,10 @@ def upgrade():
     op.create_table('playoff_stats',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('player_id', sa.Integer(), nullable=False),
+    sa.Column('games_win', sa.Integer(), nullable=True),
+    sa.Column('games_lost', sa.Integer(), nullable=True),
+    sa.Column('balls_win', sa.Integer(), nullable=True),
+    sa.Column('balls_lost', sa.Integer(), nullable=True),
     sa.Column('final_rank', sa.Integer(), nullable=True),
     sa.Column('points_gained', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['player_id'], ['players.id'], ),
