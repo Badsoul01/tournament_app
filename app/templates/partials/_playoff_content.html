@@ -13,7 +13,7 @@
                 </div>
 
                 {% if match.player_a_name != "BYE" and match.player_b_name != "BYE" %}
-                    <!-- Opraveno na action_url -->
+
                     <form hx-post="{{ action_url }}"
                           hx-target="#playoff-container"
                           hx-swap="innerHTML"
@@ -32,7 +32,7 @@
                     <strong>{{ match.player_b_name }}</strong> <small style="color: #888;">({{ match.player_b_seed }})</small>
                 </div>
 
-                <!-- Opraveno na action_url -->
+
                 <form hx-post="{{ action_url }}"
                       hx-target="#playoff-container"
                       hx-swap="innerHTML"
@@ -50,7 +50,7 @@
                     <strong>{{ match.player_b_name }}</strong> <small style="color: #888;">({{ match.player_b_seed }})</small>
                 </div>
 
-                <!-- Opraveno na action_url -->
+
                 <form hx-post="{{ action_url }}"
                       hx-target="#playoff-container"
                       hx-swap="innerHTML"
@@ -60,7 +60,7 @@
                 </form>
             </div>
 
-            <!-- Opraveno na action_url -->
+
             <form hx-post="{{ action_url }}"
                   hx-target="#playoff-container"
                   hx-swap="innerHTML"
@@ -102,9 +102,9 @@
 
 <div class="bracket">
     {% if p_data and p_data.rounds %}
-        {% for round_num, matches in p_data.rounds.items() %}
+        {% for round_name, matches in p_data.rounds.items() %}
             <div class="round">
-                <h4>Kolo {{ round_num }}</h4>
+                <h4>{{ round_name }}</h4>
                 {% for match in matches %}
                     <div class="match">
                         <!-- ZDE předáváme request.path rovnou do makra -->

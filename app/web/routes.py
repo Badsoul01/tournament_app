@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, session, send_file
 from config import GROUPS_RULES, PLAYOFF_RULES
 from app.services.setupwizard import SetupWizard
-from app.models.models import db, Tournament as TournamentModel, Player as PlayerModel, PlayerStats as PlayerStatsModel, GlobalPlayer as GlobalPLayerModel
+from app.models.models import db, Tournament as TournamentModel, Player as PlayerModel, GlobalPlayer as GlobalPLayerModel,\
+    ConsolationStats as ConsolationStatsModel, PlayoffStats as PlayoffStatsModel,GroupStats as GroupsStatsModel
 from app.services.tournament import Tournament as TournamentOrchestrator
 from app.services.match import evaluate, toggle_match_progress, unlock_match
 from app.web.webmanager import WebManager
@@ -308,12 +309,25 @@ def results_view(tournament_id):
             TournamentOrchestrator.finish_existing_tournament(tournament_id)
             return redirect(f"/tournament/{tournament_id}/results")
 
-    results_data = db.session.query(PlayerModel, PlayerStatsModel.final_rank) \
-        .join(PlayerStatsModel, PlayerModel.id == PlayerStatsModel.player_id) \
-        .filter(PlayerModel.tournament_id == tournament_id) \
-        .filter(PlayerStatsModel.final_rank.isnot(None)) \
-        .order_by(PlayerStatsModel.final_rank.asc()) \
-        .all()
+    # Načtení výsledků pro zobrazení v tabulce z nových tabulek PlayoffStats a ConsolationStats
+    players = PlayerModel.query.filter_by(tournament_id=tournament_id).all()
+    results_data = []
+
+    for player in players:
+        p_stats = PlayoffStatsModel.query.filter_by(player_id=player.id).first()
+        c_stats = ConsolationStatsModel.query.filter_by(player_id=player.id).first()
+
+        rank = None
+        if p_stats and p_stats.final_rank is not None:
+            rank = p_stats.final_rank
+        elif c_stats and c_stats.final_rank is not None:
+            rank = c_stats.final_rank
+
+        if rank is not None:
+            results_data.append((player, rank))
+
+    # Seřadíme podle získaného pořadí vzestupně (1., 2., 3. místo...)
+    results_data.sort(key=lambda x: x[1])
 
     return render_template("results.html", tournament=current_tournament, results=results_data)
 

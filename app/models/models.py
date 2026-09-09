@@ -17,7 +17,6 @@ class Tournament(db.Model):
     total_players = db.Column(db.Integer, nullable=False)
     total_players_in_playoff = db.Column(db.Integer, default=0)
 
-
     has_consolation = db.Column(db.Boolean, default=True)
     consolation_format = db.Column(db.String(50))
 
@@ -133,14 +132,27 @@ class MatchResults(db.Model):
 
     match = db.relationship("Match", backref=db.backref("sets", cascade="all,delete-orphan",lazy="dynamic"))
 
-class PlayerStats(db.Model):
-    __tablename__ = "player_stats"
+class GroupStats(db.Model):
+    __tablename__ = "group_stats"
 
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey("players.id"), nullable=False)
-    stage_name = db.Column(db.String(50),nullable=False)
 
-    points= db.Column(db.Integer, default=0)
+    points = db.Column(db.Integer, default=0)
+    games_win = db.Column(db.Integer, default=0)
+    games_lost = db.Column(db.Integer, default=0)
+    balls_win = db.Column(db.Integer, default=0)
+    balls_lost = db.Column(db.Integer, default=0)
+
+    player = db.relationship("Player", backref=db.backref("group_stats", uselist=False, cascade="all, delete-orphan"))
+
+
+class PlayoffStats(db.Model):
+    __tablename__ = "playoff_stats"
+
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("players.id"), nullable=False)
+
     games_win = db.Column(db.Integer, default=0)
     games_lost = db.Column(db.Integer, default=0)
     balls_win = db.Column(db.Integer, default=0)
@@ -148,7 +160,25 @@ class PlayerStats(db.Model):
 
     final_rank = db.Column(db.Integer, nullable=True)
     points_gained = db.Column(db.Integer, default=0)
-    player = db.relationship("Player", backref=db.backref("stats_records", lazy=True))
+
+    player = db.relationship("Player", backref=db.backref("playoff_stats", uselist=False, cascade="all, delete-orphan"))
+
+
+class ConsolationStats(db.Model):
+    __tablename__ = "consolation_stats"
+
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("players.id"), nullable=False)
+
+    points = db.Column(db.Integer, default=0)
+    games_win = db.Column(db.Integer, default=0)
+    games_lost = db.Column(db.Integer, default=0)
+    balls_win = db.Column(db.Integer, default=0)
+    balls_lost = db.Column(db.Integer, default=0)
+    final_rank = db.Column(db.Integer, nullable=True)
+    points_gained = db.Column(db.Integer, default=0)
+
+    player = db.relationship("Player", backref=db.backref("consolation_stats", uselist=False, cascade="all, delete-orphan"))
 
 
 class Bracket(db.Model):

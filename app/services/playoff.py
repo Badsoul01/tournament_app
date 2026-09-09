@@ -247,7 +247,7 @@ class Playoff:
 
         self.rounds[1] = updated_round
 
-        # PŘIDÁNO: Automaticky zkontrolujeme vytvořené zápasy a posuneme vítěze BYE dál!
+        # Automaticky zkontrolujeme vytvořené zápasy a posuneme vítěze BYE dál!
         self.check_and_proceed()
 
     def check_and_proceed(self) -> None:
@@ -453,11 +453,15 @@ class Playoff:
         p_data = {"rounds": {}, "placement_rounds": [], "winner": None}
         tournament = TournamentModel.query.get(self.tournament_id)
         default_format = tournament.playoff_match_format if tournament and tournament.playoff_match_format else 3
-        print(default_format)
+
+        # 1. Zjistíme celkový počet kol v pavouku
+        total_rounds = len(self.rounds)
+
         # Zpracování hlavních kol
         for round_num, matches in self.rounds.items():
             round_ui = []
-            for item in matches:
+            for idx, item in enumerate(matches):
+                # Zpracování matchů a slotů
                 if isinstance(item, int):  # Je to vygenerovaný databázový zápas
                     m = MatchModel.query.get(item)
                     round_ui.append({
@@ -475,19 +479,24 @@ class Playoff:
                 else:  # Prázdný slot ("1A", "2B") nebo "Čeká se.."
                     slot_a, slot_b = item
                     slot_a_seed, slot_b_seed = "", ""
-
+                    # Zpracování Slotu A
                     if isinstance(slot_a, int):
                         p = PlayerModel.query.get(slot_a)
                         slot_a = p.name if p else "TBD"
                         slot_a_seed = p.group_seed if p else ""
                     elif slot_a is None or slot_a == "None":
                         slot_a = "BYE"
+                    elif slot_a == "Čeká se..":
+                        slot_a = self._get_previous_match_winner_text(round_num=round_num, m_idx=idx,is_slot_b=False)
+
                     if isinstance(slot_b, int):
                         p = PlayerModel.query.get(slot_b)
                         slot_b = p.name if p else "TBD"
                         slot_b_seed = p.group_seed if p else ""
                     elif slot_b is None or slot_b == "None":
                         slot_b = "BYE"
+                    elif slot_b == "Čeká se..":
+                        slot_b = self._get_previous_match_winner_text(round_num=round_num,m_idx=idx, is_slot_b=True)
 
                     round_ui.append({
                         "is_real_match": False,
@@ -496,7 +505,20 @@ class Playoff:
                         "slot_b": slot_b,
                         "slot_b_seed": slot_b_seed
                     })
-            p_data["rounds"][round_num] = round_ui
+            # 2.  Určení dynamického jména kola
+            if round_num == total_rounds and total_rounds > 0:
+                round_name = "Finále"
+            elif round_num == total_rounds - 1 and total_rounds > 1:
+                round_name = "Semifinále"
+            elif round_num == total_rounds - 2 and total_rounds >2:
+                round_name = "Čtvrtfinále"
+            else:
+                round_name = f"{round_num}. kolo"
+
+
+            p_data["rounds"][round_name] = round_ui
+
+
 
         # Zpracování dohrávek (placement rounds)
         for bracket_name, data in self.placement_rounds.items():
@@ -543,3 +565,25 @@ class Playoff:
             p_data["winner"] = w.name if w else None
 
         return p_data
+
+
+    def _get_previous_match_winner_text(self,round_num: int,m_idx: int, is_slot_b: bool = False) -> str:
+        """
+        Podívá se do předchozího kola a zjistí, kdo proti sobě hraje.
+        Vrací text např. 'Vítěž (Hřáč A - Hráč B' nebo 'Čeká se..'
+        """
+        prev_r = round_num- 1
+        if prev_r in self.rounds:
+            # Výpočet indexu zápasu v předchozím kole
+            prev_r_idx = (m_idx * 2) + (1 if is_slot_b else 0)
+
+            if prev_r_idx < len(self.rounds[prev_r]):
+                prev_item = self.rounds[prev_r][prev_r_idx]
+                if isinstance(prev_item,int):
+                   prev_m = MatchModel.query.get(prev_item)
+                   if prev_m:
+                       pa_name = prev_m.player_a.name if prev_m.player_a else "BYE"
+                       pb_name = prev_m.player_b.name if prev_m.player_b else "BYE"
+                       return f"Vítěz ({pa_name} - {pb_name})"
+
+        return "Čeká se.."
