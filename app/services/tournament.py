@@ -248,10 +248,9 @@ class Tournament:
 
             global_player.last_points_gained = points_gained or 0
 
-            # pčičítání bodů
+            # Přičítání bodů
             if points_gained > 0:
                 global_player.total_points = (global_player.total_points or 0) + points_gained
-
 
             # Uložení statistik účasti do globálního žebříčku
             if final_rank:
@@ -259,6 +258,33 @@ class Tournament:
                 global_player.sum_of_ranks = (global_player.sum_of_ranks or 0) + final_rank
                 global_player.last_rank = final_rank
                 global_player.last_tournament_date = db_tournament.date
+
+            # Zápis statistik zápasů
+            player_matches = MatchModel.query.filter(
+                (MatchModel.player_a_id == player.id) | (MatchModel.player_b_id == player.id),
+                MatchModel.is_finished == True
+            ).all()
+
+            for match in player_matches:
+                global_player.matches_played = (global_player.matches_played or 0) + 1
+
+                if match.winner_id == player.id:
+                    global_player.matches_won = (global_player.matches_won or 0) + 1
+                elif match.winner_id is None and match.player_a_id and match.player_b_id:
+                    global_player.matches_drawn = (global_player.matches_drawn or 0) + 1
+                elif match.winner_id is not None:
+                    global_player.matches_lost = (global_player.matches_lost or 0) + 1
+
+        #  Zápis celkového vítěze turnaje
+        winner_stat = PlayoffStatsModel.query.join(PlayerModel).filter(
+            PlayerModel.tournament_id == tournament_id,
+            PlayoffStatsModel.final_rank == 1
+        ).first()
+
+        if winner_stat:
+            db_tournament.winner_id = winner_stat.player_id
+            print(f"DEBUG: Vítězem turnaje {tournament_id} byl zapsán hráč s ID {winner_stat.player_id}")
+
 
         db.session.commit()
         return True

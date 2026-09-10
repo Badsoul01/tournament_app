@@ -1,0 +1,86 @@
+{% extends "base_stats.html" %}
+
+{% block stats_content %}
+    <h2>Globální žebříček hráčů</h2>
+
+    <!-- Vyhledávací formulář -->
+    <form method="GET" action="/stats/players">
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <input type="hidden" name="order" value="{{ order }}">
+
+        <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat hráče...">
+        <button type="submit">Hledat</button>
+        <a href="/stats/players">Zrušit filtr</a>
+    </form>
+
+    <br>
+
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>
+                    <a href="?q={{ q }}&sort_by=name&order={{ 'desc' if sort_by == 'name' and order == 'asc' else 'asc' }}">
+                        Jméno
+                    </a>
+                    {% if sort_by == 'name' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th>
+                    <a href="?q={{ q }}&sort_by=total_points&order={{ 'asc' if sort_by == 'total_points' and order == 'desc' else 'desc' }}">
+                        Celkové body
+                    </a>
+                    {% if sort_by == 'total_points' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th>
+                    <a href="?q={{ q }}&sort_by=last_points&order={{ 'asc' if sort_by == 'last_points' and order == 'desc' else 'desc' }}">
+                        Body (poslední turnaj)
+                    </a>
+                    {% if sort_by == 'last_points' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th>
+                    <a href="?q={{ q }}&sort_by=matches_played&order={{ 'asc' if sort_by == 'matches_played' and order == 'desc' else 'desc' }}">
+                        Celkem zápasů
+                    </a>
+                    {% if sort_by == 'matches_played' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th>
+                    Zápasy (V / P / R)
+                </th>
+                <th>
+                    <a href="?q={{ q }}&sort_by=tournaments&order={{ 'asc' if sort_by == 'tournaments' and order == 'desc' else 'desc' }}">
+                        Účastí
+                    </a>
+                    {% if sort_by == 'tournaments' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th>
+                    <a href="?q={{ q }}&sort_by=last_date&order={{ 'asc' if sort_by == 'last_date' and order == 'desc' else 'desc' }}">
+                        Poslední turnaj
+                    </a>
+                    {% if sort_by == 'last_date' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in players %}
+            <tr>
+                <td><a href="/stats/player/{{ p.id }}">{{ p.name }}</a></td>
+                <td>{{ p.total_points }}</td>
+                <td>{{ p.last_points_gained }}</td>
+                <td>{{ p.matches_played }}</td>
+                <td>{{ p.matches_won }} / {{ p.matches_lost }} / {{ p.matches_drawn }}</td>
+                <td>{{ p.tournaments_played }}</td>
+                <td>
+                    {% if p.last_tournament_date %}
+                        {{ p.last_tournament_date.strftime('%d.%m.%Y') }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8">Nebyli nalezeni žádní hráči.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

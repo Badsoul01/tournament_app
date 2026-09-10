@@ -1,12 +1,17 @@
 from flask import Blueprint, render_template, request, redirect, session, send_file
 from config import GROUPS_RULES, PLAYOFF_RULES
 from app.services.setupwizard import SetupWizard
-from app.models.models import db, Tournament as TournamentModel, Player as PlayerModel, GlobalPlayer as GlobalPLayerModel,\
-    ConsolationStats as ConsolationStatsModel, PlayoffStats as PlayoffStatsModel,GroupStats as GroupsStatsModel
+from app.models.models import Tournament as TournamentModel, Player as PlayerModel, GlobalPlayer as GlobalPlayerModel,\
+    ConsolationStats as ConsolationStatsModel, PlayoffStats as PlayoffStatsModel, Match as MatchModel
 from app.services.tournament import Tournament as TournamentOrchestrator
 from app.services.match import evaluate, toggle_match_progress, unlock_match
 from app.web.webmanager import WebManager
 from app.services.queries import get_available_players_from_tournament, get_recent_finished_tournaments
+from sqlalchemy import or_
+from sqlalchemy.orm import aliased
+
+
+
 
 main_bp = Blueprint("main", __name__)
 
@@ -67,7 +72,7 @@ def settings_groups():
     recent_tournaments = get_recent_finished_tournaments(limit=5)
 
     # načteme všechna jména z GlobalPlayer pro našeptávač
-    all_global_players = [g.name for g in GlobalPLayerModel.query.order_by(GlobalPLayerModel.name.asc()).all()]
+    all_global_players = [g.name for g in GlobalPlayerModel.query.order_by(GlobalPlayerModel.name.asc()).all()]
 
     return render_template(
         "settings_groups.html",
@@ -148,6 +153,183 @@ def settings_playoff():
         wizard=wizard,
         PLAYOFF_RULES=PLAYOFF_RULES
     )
+
+@main_bp.route("/stats")
+def stats_index():
+    return redirect("/stats/tournaments")
+
+@main_bp.route("/stats/tournaments")
+def stats_tournament_view():
+    # Načtení parametrů z URL (pokud nejsou, nastavíme výchozí hodnoty)
+    q = request.args.get("q","").strip()
+    sort_by = request.args.get("sort_by", "date")
+    order = request.args.get("order", "desc")
+
+    # Základní dotaz - použiujeme outerjoin na PlayerModel, abychom mohli řadit podle vítěze
+    query = TournamentModel.query.outerjoin(PlayerModel, TournamentModel.winner_id == PlayerModel.id)
+
+    # 1. Vyhledávání (vyhledáváme v názvu turnaje)
+    if q:
+        query = query.filter(TournamentModel.name.ilike(f"%{q}%"))
+
+    # 2. Řazení
+    if sort_by == "name":
+        sort_column = TournamentModel.name
+    elif sort_by == "winner":
+        # Zde řadíme podle jména propojeného hráče (vítěze)
+        sort_column = PlayerModel.name
+    elif sort_by == "total_players":
+        sort_column = TournamentModel.total_players
+    else:
+        # Výchozí řazení
+        sort_column = TournamentModel.date
+
+    # Aplikujeme směr řazení
+    if order == "asc":
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
+
+    # Spuštění dotazu a načtení výsledků
+    tournaments = query.all()
+
+    return render_template(
+        "stats_tournaments.html",
+        tournaments=tournaments,
+        q=q,
+        sort_by=sort_by,
+        order=order
+    )
+
+@main_bp.route("/stats/players")
+def stats_players_view():
+    # Načtení parametrů z URL
+    q = request.args.get("q","").strip()
+    sort_by = request.args.get("sort_by", "total_points")
+    order = request.args.get("order","desc")
+
+    # Základní dotaz
+    query = GlobalPlayerModel.query
+
+    # Vyhledávání (podle jména)
+    if q:
+        query = query.filter(GlobalPlayerModel.name.ilike(f"%{q}%"))
+
+    # Řazení
+    if sort_by == "name":
+        sort_column = GlobalPlayerModel.name
+    elif sort_by == "last_points":
+        sort_column = GlobalPlayerModel.last_points_gained
+    elif sort_by == "matches_played":
+        sort_column = GlobalPlayerModel.matches_played
+    elif sort_by == "won":
+        sort_column = GlobalPlayerModel.matches_won
+    elif sort_by == "lost":
+        sort_column = GlobalPlayerModel.matches_lost
+    elif sort_by == "drawn":
+        sort_column = GlobalPlayerModel.matches_drawn
+    elif sort_by == "tournaments":
+        sort_column = GlobalPlayerModel.tournaments_played
+    elif sort_by == "last_date":
+        sort_column = GlobalPlayerModel.last_tournament_date
+    else:
+        # Výchozí řazení
+        sort_column = GlobalPlayerModel.total_points
+
+    # Aplikujeme směr řazení
+    if order == "asc":
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
+
+    players = query.all()
+
+    return render_template(
+        "stats_players.html",
+        players=players,
+        q=q,
+        sort_by=sort_by,
+        order=order
+    )
+
+
+@main_bp.route("/stats/matches")
+def stats_matches_view():
+    q = request.args.get("q", "").strip()
+    sort_by = request.args.get("sort_by", "date")
+    order = request.args.get("order", "desc")
+
+    PlayerA = aliased(PlayerModel)
+    PlayerB = aliased(PlayerModel)
+    GlobalA = aliased(GlobalPlayerModel)
+    GlobalB = aliased(GlobalPlayerModel)
+
+    # Chceme jen dokončené zápasy
+    query = MatchModel.query.join(TournamentModel, MatchModel.tournament_id == TournamentModel.id) \
+        .filter(MatchModel.is_finished == True)
+
+    # Filtrujeme pryč zápasy, kde jsou oba hráči prázdní (BYE vs BYE / Neznámý vs Neznámý) ---
+    query = query.filter(
+        or_(MatchModel.player_a_id.isnot(None), MatchModel.player_b_id.isnot(None))
+    )
+
+    # Připojíme hráče A a B
+    query = query.outerjoin(PlayerA, MatchModel.player_a_id == PlayerA.id) \
+        .outerjoin(GlobalA, PlayerA.global_player_id == GlobalA.id) \
+        .outerjoin(PlayerB, MatchModel.player_b_id == PlayerB.id) \
+        .outerjoin(GlobalB, PlayerB.global_player_id == GlobalB.id)
+
+    # Filtrování (vyhledávání)
+    if q:
+        query = query.filter(or_(
+            GlobalA.name.ilike(f"%{q}%"),
+            GlobalB.name.ilike(f"%{q}%"),
+            TournamentModel.name.ilike(f"%{q}%")
+        ))
+
+    # Logika pro řazení
+    if sort_by == "tournament":
+        sort_column = TournamentModel.name
+    elif sort_by == "phase":
+        sort_column = MatchModel.match_type
+    elif sort_by == "player_a":
+        sort_column = PlayerA.name
+    elif sort_by == "player_b":
+        sort_column = PlayerB.name
+    else:
+        # Výchozí řazení (pokud nic nevybereme, nebo vybereme "date")
+        sort_column = TournamentModel.date
+
+    # Aplikování směru řazení (jako druhé pravidlo vždy přidáváme MatchModel.id, aby se zápasy ze stejného turnaje nemíchaly)
+    if sort_by == "date":
+        query = query.order_by(TournamentModel.date.desc(), MatchModel.id.desc())
+    else:
+        if order == "asc":
+            query = query.order_by(sort_column.asc(), MatchModel.id.asc())
+        else:
+            query = query.order_by(sort_column.desc(), MatchModel.id.desc())
+
+    matches = query.all()
+
+    return render_template(
+        "stats_matches.html",
+        matches=matches,
+        q=q,
+        sort_by=sort_by,
+        order=order
+    )
+
+@main_bp.route("/stats/match/<int:match_id>")
+def stats_match_detail_view(match_id):
+    match = MatchModel.query.get_or_404(match_id)
+    return f"Zde se zobrazí detail Zápasu ID: {match.id}"
+
+@main_bp.route("/stats/player/<int:player_id>")
+def stats_player_detail(player_id):
+    # Najdeme hráče podle ID, pokud neexistuje, vrátí 404
+    player = GlobalPlayerModel.query.get_or_404(player_id)
+
+    return render_template("stats_player_detail.html", player=player)
 
 
 @main_bp.route("/tournament/<int:tournament_id>/groups", methods=["GET", "POST"])
