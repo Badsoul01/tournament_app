@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <title>Statistiky</title>
+    <style>
+       h1 {
+            text-align: center;
+        }
+       nav { margin-bottom: 20px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+            text-align: center;
+        }
+        nav a { margin-right: 15px;
+            text-decoration: none;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="stats-container">
+        <h1>Statistiky</h1>
+
+        <nav style="display:grid;grid-template-columns: 1fr auto 1fr; align-items: center; padding: 10px; border-bottom: 1px solid #ccc;">
+            <a href="/" style="justify-self: start;">Domů</a>
+            <div>
+                <a href="/stats/tournaments">Turnaje</a>
+                <a href="/stats/players">Hráči</a>
+                <a href="/stats/matches">Zápasy</a>
+            </div>
+        </nav>
+        <hr>
+
+        <!-- Dynamnický blok, do kterého se načte kontrétní obsah záložky -->
+        <main id="stats-content">
+            {% block stats_content %}
+            {% endblock %}
+        </main>
+
+        <br>
+    </div>
+</body>
+</html>

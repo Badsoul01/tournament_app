@@ -1,0 +1,106 @@
+{% extends "base_stats.html" %}
+
+{% block stats_content %}
+    <h2>Historie zápasů</h2>
+
+    <!-- Vyhledávací formulář -->
+    <form method="GET" action="/stats/matches">
+        <!-- Pamatuje si aktuální řazení při vyhledávání -->
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <input type="hidden" name="order" value="{{ order }}">
+
+        <input type="text" name="q" value="{{ q }}" placeholder="Hledat hráče nebo turnaj...">
+        <button type="submit">Hledat</button>
+        <a href="/stats/matches">Zrušit filtr</a>
+    </form>
+
+    <br>
+
+    <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; max-width: 900px;">
+        <thead>
+            <tr>
+                <th style="text-align: left; width: 20%;">
+                    <a href="?q={{ q }}&sort_by=tournament&order={{ 'desc' if sort_by == 'tournament' and order == 'asc' else 'asc' }}">
+                        Turnaj
+                    </a>
+                    {% if sort_by == 'tournament' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th style="text-align: center; width: 10%;">
+                    <a href="?q={{ q }}&sort_by=phase&order={{ 'desc' if sort_by == 'phase' and order == 'asc' else 'asc' }}">
+                        Fáze
+                    </a>
+                    {% if sort_by == 'phase' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th style="text-align: right; width: 20%;">
+                    <a href="?q={{ q }}&sort_by=player_a&order={{ 'desc' if sort_by == 'player_a' and order == 'asc' else 'asc' }}">
+                        Hráč A
+                    </a>
+                    {% if sort_by == 'player_a' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th style="text-align: center; width: 30%;">
+                    Výsledek
+                </th>
+                <th style="text-align: left; width: 20%;">
+                    <a href="?q={{ q }}&sort_by=player_b&order={{ 'desc' if sort_by == 'player_b' and order == 'asc' else 'asc' }}">
+                        Hráč B
+                    </a>
+                    {% if sort_by == 'player_b' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in matches %}
+            <tr>
+                <!-- Turnaj -->
+                <td>
+                    <a href="/tournament/{{ m.tournament.id }}/results">{{ m.tournament.name }}</a>
+                </td>
+
+                <!-- Fáze -->
+                <td style="text-align: center;">{{ m.phase_display_name }}</td>
+
+                <!-- Hráč A -->
+                <td style="text-align: right;">
+                    {% if m.player_a and m.player_a.global_player_id %}
+                        <a href="/stats/player/{{ m.player_a.global_player_id }}" style="{% if m.winner_id and m.winner_id == m.player_a_id %}color: #2e7d32; font-weight: bold;{% endif %}">
+                            {{ m.player_a.name }}
+                        </a>
+                    {% elif m.player_a %}
+                        <span style="{% if m.winner_id and m.winner_id == m.player_a_id %}color: #2e7d32; font-weight: bold;{% endif %}">
+                            {{ m.player_a.name }}
+                        </span>
+                    {% else %}
+                        BYE
+                    {% endif %}
+                </td>
+
+                <!-- Výsledek -->
+                <td style="text-align: center; font-weight: bold;">
+                    <a href="/stats/match/{{ m.id }}" style="text-decoration: none; color: inherit;">
+                        {{ m.formatted_score }}
+                    </a>
+                </td>
+
+                <!-- Hráč B -->
+                <td style="text-align: left;">
+                    {% if m.player_b and m.player_b.global_player_id %}
+                        <a href="/stats/player/{{ m.player_b.global_player_id }}" style="{% if m.winner_id and m.winner_id == m.player_b_id %}color: #2e7d32; font-weight: bold;{% endif %}">
+                            {{ m.player_b.name }}
+                        </a>
+                    {% elif m.player_b %}
+                        <span style="{% if m.winner_id and m.winner_id == m.player_b_id %}color: #2e7d32; font-weight: bold;{% endif %}">
+                            {{ m.player_b.name }}
+                        </span>
+                    {% else %}
+                        BYE
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="text-align: center;">Nebyly nalezeny žádné zápasy.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

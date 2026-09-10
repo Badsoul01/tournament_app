@@ -31,6 +31,8 @@ class Tournament(db.Model):
     groups = db.relationship("Group", backref="tournament", lazy="dynamic")
     matches = db.relationship("Match",backref="tournament",lazy="dynamic")
     brackets = db.relationship("Bracket", backref="tournament",lazy="dynamic")
+    winner = db.relationship("Player", foreign_keys=[winner_id])
+
 
 class Group(db.Model):
     __tablename__ = "groups"
@@ -120,6 +122,35 @@ class Match(db.Model):
     player_a = db.relationship("Player", foreign_keys=[player_a_id])
     player_b = db.relationship("Player", foreign_keys=[player_b_id])
     winner = db.relationship("Player", foreign_keys= [winner_id])
+
+    @property
+    def formatted_score(self):
+        wins_a = 0
+        wins_b = 0
+        set_details = []
+
+        # Z tabulky MatchResults načteme sety pro tento zápas, seřazené podle pořadí
+        for s in self.sets.order_by(MatchResults.set_number).all():
+            if s.score_a > s.score_b:
+                wins_a += 1
+            elif s.score_b > s.score_a:
+                wins_b += 1
+            set_details.append(f"{s.score_a}:{s.score_b}")
+
+        overall = f"{wins_a} : {wins_b}"
+
+        # Pokud existují detaily setů, přidáme je do závorky
+        if set_details:
+            return f"{overall} ({', '.join(set_details)})"
+        return overall
+
+    @property
+    def phase_display_name(self):
+        if self.group:
+            return self.group.name  # Vrací např. "Skupina A"
+        elif self.bracket:
+            return self.bracket.name  # Vrací např. "Hlavní Playoff" nebo "Útěcha (Playoff B)"
+        return self.match_type  # Fallback
 
 class MatchResults(db.Model):
     __tablename__= "match_results"

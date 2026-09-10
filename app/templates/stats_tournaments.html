@@ -1,0 +1,89 @@
+{% extends "base_stats.html" %}
+
+{% block stats_content %}
+    <h2>Statistiky turnajů</h2>
+
+    <!-- Vyhledávací formulář -->
+    <form method="GET" action="/stats/tournaments">
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <input type="hidden" name="order" value="{{ order }}">
+
+        <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat turnaj...">
+        <button type="submit">Hledat</button>
+        <a href="/stats/tournaments">Zrušit filtr</a>
+    </form>
+
+    <br>
+
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>
+                    <a href="?q={{ q }}&sort_by=name&order={{ 'desc' if sort_by == 'name' and order == 'asc' else 'asc' }}">
+                        Název turnaje
+                    </a>
+                    {% if sort_by == 'name' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th>
+                    <a href="?q={{ q }}&sort_by=date&order={{ 'desc' if sort_by == 'date' and order == 'asc' else 'asc' }}">
+                        Datum
+                    </a>
+                    {% if sort_by == 'date' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th>Stav</th>
+                <th>
+                    <a href="?q={{ q }}&sort_by=winner&order={{ 'desc' if sort_by == 'winner' and order == 'asc' else 'asc' }}">
+                        Vítěz
+                    </a>
+                    {% if sort_by == 'winner' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th>
+                    <a href="?q={{ q }}&sort_by=total_players&order={{ 'desc' if sort_by == 'total_players' and order == 'asc' else 'asc' }}">
+                        Počet hráčů
+                    </a>
+                    {% if sort_by == 'total_players' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th>Akce</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in tournaments %}
+            <tr>
+                <td>{{ t.name }}</td>
+                <td>{{ t.date.strftime('%d.%m.%Y') }}</td>
+                <td>
+                    {% if t.is_finished %}
+                        Dokončeno
+                    {% else %}
+                        Probíhá
+                    {% endif %}
+                </td>
+                <td>
+                    {% if t.winner %}
+                        {{ t.winner.name }}
+                    {% else %}
+                        Turnaj ještě probíhá.
+                    {% endif %}
+                </td>
+                <td>{{ t.total_players }}</td>
+                <td>
+                    <!-- Odkaz na výsledky turnaje -->
+                    <a href="/tournament/{{ t.id }}/results">Výsledky</a> |
+
+                    <!-- Formulář pro přímé stažení Excelu -->
+                    <form action="/tournament/{{ t.id }}/results" method="POST" style="display:inline;">
+                        <input type="hidden" name="action" value="download">
+                        <button type="submit" style="cursor: pointer; background: none; border: none; color: blue; text-decoration: underline; padding: 0; font: inherit;">
+                            Stáhnout výsledek
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6">Nebyly nalezeny žádné turnaje.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
