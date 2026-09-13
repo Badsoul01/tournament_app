@@ -30,33 +30,7 @@
                     </a>
                     {% if sort_by == 'total_points' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th>
-                    <a href="?q={{ q }}&sort_by=last_points&order={{ 'asc' if sort_by == 'last_points' and order == 'desc' else 'desc' }}">
-                        Body (poslední turnaj)
-                    </a>
-                    {% if sort_by == 'last_points' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
-                </th>
-                <th>
-                    <a href="?q={{ q }}&sort_by=matches_played&order={{ 'asc' if sort_by == 'matches_played' and order == 'desc' else 'desc' }}">
-                        Celkem zápasů
-                    </a>
-                    {% if sort_by == 'matches_played' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
-                </th>
-                <th>
-                    Zápasy (V / P / R)
-                </th>
-                <th>
-                    <a href="?q={{ q }}&sort_by=tournaments&order={{ 'asc' if sort_by == 'tournaments' and order == 'desc' else 'desc' }}">
-                        Účastí
-                    </a>
-                    {% if sort_by == 'tournaments' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
-                </th>
-                <th>
-                    <a href="?q={{ q }}&sort_by=last_date&order={{ 'asc' if sort_by == 'last_date' and order == 'desc' else 'desc' }}">
-                        Poslední turnaj
-                    </a>
-                    {% if sort_by == 'last_date' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
-                </th>
+
             </tr>
         </thead>
         <tbody>
@@ -64,17 +38,6 @@
             <tr>
                 <td><a href="/stats/player/{{ p.id }}">{{ p.name }}</a></td>
                 <td>{{ p.total_points }}</td>
-                <td>{{ p.last_points_gained }}</td>
-                <td>{{ p.matches_played }}</td>
-                <td>{{ p.matches_won }} / {{ p.matches_lost }} / {{ p.matches_drawn }}</td>
-                <td>{{ p.tournaments_played }}</td>
-                <td>
-                    {% if p.last_tournament_date %}
-                        {{ p.last_tournament_date.strftime('%d.%m.%Y') }}
-                    {% else %}
-                        -
-                    {% endif %}
-                </td>
             </tr>
             {% else %}
             <tr>
