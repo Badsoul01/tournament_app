@@ -1,10 +1,308 @@
 {% extends "base_stats.html" %}
 
 {% block stats_content %}
-    <h2>Detail hráče: {{ player.name }}</h2>
+    <!-- HLAVIČKA PROFILU -->
+    <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9;">
+        <h2 style="margin-top: 0;">Profil hráče: {{ player.name }}</h2>
+        <p style="margin: 5px 0;"><strong>Aktuální rank:</strong> {{ current_rank }}. místo</p>
+        <p style="margin: 5px 0;"><strong>Počet bodů:</strong> {{ player.total_points }} b.</p>
+        <a href="/stats/players" style="font-size: 0.9em;">← Zpět na žebříček</a>
+    </div>
 
-    <p>Zde bude časem podrobná osobní karta hráče.</p>
+   <!-- ZÁLOŽKY (TABS) NAVIGATION -->
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ccc; padding-bottom: 10px;">
+        <!-- Záložka 1 -->
+        <a href="?tab=obecne"
+           style="padding: 10px 15px; text-decoration: none; border: 1px solid #ccc; font-weight: bold;
+                  background-color: {% if active_tab == 'obecne' %}#e0e0e0{% else %}#fff{% endif %};
+                  color: black; border-radius: 5px 5px 0 0;">
+            Obecné informace
+        </a>
 
-    <br>
-    <a href="/stats/players">← Zpět na žebříček</a>
+        <!-- Záložka 2 -->
+        <a href="?tab=turnaje"
+           style="padding: 10px 15px; text-decoration: none; border: 1px solid #ccc; font-weight: bold;
+                  background-color: {% if active_tab == 'turnaje' %}#e0e0e0{% else %}#fff{% endif %};
+                  color: black; border-radius: 5px 5px 0 0;">
+            Přehled turnajů ({{ player.tournaments_played }})
+        </a>
+
+        <!-- Záložka 3 -->
+        <a href="?tab=zapasy"
+           style="padding: 10px 15px; text-decoration: none; border: 1px solid #ccc; font-weight: bold;
+                  background-color: {% if active_tab == 'zapasy' %}#e0e0e0{% else %}#fff{% endif %};
+                  color: black; border-radius: 5px 5px 0 0;">
+            Přehled zápasů ({{ player.matches_played }})
+        </a>
+
+        <!-- Záložka 4 (Nová) -->
+        <a href="?tab=h2h"
+           style="padding: 10px 15px; text-decoration: none; border: 1px solid #ccc; font-weight: bold;
+                  background-color: {% if active_tab == 'h2h' %}#e0e0e0{% else %}#fff{% endif %};
+                  color: black; border-radius: 5px 5px 0 0;">
+            Head-to-Head
+        </a>
+    </div>
+
+    <!-- OBSAH ZÁLOŽEK -->
+    <div>
+        {% if active_tab == 'obecne' %}
+            <!-- ZÁLOŽKA: OBECNÉ INFORMACE -->
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <!-- Levý sloupec: Výkonnost a Forma -->
+                <div style="flex: 1; min-width: 300px; border: 1px solid #ddd; padding: 15px;">
+                    <h3>Výkonnost</h3>
+
+                    <div style="margin-bottom: 15px;">
+                        <strong>Forma (posledních 5 zápasů): </strong>
+                        {% if recent_form %}
+                            {% for result in recent_form %}
+                                {% if result == 'V' %}
+                                    <span style="display: inline-block; width: 22px; height: 22px; border-radius: 50%; background-color: #4caf50; color: white; text-align: center; line-height: 22px; font-size: 12px; font-weight: bold; margin-right: 3px;" title="Výhra">V</span>
+                                {% elif result == 'P' %}
+                                    <span style="display: inline-block; width: 22px; height: 22px; border-radius: 50%; background-color: #f44336; color: white; text-align: center; line-height: 22px; font-size: 12px; font-weight: bold; margin-right: 3px;" title="Prohra">P</span>
+                                {% else %}
+                                    <span style="display: inline-block; width: 22px; height: 22px; border-radius: 50%; background-color: #9e9e9e; color: white; text-align: center; line-height: 22px; font-size: 12px; font-weight: bold; margin-right: 3px;" title="Remíza">R</span>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <span style="color: #888;">Nedostatek dat</span>
+                        {% endif %}
+                    </div>
+
+                    <p><strong>Win Rate:</strong> {{ win_rate }} %</p>
+                    <p><strong>Celkové skóre (V/P/R):</strong> {{ player.matches_won }} / {{ player.matches_lost }} / {{ player.matches_drawn }}</p>
+
+                    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+                    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+                    <!-- Graf vývoje umístění -->
+                    <div style="position: relative; height: 250px; margin-bottom: 30px;">
+                        <canvas id="rankChart"></canvas>
+                    </div>
+
+                    <!-- Graf získaných bodů -->
+                    <div style="position: relative; height: 250px;">
+                        <canvas id="pointsChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Pravý sloupec: Rivalové a H2H -->
+                <div style="flex: 1; min-width: 300px; border: 1px solid #ddd; padding: 15px;">
+                    <h3>Rivalita na stole</h3>
+
+                    <h4 style="color: #2e7d32; margin-bottom: 5px;">Nejvíce výher proti:</h4>
+                    {% if favorite_opponent %}
+                        <p style="margin-top: 0;">
+                            <strong><a href="/stats/player/{{ favorite_opponent.id }}" style="color: inherit;">{{ favorite_opponent.name }}</a></strong><br>
+                            Bilance: <span style="color: green;">{{ favorite_opponent.wins_against }} výher</span> / <span style="color: red;">{{ favorite_opponent.losses_against }} proher</span>
+                        </p>
+                    {% else %}
+                        <p style="margin-top: 0; color: #888;">Zatím nemá žádného oblíbeného soupeře.</p>
+                    {% endif %}
+
+                    <h4 style="color: #c62828; margin-bottom: 5px; margin-top: 20px;">Nejvíce proher proti:</h4>
+                    {% if nemesis %}
+                        <p style="margin-top: 0;">
+                            <strong><a href="/stats/player/{{ nemesis.id }}" style="color: inherit;">{{ nemesis.name }}</a></strong><br>
+                            Bilance: <span style="color: green;">{{ nemesis.wins_against }} výher</span> / <span style="color: red;">{{ nemesis.losses_against }} proher</span>
+                        </p>
+                    {% else %}
+                        <p style="margin-top: 0; color: #888;">Zatím nenašel přemožitele.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+        {% elif active_tab == 'turnaje' %}
+            <!-- ZÁLOŽKA: TURNAJE -->
+            <h3>Historie odehraných turnajů</h3>
+
+            {% if tournaments_data %}
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left;">
+                    <thead>
+                        <tr style="background-color: #f1f1f1; border-bottom: 2px solid #ddd;">
+                            <th style="padding: 10px; border: 1px solid #ddd;">Datum</th>
+                            <th style="padding: 10px; border: 1px solid #ddd;">Název turnaje</th>
+                            <th style="padding: 10px; border: 1px solid #ddd;">Konečné umístění</th>
+                            <th style="padding: 10px; border: 1px solid #ddd;">Získané body</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Akce</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in tournaments_data %}
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px; border: 1px solid #ddd;">{{ t.tournament_date.strftime('%d.%m.%Y') if t.tournament_date else '-' }}</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;"><strong>{{ t.tournament_name }}</strong></td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">{{ t.rank }}</td>
+                                <td style="padding: 10px; border: 1px solid #ddd; color: #2e7d32; font-weight: bold;">+{{ t.points }} b.</td>
+                                <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                                    <a href="/tournament/{{ t.tournament_id }}" style="text-decoration: none; color: #1976d2; font-size: 0.9em;">Detail turnaje →</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p style="color: #888;">Hráč se zatím zúčastnil pouze testovacích nebo žádných dokončených turnajů.</p>
+            {% endif %}
+
+        {% elif active_tab == 'zapasy' %}
+            <!-- ZÁLOŽKA: ZÁPASY -->
+            <h3>Historie odehraných zápasů</h3>
+
+            {% if matches_data %}
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left;">
+                    <thead>
+                        <tr style="background-color: #f1f1f1; border-bottom: 2px solid #ddd;">
+                            <th style="padding: 10px; border: 1px solid #ddd;">Turnaj</th>
+                            <th style="padding: 10px; border: 1px solid #ddd;">Soupeř</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Skóre</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Výsledek</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in matches_data %}
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px; border: 1px solid #ddd;">{{ m.tournament_name }}</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">
+                                    {% if m.opponent_id %}
+                                        <a href="/stats/player/{{ m.opponent_id }}" style="color: inherit; font-weight: bold;">{{ m.opponent_name }}</a>
+                                    {% else %}
+                                        {{ m.opponent_name }}
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">{{ m.score }}</td>
+                                <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                                    {% if m.result == 'V' %}
+                                        <span style="color: #4caf50; font-weight: bold;">Výhra (V)</span>
+                                    {% elif m.result == 'P' %}
+                                        <span style="color: #f44336; font-weight: bold;">Prohra (P)</span>
+                                    {% else %}
+                                        <span style="color: #9e9e9e; font-weight: bold;">Remíza (R)</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p style="color: #888;">Hráč zatím nemá zapsané žádné odehrané zápasy.</p>
+            {% endif %}
+
+        {% elif active_tab == 'h2h' %}
+            <!-- ZÁLOŽKA: HEAD-TO-HEAD -->
+            <h3>Head-to-Head (Vzájemná bilance)</h3>
+            <div style="background-color: #f9f9f9; padding: 15px; border: 1px solid #e0e0e0; margin-bottom: 20px; max-width: 800px;">
+                <p style="margin: 0 0 10px 0; color: #555;">Vyberte soupeře pro porovnání vzájemných zápasů a celkové bilance.</p>
+                <form method="GET" action="/stats/player/{{ player.id }}">
+                    <input type="hidden" name="tab" value="h2h">
+
+                    <select name="opponent_id" style="width: 60%; padding: 8px;">
+                        <option value="">Vyberte soupeře...</option>
+                        {% for opp in opponents_list %}
+                            <option value="{{ opp.id }}" {% if h2h_data and h2h_data.opponent.id == opp.id %}selected{% endif %}>{{ opp.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" style="padding: 8px 15px; font-weight: bold;">Porovnat</button>
+                </form>
+            </div>
+
+            {% if h2h_data %}
+                <!-- DVA SLOUPCE: Vlevo souhrn, vpravo graf -->
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-start;">
+
+                    <!-- Levý sloupec: Textový souhrn -->
+                    <div style="flex: 1; min-width: 280px; border: 1px solid #ccc; padding: 15px; background-color: #fff; box-sizing: border-box;">
+                        <h4 style="margin-top: 0;">
+                            Souhrn proti:
+                            <a href="/stats/player/{{ h2h_data.opponent.id }}" style="color: inherit; text-decoration: underline;">
+                                {{ h2h_data.opponent.name }}
+                            </a>
+                        </h4>
+                        <p style="margin: 5px 0;"><strong>Celkem odehráno:</strong> {{ h2h_data.total }} zápasů</p>
+                        <p style="margin: 5px 0;"><strong>Bilance (Výhry / Prohry / Remízy):</strong>
+                            <span style="color: green; font-weight: bold;">{{ h2h_data.wins }}V</span> /
+                            <span style="color: red; font-weight: bold;">{{ h2h_data.losses }}P</span> /
+                            <span style="color: gray; font-weight: bold;">{{ h2h_data.draws }}R</span>
+                        </p>
+                        <p style="margin: 5px 0;"><strong>Úspěšnost:</strong> {{ h2h_data.win_rate }} %</p>
+                    </div>
+
+                    <!-- Pravý sloupec: Srovnávací graf umístění -->
+                    {% if h2h_data.chart_labels %}
+                        <div style="flex: 1.5; min-width: 320px; border: 1px solid #ccc; padding: 15px; background-color: #fff; box-sizing: border-box;">
+                            <h4 style="margin-top: 0;">Porovnání umístění na společných turnajích</h4>
+                            <div style="position: relative; height: 200px;">
+                                <canvas id="h2hRankChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Předání dat pro H2H graf do globálního objektu -->
+                        <script>
+                            window.h2hChartData = {
+                                labels: JSON.parse('{{ h2h_data.chart_labels | tojson }}'),
+                                playerRanks: JSON.parse('{{ h2h_data.player_ranks | tojson }}'),
+                                oppRanks: JSON.parse('{{ h2h_data.opp_ranks | tojson }}'),
+                                playerName: '{{ player.name }}',
+                                opponentName: '{{ h2h_data.opponent.name }}'
+                            };
+                        </script>
+                    {% endif %}
+                </div>
+
+                <!-- Celá šířka pod tím: Historie vzájemných duelů -->
+                <h4>Historie vzájemných duelů</h4>
+                {% if h2h_data.history %}
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: left;">
+                        <thead>
+                            <tr style="background-color: #f1f1f1; border-bottom: 2px solid #ddd;">
+                                <th style="padding: 10px; border: 1px solid #ddd;">Turnaj</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Skóre</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Výsledek</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for hm in h2h_data.history %}
+                                <tr style="border-bottom: 1px solid #eee;">
+                                    <td style="padding: 10px; border: 1px solid #ddd;">{{ hm.tournament_name }}</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">{{ hm.score }}</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                                        {% if hm.result == 'V' %}
+                                            <span style="color: #4caf50; font-weight: bold;">Výhra (V)</span>
+                                        {% elif hm.result == 'P' %}
+                                            <span style="color: #f44336; font-weight: bold;">Prohra (P)</span>
+                                        {% else %}
+                                            <span style="color: #9e9e9e; font-weight: bold;">Remíza (R)</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p style="color: #888;">Zatím spolu nemají zaznamenaný žádný dokončený zápas.</p>
+                {% endif %}
+            {% else %}
+                <p style="color: #888;">Vyberte soupeře výše a klikněte na "Porovnat" pro zobrazení vzájemné bilance.</p>
+            {% endif %}
+        {% endif %}
+
+    </div>
+
+<!-- KNIHOVNA CHART.JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- PŘEDÁNÍ DAT Z PYTHONU DO JAVASCRIPTU -->
+<script>
+    window.playerChartData = {
+        labels: JSON.parse('{{ chart_labels | tojson }}'),
+        ranks: JSON.parse('{{ chart_ranks | tojson }}'),
+        points: JSON.parse('{{ chart_points | tojson }}')
+    };
+</script>
+
+<!-- NATAŽENÍ EXTERNÍHO SOUBORU S LOGIKOU (s donucením k načtení nové verze) -->
+<script src="{{ url_for('static', filename='js/player_profile.js') }}?v=5"></script>
+
 {% endblock %}
