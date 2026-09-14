@@ -1,49 +1,25 @@
+
 {% extends "base_stats.html" %}
 
 {% block stats_content %}
     <h2>Globální žebříček hráčů</h2>
 
-    <!-- Vyhledávací formulář -->
-    <form method="GET" action="/stats/players">
+    <!-- HTMX Vyhledávací formulář -->
+    <form method="GET" action="/stats/players" style="margin-bottom: 20px;">
         <input type="hidden" name="sort_by" value="{{ sort_by }}">
         <input type="hidden" name="order" value="{{ order }}">
 
-        <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat hráče...">
-        <button type="submit">Hledat</button>
-        <a href="/stats/players">Zrušit filtr</a>
+        <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat hráče..."
+               hx-get="/stats/players"
+               hx-target="#players-table-container"
+               hx-swap="outerHTML"
+               hx-trigger="keyup changed delay:300ms, search"
+               style="padding: 6px; width: 250px;">
+
+        <a href="/stats/players" style="margin-left: 10px; color: #1976d2; text-decoration: none;">Zrušit filtr</a>
     </form>
 
-    <br>
+    <!-- Zde se vkládá tabulka (vyrenderuje se z partialu nebo přímo) -->
+    {% include "partials/_players_table.html" %}
 
-    <table border="1" cellpadding="5" cellspacing="0">
-        <thead>
-            <tr>
-                <th>
-                    <a href="?q={{ q }}&sort_by=name&order={{ 'desc' if sort_by == 'name' and order == 'asc' else 'asc' }}">
-                        Jméno
-                    </a>
-                    {% if sort_by == 'name' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
-                </th>
-                <th>
-                    <a href="?q={{ q }}&sort_by=total_points&order={{ 'asc' if sort_by == 'total_points' and order == 'desc' else 'desc' }}">
-                        Celkové body
-                    </a>
-                    {% if sort_by == 'total_points' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
-                </th>
-
-            </tr>
-        </thead>
-        <tbody>
-            {% for p in players %}
-            <tr>
-                <td><a href="/stats/player/{{ p.id }}">{{ p.name }}</a></td>
-                <td>{{ p.total_points }}</td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="8">Nebyli nalezeni žádní hráči.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
 {% endblock %}

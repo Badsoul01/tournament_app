@@ -1,0 +1,48 @@
+<div id="players-table-container">
+    <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; max-width: 600px;">
+        <thead>
+            <tr style="background-color: #f1f1f1;">
+                <th style="text-align: center; width: 15%;">Rank</th>
+                <th style="text-align: left; width: 55%;">
+                    <a hx-get="/stats/players?q={{ q }}&sort_by=name&order={{ 'desc' if sort_by == 'name' and order == 'asc' else 'asc' }}"
+                       hx-target="#players-table-container"
+                       hx-swap="outerHTML"
+                       style="text-decoration: none; color: inherit; cursor: pointer;">
+                        Jméno
+                    </a>
+                    {% if sort_by == 'name' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+                <th style="text-align: right; width: 30%;">
+                    <a hx-get="/stats/players?q={{ q }}&sort_by=total_points&order={{ 'asc' if sort_by == 'total_points' and order == 'desc' else 'desc' }}"
+                       hx-target="#players-table-container"
+                       hx-swap="outerHTML"
+                       style="text-decoration: none; color: inherit; cursor: pointer;">
+                        Celkové body
+                    </a>
+                    {% if sort_by == 'total_points' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in players %}
+            <tr>
+                <td style="text-align: center; font-weight: bold; color: #555;">
+                    {{ ranks_map.get(p.id, '-') }}.
+                </td>
+                <td>
+                    <a href="/stats/player/{{ p.id }}" style="text-decoration: none; color: #1976d2; font-weight: bold;">
+                        {{ p.name }}
+                    </a>
+                </td>
+                <td style="text-align: right; font-weight: bold; color: #2e7d32;">
+                    {{ p.total_points }} b.
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" style="text-align: center; padding: 20px;">Nebyli nalezeni žádní hráči.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

@@ -145,6 +145,17 @@ class Match(db.Model):
         return overall
 
     @property
+    def overall_score(self):
+        wins_a = 0
+        wins_b = 0
+        for s in self.sets.order_by(MatchResults.set_number).all():
+            if s.score_a > s.score_b:
+                wins_a += 1
+            elif s.score_b > s.score_a:
+                wins_b += 1
+        return f"{wins_a} : {wins_b}"
+
+    @property
     def phase_display_name(self):
         if self.group:
             return self.group.name  # Vrací např. "Skupina A"

@@ -23,7 +23,8 @@ class Tournament:
             group_match_format =setup.group_match_format,
             playoff_match_format = setup.playoff_match_format,
             total_players = setup.total_tournament_players,
-            total_players_in_playoff = setup.total_players_advance_to_playoff
+            total_players_in_playoff = setup.total_players_advance_to_playoff,
+            consolation_format = setup.group_elimination_action
         )
         db.session.add(db_tournament)
         db.session.commit()
