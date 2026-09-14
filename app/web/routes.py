@@ -10,8 +10,7 @@ from app.services.queries import get_available_players_from_tournament, get_rece
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import aliased
 
-
-
+from models.models import Group, Bracket
 
 main_bp = Blueprint("main", __name__)
 
@@ -495,15 +494,21 @@ def stats_player_detail(player_id):
 
             # Zjištění názvu turnaje přes bezpečné vazby
             tournament_name = "-"
+            tournament_id = None
             if hasattr(m, 'tournament') and m.tournament:
                 tournament_name = m.tournament.name
+                tournament_id = m.tournament.id
             elif hasattr(m, 'group') and m.group and m.group.tournament:
                 tournament_name = m.group.tournament.name
+                tournament_id = m.group.tournament.id
             elif hasattr(m, 'bracket') and m.bracket and m.bracket.tournament:
                 tournament_name = m.bracket.tournament.name
+                tournament_id = m.bracket.tournament.id
 
             matches_data.append({
                 "tournament_name": tournament_name,
+                "tournament_id": tournament_id,
+                "phase": m.phase_display_name,
                 "opponent_name": opp_name,
                 "opponent_id": opp_global_id,
                 "score": m.formatted_score,  # Využijeme hotovou property z modelu!
@@ -550,16 +555,22 @@ def stats_player_detail(player_id):
                             losses += 1
                             res = 'P'
 
-                        t_name = "-"
+                        tournament_name = "-"
+                        tournament_id = None
                         if hasattr(hm, 'tournament') and hm.tournament:
-                            t_name = hm.tournament.name
+                            tournament_name = hm.tournament.name
+                            tournament_id = hm.tournament.id
                         elif hasattr(hm, 'group') and hm.group and hm.group.tournament:
-                            t_name = hm.group.tournament.name
+                            tournament_name = hm.group.tournament.name
+                            tournament_id =  hm.group.tournament.id
                         elif hasattr(hm, 'bracket') and hm.bracket and hm.bracket.tournament:
-                            t_name = hm.bracket.tournament.name
+                            tournament_name = hm.bracket.tournament.name
+                            tournament_id = hm.bracket.tournament.id
 
                         match_history.append({
-                            "tournament_name": t_name,
+                            "tournament_name": tournament_name,
+                            "tournament_id": tournament_id,
+                            "phase":hm.phase_display_name,
                             "score": hm.formatted_score,
                             "result": res
                         })
@@ -623,7 +634,73 @@ def stats_player_detail(player_id):
                         "opp_ranks": h2h_opp_ranks
                     }
 
-    active_tab = request.args.get("tab", "obecne")
+        active_tab = request.args.get("tab", "obecne")
+
+        # --- FILTROVÁNÍ A ŘAZENÍ PRO AKTIVNÍ ZÁLOŽKU ---
+        tab_q = request.args.get("q", "").strip().lower()
+        tab_sort_by = request.args.get("sort_by", "")
+        tab_order = request.args.get("order", "desc")
+        reverse_sort = (tab_order == "desc")
+
+        if active_tab == 'turnaje':
+            if not tab_sort_by: tab_sort_by = "date"
+            # Filtrování
+            if tab_q:
+                tournaments_data = [t for t in tournaments_data if
+                                    tab_q in t['tournament_name'].lower() or tab_q in str(t['rank']).lower()]
+
+            # Řazení
+            if tab_sort_by == "name":
+                tournaments_data.sort(key=lambda x: x['tournament_name'], reverse=reverse_sort)
+            elif tab_sort_by == "rank":
+                # Ošetření textu "1. místo" na pouhé číslo 1 pro správné řazení
+                tournaments_data.sort(
+                    key=lambda x: int(str(x['rank']).split('.')[0]) if str(x['rank']).split('.')[0].isdigit() else 999,
+                    reverse=reverse_sort)
+            elif tab_sort_by == "points":
+                tournaments_data.sort(key=lambda x: x['points'], reverse=reverse_sort)
+            else:  # date
+                tournaments_data.sort(key=lambda x: x['tournament_date'] or datetime.min.date(), reverse=reverse_sort)
+
+
+        elif active_tab == 'zapasy':
+            if not tab_sort_by: tab_sort_by = "tournament"
+            # Filtrování
+            if tab_q:
+                matches_data = [m for m in matches_data if
+                                tab_q in m['tournament_name'].lower() or tab_q in m['phase'].lower() or tab_q in m[
+                                    'opponent_name'].lower()]
+
+            # Řazení
+            if tab_sort_by == "phase":
+                matches_data.sort(key=lambda x: x['phase'], reverse=reverse_sort)
+            elif tab_sort_by == "opponent":
+                matches_data.sort(key=lambda x: x['opponent_name'], reverse=reverse_sort)
+            elif tab_sort_by == "score":
+                matches_data.sort(key=lambda x: x['score'], reverse=reverse_sort)
+            elif tab_sort_by == "result":
+                matches_data.sort(key=lambda x: x['result'], reverse=reverse_sort)
+            else:  # tournament
+                matches_data.sort(key=lambda x: x['tournament_id'] or 0, reverse=reverse_sort)
+
+        elif active_tab == 'h2h' and h2h_data:
+            if not tab_sort_by: tab_sort_by = "tournament"
+            # Filtrování
+            if tab_q:
+                h2h_data['history'] = [hm for hm in h2h_data['history'] if
+                                       tab_q in hm['tournament_name'].lower() or tab_q in hm['phase'].lower()]
+
+            # Řazení
+            if tab_sort_by == "phase":
+                h2h_data['history'].sort(key=lambda x: x['phase'], reverse=reverse_sort)
+            elif tab_sort_by == "score":
+                h2h_data['history'].sort(key=lambda x: x['score'], reverse=reverse_sort)
+            elif tab_sort_by == "result":
+                h2h_data['history'].sort(key=lambda x: x['result'], reverse=reverse_sort)
+            else:  # tournament
+                h2h_data['history'].sort(key=lambda x: x['tournament_id'] or 0, reverse=reverse_sort)
+
+
 
     return render_template(
         "stats_player_detail.html",
@@ -640,14 +717,19 @@ def stats_player_detail(player_id):
         tournaments_data=tournaments_data,
         matches_data=matches_data,
         h2h_data=h2h_data,
-        active_tab=active_tab
+        active_tab=active_tab,
+        tab_q=tab_q,
+        tab_sort_by=tab_sort_by,
+        tab_order=tab_order
     )
 
 @main_bp.route("/tournament/<int:tournament_id>/groups", methods=["GET", "POST"])
 def groups_view(tournament_id):
     web_manager = WebManager(tournament_id)
 
-    if request.method == "POST":
+    editable = request.args.get("view") != "1"
+
+    if request.method == "POST" and editable:
         match_id = int(request.form.get("match_id", 0))
         action = request.form.get("action")
 
@@ -672,20 +754,28 @@ def groups_view(tournament_id):
                 "partials/_group_content.html",
                 group_name=group_name,
                 data=group_data[group_name],
-                tournament=web_manager.tournament
+                tournament=web_manager.tournament,
+                editable=editable
             )
 
         return redirect(f"/tournament/{tournament_id}/groups")
 
     group_data = web_manager.get_groups_page_data()
-    return render_template("groups.html", tournament=web_manager.tournament, group_data=group_data)
+    return render_template(
+        "groups.html",
+        tournament=web_manager.tournament,
+        group_data=group_data,
+        editable=editable
+    )
 
 
 @main_bp.route("/tournament/<int:tournament_id>/playoff", methods=["GET", "POST"])
 def playoff_view(tournament_id):
     web_manager = WebManager(tournament_id)
 
-    if request.method == "POST":
+    editable = request.args.get("view") != "1"
+
+    if request.method == "POST" and editable:
         match_id = int(request.form.get("match_id", 0))
         action = request.form.get("action")
 
@@ -705,20 +795,28 @@ def playoff_view(tournament_id):
             return render_template(
                 "partials/_playoff_content.html",
                 tournament=web_manager.tournament,
-                p_data=p_data
+                p_data=p_data,
+                editable=editable
             )
 
         return redirect(f"/tournament/{tournament_id}/playoff")
 
     p_data = web_manager.get_playoff_page_data(is_consolation=False)
-    return render_template("playoff.html", tournament=web_manager.tournament, p_data=p_data)
+    return render_template(
+        "playoff.html",
+        tournament=web_manager.tournament,
+        p_data=p_data,
+        editable=editable
+    )
 
 
 @main_bp.route("/tournament/<int:tournament_id>/consolation_minigroup", methods=["GET", "POST"])
 def consolation_minigroup_view(tournament_id):
     web_manager = WebManager(tournament_id)
 
-    if request.method == "POST":
+    editable = request.args.get("view") != "1"
+
+    if request.method == "POST" and editable:
         match_id = int(request.form.get("match_id", 0))
         action = request.form.get("action")
         group_name = request.form.get("group_name")
@@ -738,20 +836,29 @@ def consolation_minigroup_view(tournament_id):
                 group_name=group_name,
                 data=group_data[group_name],
                 tournament=web_manager.tournament,
-                is_consolation=True
+                is_consolation=True,
+                editable=editable
             )
 
         return redirect(f"/tournament/{tournament_id}/consolation_minigroup")
 
     group_data = web_manager.get_minigroup_page_data()
-    return render_template("consolation_minigroup.html", tournament=web_manager.tournament, group_data=group_data, is_consolation=True)
+    return render_template(
+        "consolation_minigroup.html",
+        tournament=web_manager.tournament,
+        group_data=group_data,
+        is_consolation=True,
+        editable=editable
+    )
 
 
 @main_bp.route("/tournament/<int:tournament_id>/consolation_playoff", methods=["POST", "GET"])
 def consolation_playoff_view(tournament_id):
     web_manager = WebManager(tournament_id)
 
-    if request.method == "POST":
+    editable = request.args.get("view") != "1"
+
+    if request.method == "POST" and editable:
         match_id = int(request.form.get("match_id", 0))
         action = request.form.get("action")
 
@@ -768,13 +875,19 @@ def consolation_playoff_view(tournament_id):
             return render_template(
                 "partials/_playoff_content.html",
                 tournament=web_manager.tournament,
-                p_data=p_data
+                p_data=p_data,
+                editable=editable
             )
 
         return redirect(f"/tournament/{tournament_id}/consolation_playoff")
 
     p_data = web_manager.get_playoff_page_data(is_consolation=True)
-    return render_template("consolation_playoff.html", tournament=web_manager.tournament, p_data=p_data)
+    return render_template(
+        "consolation_playoff.html",
+        tournament=web_manager.tournament,
+        p_data=p_data,
+        editable=editable
+    )
 
 
 @main_bp.route("/tournament/<int:tournament_id>/results", methods=["GET", "POST"])
