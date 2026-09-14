@@ -116,16 +116,37 @@
 
         {% elif active_tab == 'turnaje' %}
             <!-- ZÁLOŽKA: TURNAJE -->
-            <h3>Historie odehraných turnajů</h3>
+           <h3>Historie odehraných turnajů</h3>
+
+            <form method="GET" action="" style="margin-bottom: 15px;">
+                <input type="hidden" name="tab" value="turnaje">
+                <input type="hidden" name="sort_by" value="{{ tab_sort_by }}">
+                <input type="hidden" name="order" value="{{ tab_order }}">
+                <input type="text" name="q" value="{{ tab_q }}" placeholder="🔍 Hledat turnaj..." style="padding: 5px; width: 250px;">
+                <button type="submit" style="padding: 5px 15px;">Hledat</button>
+                <a href="?tab=turnaje" style="margin-left: 10px; color: #1976d2; text-decoration: none;">Zrušit filtr</a>
+            </form>
 
             {% if tournaments_data %}
-                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
                     <thead>
                         <tr style="background-color: #f1f1f1; border-bottom: 2px solid #ddd;">
-                            <th style="padding: 10px; border: 1px solid #ddd;">Datum</th>
-                            <th style="padding: 10px; border: 1px solid #ddd;">Název turnaje</th>
-                            <th style="padding: 10px; border: 1px solid #ddd;">Konečné umístění</th>
-                            <th style="padding: 10px; border: 1px solid #ddd;">Získané body</th>
+                            <th style="padding: 10px; border: 1px solid #ddd;">
+                                <a href="?tab=turnaje&q={{ tab_q }}&sort_by=date&order={{ 'desc' if tab_sort_by == 'date' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Datum</a>
+                                {% if tab_sort_by == 'date' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                            </th>
+                            <th style="padding: 10px; border: 1px solid #ddd;">
+                                <a href="?tab=turnaje&q={{ tab_q }}&sort_by=name&order={{ 'desc' if tab_sort_by == 'name' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Název turnaje</a>
+                                {% if tab_sort_by == 'name' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                            </th>
+                            <th style="padding: 10px; border: 1px solid #ddd;">
+                                <a href="?tab=turnaje&q={{ tab_q }}&sort_by=rank&order={{ 'desc' if tab_sort_by == 'rank' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Konečné umístění</a>
+                                {% if tab_sort_by == 'rank' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                            </th>
+                            <th style="padding: 10px; border: 1px solid #ddd;">
+                                <a href="?tab=turnaje&q={{ tab_q }}&sort_by=points&order={{ 'desc' if tab_sort_by == 'points' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Získané body</a>
+                                {% if tab_sort_by == 'points' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                            </th>
                             <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Akce</th>
                         </tr>
                     </thead>
@@ -137,7 +158,7 @@
                                 <td style="padding: 10px; border: 1px solid #ddd;">{{ t.rank }}</td>
                                 <td style="padding: 10px; border: 1px solid #ddd; color: #2e7d32; font-weight: bold;">+{{ t.points }} b.</td>
                                 <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
-                                    <a href="/tournament/{{ t.tournament_id }}" style="text-decoration: none; color: #1976d2; font-size: 0.9em;">Detail turnaje →</a>
+                                    <a href="/tournament/{{ t.tournament_id }}/results" style="text-decoration: none; color: #1976d2; font-size: 0.9em;">Detail turnaje →</a>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -151,20 +172,52 @@
             <!-- ZÁLOŽKA: ZÁPASY -->
             <h3>Historie odehraných zápasů</h3>
 
+            <form method="GET" action="" style="margin-bottom: 15px;">
+                <input type="hidden" name="tab" value="zapasy">
+                <input type="hidden" name="sort_by" value="{{ tab_sort_by }}">
+                <input type="hidden" name="order" value="{{ tab_order }}">
+                <input type="text" name="q" value="{{ tab_q }}" placeholder="🔍 Hledat turnaj, fázi nebo soupeře..." style="padding: 5px; width: 300px;">
+                <button type="submit" style="padding: 5px 15px;">Hledat</button>
+                <a href="?tab=zapasy" style="margin-left: 10px; color: #1976d2; text-decoration: none;">Zrušit filtr</a>
+            </form>
+
             {% if matches_data %}
-                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
                     <thead>
                         <tr style="background-color: #f1f1f1; border-bottom: 2px solid #ddd;">
-                            <th style="padding: 10px; border: 1px solid #ddd;">Turnaj</th>
-                            <th style="padding: 10px; border: 1px solid #ddd;">Soupeř</th>
-                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Skóre</th>
-                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Výsledek</th>
+                            <th style="padding: 10px; border: 1px solid #ddd;">
+                                <a href="?tab=zapasy&q={{ tab_q }}&sort_by=tournament&order={{ 'desc' if tab_sort_by == 'tournament' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Turnaj</a>
+                                {% if tab_sort_by == 'tournament' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                            </th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                                <a href="?tab=zapasy&q={{ tab_q }}&sort_by=phase&order={{ 'desc' if tab_sort_by == 'phase' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Fáze</a>
+                                {% if tab_sort_by == 'phase' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                            </th>
+                            <th style="padding: 10px; border: 1px solid #ddd;">
+                                <a href="?tab=zapasy&q={{ tab_q }}&sort_by=opponent&order={{ 'desc' if tab_sort_by == 'opponent' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Soupeř</a>
+                                {% if tab_sort_by == 'opponent' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                            </th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                                <a href="?tab=zapasy&q={{ tab_q }}&sort_by=score&order={{ 'desc' if tab_sort_by == 'score' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Skóre</a>
+                                {% if tab_sort_by == 'score' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                            </th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                                <a href="?tab=zapasy&q={{ tab_q }}&sort_by=result&order={{ 'desc' if tab_sort_by == 'result' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Výsledek</a>
+                                {% if tab_sort_by == 'result' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for m in matches_data %}
                             <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 10px; border: 1px solid #ddd;">{{ m.tournament_name }}</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">
+                                    {% if m.tournament_id %}
+                                        <a href="/tournament/{{ m.tournament_id }}/results" style="color: inherit; text-decoration: none;">{{ m.tournament_name }}</a>
+                                    {% else %}
+                                        {{ m.tournament_name }}
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: #555;">{{ m.phase }}</td> <!-- NOVÉ -->
                                 <td style="padding: 10px; border: 1px solid #ddd;">
                                     {% if m.opponent_id %}
                                         <a href="/stats/player/{{ m.opponent_id }}" style="color: inherit; font-weight: bold;">{{ m.opponent_name }}</a>
@@ -253,19 +306,49 @@
 
                 <!-- Celá šířka pod tím: Historie vzájemných duelů -->
                 <h4>Historie vzájemných duelů</h4>
+                <form method="GET" action="" style="margin-bottom: 10px;">
+                    <input type="hidden" name="tab" value="h2h">
+                    <input type="hidden" name="opponent_id" value="{{ request.args.get('opponent_id', '') }}">
+                    <input type="hidden" name="sort_by" value="{{ tab_sort_by }}">
+                    <input type="hidden" name="order" value="{{ tab_order }}">
+                    <input type="text" name="q" value="{{ tab_q }}" placeholder="🔍 Hledat turnaj nebo fázi..." style="padding: 5px; width: 250px;">
+                    <button type="submit" style="padding: 5px 10px;">Hledat</button>
+                    <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}" style="margin-left: 10px; color: #1976d2; text-decoration: none;">Zrušit filtr</a>
+                </form>
+
                 {% if h2h_data.history %}
-                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: left;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
                         <thead>
                             <tr style="background-color: #f1f1f1; border-bottom: 2px solid #ddd;">
-                                <th style="padding: 10px; border: 1px solid #ddd;">Turnaj</th>
-                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Skóre</th>
-                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Výsledek</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">
+                                    <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=tournament&order={{ 'desc' if tab_sort_by == 'tournament' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Turnaj</a>
+                                    {% if tab_sort_by == 'tournament' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                                </th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                                    <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=phase&order={{ 'desc' if tab_sort_by == 'phase' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Fáze</a>
+                                    {% if tab_sort_by == 'phase' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                                </th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                                    <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=score&order={{ 'desc' if tab_sort_by == 'score' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Skóre</a>
+                                    {% if tab_sort_by == 'score' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                                </th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                                    <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=result&order={{ 'desc' if tab_sort_by == 'result' and tab_order == 'asc' else 'asc' }}" style="color: inherit; text-decoration: none;">Výsledek</a>
+                                    {% if tab_sort_by == 'result' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for hm in h2h_data.history %}
                                 <tr style="border-bottom: 1px solid #eee;">
-                                    <td style="padding: 10px; border: 1px solid #ddd;">{{ hm.tournament_name }}</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">
+                                        {% if hm.tournament_id %}
+                                            <a href="/tournament/{{ hm.tournament_id }}/results" style="color: inherit; text-decoration: none;">{{ hm.tournament_name }}</a>
+                                        {% else %}
+                                            {{ hm.tournament_name }}
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: #555;">{{ hm.phase }}</td> <!-- NOVÉ -->
                                     <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">{{ hm.score }}</td>
                                     <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
                                         {% if hm.result == 'V' %}
