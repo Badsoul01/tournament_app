@@ -1,0 +1,46 @@
+<tr id="match-detail-{{ match.id }}" style="background-color: #fdfdfd; border-bottom: 2px solid #ccc;">
+    <td colspan="5" style="padding: 15px;">
+        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
+
+            <!-- Sety -->
+            <div style="flex: 1; min-width: 220px;">
+                <h4 style="margin-top: 0; color: #333;">Průběh setů</h4>
+                {% if sets %}
+                    <ul style="margin: 0; padding-left: 20px; line-height: 1.5;">
+                        {% for s in sets %}
+                            <li><strong>{{ s.set_number }}. set:</strong> {{ s.score_a }} : {{ s.score_b }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p style="color: #888; margin: 0;">Detaily setů nejsou k dispozici.</p>
+                {% endif %}
+            </div>
+
+            <!-- Úspěšnost hráčů -->
+            <div style="flex: 1; min-width: 220px;">
+                <h4 style="margin-top: 0; color: #333;">Celková úspěšnost (Win Rate)</h4>
+                <p style="margin: 4px 0;">
+                    <strong>{{ match.player_a.name if match.player_a else 'BYE' }}:</strong>
+                    {{ stats_a.win_rate }}% <small style="color: #666;">({{ stats_a.wins }}V / {{ stats_a.losses }}P)</small>
+                </p>
+                <p style="margin: 4px 0;">
+                    <strong>{{ match.player_b.name if match.player_b else 'BYE' }}:</strong>
+                    {{ stats_b.win_rate }}% <small style="color: #666;">({{ stats_b.wins }}V / {{ stats_b.losses }}P)</small>
+                </p>
+            </div>
+
+            <!-- Vzájemná bilance (H2H) -->
+            <div style="flex: 1; min-width: 200px;">
+                <h4 style="margin-top: 0; color: #333;">Vzájemná bilance (H2H)</h4>
+                <p style="margin: 4px 0;">Celkem duelů: <strong>{{ h2h_data.total }}</strong></p>
+                <p style="margin: 4px 0;">
+                    Bilance: <span style="color: green; font-weight: bold;">{{ h2h_data.wins_a }}V</span> /
+                             <span style="color: red; font-weight: bold;">{{ h2h_data.wins_b }}P</span> /
+                             <span style="color: gray; font-weight: bold;">{{ h2h_data.draws }}R</span>
+                    <small style="color: #666; display: block;">(z pohledu Hráče A / B)</small>
+                </p>
+            </div>
+
+        </div>
+    </td>
+</tr>
