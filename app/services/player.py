@@ -40,7 +40,7 @@ class PlayerHelper:
         return stats
 
     @staticmethod
-    def set_final_rank(player_id: int, rank: int, total_advancers: int, stage_name: str = "main"):
+    def set_final_rank(player_id: int, rank: int, total_advancers: int = 0, stage_name: str = "main"):
         """
         Zapíše finální umístění hráče do PlayoffStats (nebo ConsolationStats)
         a spočítá body do celkového žebříčku.
@@ -67,7 +67,8 @@ class PlayerHelper:
                 gained_points = base_points + bonus
                 stats.points_gained = gained_points
 
-        elif stage_name == "consolation":
+        #  Zachycení fáze consolation i minigroup
+        elif stage_name in ["consolation", "minigroup"]:
             stats = PlayerHelper.get_or_create_consolation_stats(player_id)
             stats.final_rank = rank
 

@@ -29,9 +29,25 @@
                 <h4 style="margin-top: 0; color: #333;">Detaily formátu</h4>
                 <ul style="margin: 0; padding-left: 20px; line-height: 1.5; font-size: 0.95em;">
                     <li><strong>Postupujících do playoff:</strong> {{ tournament.total_players_in_playoff }}</li>
-                    <li><strong>Postup z jedné skupiny:</strong> {{ tournament.advance_per_group }}</li>
-                    <li><strong>Formát skupin:</strong> Na {{ tournament.group_match_format }} vítězné sety</li>
-                    <li><strong>Formát playoff:</strong> Na {{ tournament.playoff_match_format }} vítězné sety</li>
+                    <li><strong>Postupujících ze skupiny:</strong> {{ tournament.advance_per_group }}</li>
+                    <li>
+                        <strong>Formát skupin:</strong>
+                        {% if tournament.group_match_format == 2 %}
+                            Hrajou se 2 sety
+                        {% elif tournament.group_match_format == 3 %}
+                            Hraje se na 2 vítězné sety
+                        {% else %}
+                            Hraje se na {{ tournament.group_match_format }} vítězné sety
+                        {% endif %}
+                    </li>
+                    <li>
+                        <strong>Formát playoff:</strong>
+                        {% if tournament.playoff_match_format == 3 %}
+                            Hraje se na 2 vítězné sety
+                        {% else %}
+                            Hraje se na {{ tournament.playoff_match_format }} vítězné sety
+                        {% endif %}
+                    </li>
                     <li><strong>Útěcha:</strong> {% if tournament.has_consolation %}{{ tournament.consolation_format }}{% else %}Nehrála se{% endif %}</li>
                 </ul>
             </div>
