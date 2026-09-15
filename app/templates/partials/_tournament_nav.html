@@ -1,0 +1,36 @@
+{# Sestavíme suffix pro zachování kontextu při prokliku záložkami #}
+{% set query_suffix = '' %}
+{% if request.args.get('from') %}
+    {% set query_suffix = '?from=' ~ request.args.get('from') ~ '&player_id=' ~ request.args.get('player_id', '') %}
+{% endif %}
+
+<nav style="display:grid;grid-template-columns: 1fr auto 1fr; align-items: center; padding: 10px; border-bottom: 1px solid #ccc;">
+
+    <!-- Levá strana: Dynamické tlačítko zpět -->
+    <div style="justify-self: start;">
+        {% if prefix and '/stats' in prefix %}
+            <a href="{{ back_url | default('/stats/tournaments') }}" style="text-decoration: none; color: #333; font-weight: bold;">
+                {{ back_label | default('← Seznam turnajů') }}
+            </a>
+        {% else %}
+            <a href="/" style="text-decoration: none; color: #333; font-weight: bold;">Domů</a>
+        {% endif %}
+    </div>
+
+    <!-- Střed: Záložky turnaje (s připojeným query_suffix, aby se kontext neztratil) -->
+    <div>
+        <a href="{{ prefix }}/groups{{ query_suffix }}">Základní skupiny</a>
+        <a href="{{ prefix }}/playoff{{ query_suffix }}">Playoff</a>
+        {% if tournament.has_consolation %}
+            {% if tournament.group_elimination_action == 'minigroup' %}
+                <a href="{{ prefix }}/consolation_minigroup{{ query_suffix }}">Útěcha</a>
+            {% else %}
+                <a href="{{ prefix }}/consolation_playoff{{ query_suffix }}">Útěcha</a>
+            {% endif %}
+        {% endif %}
+        <a href="{{ prefix }}/results{{ query_suffix }}">Výsledky</a>
+    </div>
+
+    <!-- Pravá strana (vyvážení mřížky) -->
+    <div></div>
+</nav>

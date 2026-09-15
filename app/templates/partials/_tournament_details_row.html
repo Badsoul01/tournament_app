@@ -48,21 +48,29 @@
                             Hraje se na {{ tournament.playoff_match_format }} vítězné sety
                         {% endif %}
                     </li>
-                    <li><strong>Útěcha:</strong> {% if tournament.has_consolation %}{{ tournament.consolation_format }}{% else %}Nehrála se{% endif %}</li>
+                    <li><strong>Útěcha:</strong> {% if tournament.has_consolation %}{{ tournament.consolation_display_name }}{% else %}Nehrála se{% endif %}</li>
                 </ul>
             </div>
 
             <!-- Akce -->
             <div style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 10px; align-items: flex-end;">
 
-                <a href="/tournament/{{ tournament.id }}/results" style="text-decoration: none; width: 100%; text-align: right;">
-                    <button type="button" style="padding: 8px 15px; font-weight: bold; cursor: pointer; width: 100%;">Celkové výsledky →</button>
-                </a>
+                {% if tournament.is_finished %}
+                    <!-- Akce pro DOKONČENÉ turnaje -->
+                    <a href="/stats/tournament/{{ tournament.id }}/results" style="text-decoration: none; width: 100%; text-align: right;">
+                        <button type="button" style="padding: 8px 15px; font-weight: bold; cursor: pointer; width: 100%;">Celkové výsledky →</button>
+                    </a>
 
-                <form method="POST" action="/tournament/{{ tournament.id }}/results" style="width: 100%; margin: 0;">
-                    <input type="hidden" name="action" value="download">
-                    <button type="submit" style="padding: 6px 15px; background-color: #f1f1f1; border: 1px solid #ccc; cursor: pointer; width: 100%;">📥 Stáhnout výsledky</button>
-                </form>
+                    <form method="POST" action="/tournament/{{ tournament.id }}/results" style="width: 100%; margin: 0;">
+                        <input type="hidden" name="action" value="download">
+                        <button type="submit" style="padding: 6px 15px; background-color: #f1f1f1; border: 1px solid #ccc; cursor: pointer; width: 100%;">📥 Stáhnout výsledky</button>
+                    </form>
+                {% else %}
+                    <!-- Akce pro PROBÍHAJÍCÍ / AKTIVNÍ turnaje -->
+                    <a href="/tournament/{{ tournament.id }}/groups" style="text-decoration: none; width: 100%; text-align: right;">
+                        <button type="button" style="padding: 8px 15px; font-weight: bold; background-color: #e3f2fd; color: #0d47a1; border: 1px solid #90caf9; cursor: pointer; width: 100%;">Přejít na turnaj →</button>
+                    </a>
+                {% endif %}
 
             </div>
 

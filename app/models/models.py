@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -10,7 +10,7 @@ class Tournament(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    date = db.Column(db.Date, default=lambda: datetime.now().date())
+    date = db.Column(db.DateTime, default=datetime.now)
     group_match_format = db.Column(db.Integer)
     playoff_match_format= db.Column(db.Integer)
     advance_per_group = db.Column(db.Integer)  # Stačí nám číslo
@@ -35,6 +35,25 @@ class Tournament(db.Model):
     matches = db.relationship("Match",backref="tournament",lazy="dynamic")
     brackets = db.relationship("Bracket", backref="tournament",lazy="dynamic")
     winner = db.relationship("Player", foreign_keys=[winner_id])
+
+    @property
+    def consolation_display_name(self):
+        if not self.has_consolation:
+            return "Nehraje se"
+
+        mapping = {
+            "minigroup": "Skupina",
+            "playoff_b": "Playoff B",
+
+        }
+        # Vrací mapovanou hodnotu, nebo fallback na původní hodnotu / "Nehraje se"
+        return mapping.get(self.group_elimination_action, 'Nehraje se')
+
+    @property
+    def formatted_date(self):
+        if self.date:
+            return self.date.strftime('%d.%m.%Y')
+        return ""
 
 
 
@@ -72,7 +91,6 @@ class GlobalPlayer(db.Model):
     name = db.Column(db.String(100), nullable= False)
 
     # Celkové statistiky
-    total_points = db.Column(db.Integer, default=0)
     last_points_gained = db.Column(db.Integer, default=0)
     matches_played = db.Column(db.Integer, default=0)
     matches_won = db.Column(db.Integer, default=0)
@@ -92,6 +110,30 @@ class GlobalPlayer(db.Model):
         if self.tournaments_played == 0:
             return None
         return  round(self.sum_of_ranks/ self.tournaments_played, 2)
+
+    @property
+    def total_points(self):
+        """Vrátí součet bodů pouze z turnajů za posledních 365 dní."""
+        one_year_ago = datetime.now().date() - timedelta(days=365)
+
+        total = 0
+        for entry in self.tournament_entries:  # backref z Player modelu
+            if entry.tournament and entry.tournament.is_finished:
+                # Převedeme datetime na date, aby porovnání s one_year_ago fungovalo bezchybně
+                t_date = entry.tournament.date
+                if hasattr(t_date, 'date'):
+                    t_date = t_date.date()
+
+                if t_date and t_date >= one_year_ago:
+                    p_stats = PlayoffStats.query.filter_by(player_id=entry.id).first()
+                    c_stats = ConsolationStats.query.filter_by(player_id=entry.id).first()
+
+                    if p_stats and p_stats.points_gained:
+                        total += p_stats.points_gained
+                    elif c_stats and hasattr(c_stats, 'points_gained') and c_stats.points_gained:
+                        total += c_stats.points_gained
+
+        return total
 
     tournament_entries = db.relationship("Player", backref="global_profile", lazy="dynamic")
 

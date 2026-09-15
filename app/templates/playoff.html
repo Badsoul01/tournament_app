@@ -1,9 +1,12 @@
-{% extends "base_tournament.html" %}
-
+{% extends base_template | default('base_tournament.html') %}
 {% block content %}
+{% block stats_content %}
+    {% include "partials/_tournament_nav.html" %}
+
     <h2>PLAYOFF</h2>
 
     <div id="playoff-container">
         {% include "partials/_playoff_content.html" %}
     </div>
+{% endblock %}
 {% endblock %}

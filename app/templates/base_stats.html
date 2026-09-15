@@ -17,11 +17,13 @@
             color: #333;
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tournament_styles.css') }}">
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 <body>
     <div class="stats-container">
         <h1>Statistiky</h1>
+
 
         <nav style="display:grid;grid-template-columns: 1fr auto 1fr; align-items: center; padding: 10px; border-bottom: 1px solid #ccc;">
             <a href="/" style="justify-self: start;">Domů</a>
