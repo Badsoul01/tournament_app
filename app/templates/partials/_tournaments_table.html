@@ -16,7 +16,13 @@
                        style="text-decoration: none; color: inherit; cursor: pointer;">Název turnaje</a>
                     {% if sort_by == 'name' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: left;">Stav</th>
+                <th style="text-align: left;">
+                    <a hx-get="/stats/tournaments?q={{ q }}&sort_by=status&order={{ 'desc' if sort_by == 'status' and order == 'asc' else 'asc' }}"
+                       hx-target="#tournaments-table-container"
+                       hx-swap="outerHTML"
+                       style="text-decoration: none; color: inherit; cursor: pointer;">Stav</a>
+                    {% if sort_by == 'status' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
+                </th>
                 <th style="text-align: left;">
                     <a hx-get="/stats/tournaments?q={{ q }}&sort_by=winner&order={{ 'desc' if sort_by == 'winner' and order == 'asc' else 'asc' }}"
                        hx-target="#tournaments-table-container"
@@ -39,7 +45,7 @@
                 onmouseover="this.style.backgroundColor='#f1f1f1'"
                 onmouseout="this.style.backgroundColor='transparent'">
 
-                <td style="padding: 10px;">{{ t.date.strftime('%d.%m.%Y') if t.date else '-' }}</td>
+                <td style="padding: 10px;">{{ t.formatted_date }}</td>
                 <td style="padding: 10px;"><strong>{{ t.name }}</strong></td>
                 <td style="padding: 10px;">{% if t.is_finished %}Ukončeno{% else %}Probíhá{% endif %}</td>
 

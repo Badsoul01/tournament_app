@@ -61,43 +61,48 @@
 
 
             <fieldset style="height: 100%;">
-                <legend>Automatické nasazení (Seeding)</legend>
-                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML">
+    <legend>Automatické nasazení (Seeding)</legend>
+    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML">
 
-                        <!-- 1. Kritérium -->
-                        Nasazovat podle:<br>
-                        <input type="radio" id="seed_last" name="seed_criterion" value="last_tournament" checked>
-                        <label for="seed_last">Posledního turnaje</label>
+            <!-- 1. Kritérium -->
+            Nasazovat podle:<br>
+            <input type="radio" id="seed_last" name="seed_criterion" value="last_tournament" checked>
+            <label for="seed_last">Posledního turnaje</label>
 
-                        <input type="radio" id="seed_global" name="seed_criterion" value="global_rank">
-                        <label for="seed_global">Celkového žebříčku</label><br><br>
+            <input type="radio" id="seed_global" name="seed_criterion" value="global_rank">
+            <label for="seed_global">Celkového žebříčku</label>
 
-                        <!-- 2. Rozsah nasazení -->
-                        Rozsah nasazení:<br>
-                        <input type="radio" id="scope_unassigned" name="seed_scope" value="reset_all" checked>
-                        <label for="scope_reset">Resetovat skupiny a rozlosovat znovu</label>
+            <input type="radio" id="seed_random" name="seed_criterion" value="random">
+            <label for="seed_random">Zcela náhodně</label><br><br>
 
-                        <input type="radio" id="scope_reset" name="seed_scope" value="unassigned_only">
-                        <label for="scope_unassigned">Doplnit jen nezařazené hráče</label><br><br>
+            <!-- 2. Rozsah nasazení -->
+            Rozsah nasazení:<br>
+            <input type="radio" id="scope_unassigned" name="seed_scope" value="reset_all" checked>
+            <label for="scope_reset">Resetovat skupiny a rozlosovat znovu</label>
 
-                        <!-- 3. Režim skupin -->
-                        Správa skupin při losování:<br>
-                        <input type="radio" id="mode_auto" name="group_mode" value="auto_create" checked>
-                        <label for="mode_auto">Vytvořit/dopočítat skupiny (po 3 hráče)</label>
+            <input type="radio" id="scope_reset" name="seed_scope" value="unassigned_only">
+            <label for="scope_unassigned">Doplnit jen nezařazené hráče</label><br><br>
 
-                        <input type="radio" id="mode_fixed" name="group_mode" value="use_existing">
-                        <label for="mode_fixed">Použít pouze vytvořené skupiny</label><br><br>
+            <!-- 3. Režim skupin -->
+            Správa skupin při losování:<br>
+            <input type="radio" id="mode_auto" name="group_mode" value="auto_create" checked>
+            <label for="mode_auto">Vytvořit/dopočítat skupiny (po 3 hráče)</label>
 
-                        <button type="submit" name="action" value="seed_players" style="width: 100%;">
-                            🎲 Rozlosovat a nasadit hráče
-                        </button>
-                    </form>
-            </fieldset>
+            <input type="radio" id="mode_fixed" name="group_mode" value="use_existing">
+            <label for="mode_fixed">Použít pouze vytvořené skupiny</label><br><br>
+
+            <button type="submit" name="action" value="seed_players" style="width: 100%;">
+                🎲 Rozlosovat a nasadit hráče
+            </button>
+        </form>
+</fieldset>
         </div>
 
 
         <!-- PRAVÝ SLOUPEC: Minulé turnaje a jejich hráči -->
         <div style="display: table-cell; vertical-align: top; width: 50%;">
+
+
             <fieldset style="height: 100%;">
                 <legend>Minulé turnaje</legend>
 
@@ -165,7 +170,7 @@
                 {% endfor %}
             </select><br><br>
 
-            <label>Nepostupující:</label>
+            <label>Nepostupující ze skupiny:</label>
             <select name="group_elimination_action">
                 {% for key, name in GROUPS_RULES.elimination_actions.items() %}
                     <option value="{{ key }}" {% if wizard.group_elimination_action == key %}selected{% endif %}>{{ name }}</option>

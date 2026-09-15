@@ -10,31 +10,56 @@ document.addEventListener("DOMContentLoaded", function() {
             type: 'line',
             data: {
                 labels: data.labels,
-                datasets: [{
-                    label: 'Konečné umístění v turnaji',
-                    data: data.ranks,
-                    borderColor: '#1976d2',
-                    backgroundColor: 'rgba(25, 118, 210, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 4,
-                    fill: 'start',
-                    tension: 0.1
-                }]
+                datasets: [
+                    {
+                        label: 'Umístění v turnaji',
+                        data: data.ranks,
+                        borderColor: '#1976d2', // Modrá
+                        backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        fill: 'start',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Celkové umístění v  žebříčku',
+                        data: data.globalRanks,
+                        borderColor: '#e91e63', // Růžová
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 3,
+                        fill: false,
+                        tension: 0.1
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
                     y: {
-                        reverse: true, // 1. místo je nahoře
-                        min: 1,        // Zruší nulu, osa začne natvrdo od 1
-                        suggestedMax: 5, // Vytvoří vizuální prostor dolů (dno grafu)
-                        title: { display: true, text: 'Umístění' },
+                        reverse: true, // 1. místo / 1. rank je nahoře
+                        min: 1,
+                        suggestedMax: 5,
+                        title: { display: true, text: 'Pozice / Rank' },
                         ticks: { stepSize: 1, precision: 0 }
                     }
                 },
                 plugins: {
-                    title: { display: true, text: 'Vývoj umístění' }
+                    title: { display: true, text: 'Vývoj umístění' },
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const item = tooltipItems[0];
+                                // Pokud uživatel najede na růžovou čáru (index 1), nadpis (název turnaje) nezobrazíme
+                                if (item.datasetIndex === 1) {
+                                    return '';
+                                }
+                                // Pro modrou čáru (index 0) název turnaje jako nadpis zůstane
+                                return item.label;
+                            }
+                        }
+                    }
                 }
             }
         });

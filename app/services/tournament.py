@@ -5,6 +5,7 @@ from app.models.models import db, Tournament as TournamentModel, Group as GroupM
 from app.services.groupmanager import GroupManager
 from app.services.seedingengine import SeedingEngine
 from app.services.playoff import Playoff
+from flask import session
 
 class Tournament:
     """
@@ -26,10 +27,29 @@ class Tournament:
             total_players_in_playoff = setup.total_players_advance_to_playoff,
             consolation_format = setup.group_elimination_action
         )
+
+        if 'organizer_id' in session:
+            # Uživatel je přihlášený -> Přiřadíme ID organizátora přímo do DB
+            db_tournament.organizer_id = session['organizer_id']
+        else:
+            # Uživatel není přihlášený -> Zatím nikomu nepatří (bude None)
+            pass
+
         db.session.add(db_tournament)
         db.session.commit()
 
         self.id = db_tournament.id
+
+        # --- NOVÉ: Zápis do Guest session (pokud není přihlášený) ---
+        if 'organizer_id' not in session:
+            if 'guest_tournaments' not in session:
+                session['guest_tournaments'] = []
+
+            # Abychom předešli duplikátům (kdyby někdo divoce klikal na F5)
+            if self.id not in session['guest_tournaments']:
+                session['guest_tournaments'].append(self.id)
+                session.modified = True
+
         self._build_database_structure(raw_groups=setup.groups)
         group_manager = GroupManager(tournament_id=self.id, match_format=setup.group_match_format)
         group_manager.generate_group_matches()
@@ -248,10 +268,6 @@ class Tournament:
             final_rank = getattr(active_stats, 'final_rank', None) if active_stats else None
 
             global_player.last_points_gained = points_gained or 0
-
-            # Přičítání bodů
-            if points_gained > 0:
-                global_player.total_points = (global_player.total_points or 0) + points_gained
 
             # Uložení statistik účasti do globálního žebříčku
             if final_rank:

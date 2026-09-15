@@ -1,0 +1,31 @@
+<!--PŘIHLAŠOVACÍ OKNO -->
+<fieldset style="margin-bottom: 15px;">
+    <legend>Organizátor</legend>
+    {% if session.get('organizer_id') %}
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Přihlášen jako: <strong>{{ session.get('organizer_name') }}</strong></span>
+            <form action="/logout" method="POST" style="margin: 0;">
+                <button type="submit">Odhlásit se</button>
+            </form>
+        </div>
+    {% else %}
+        <!-- Formulář pomocí HTMX. Cílíme na #auth-message pro zobrazení chyby -->
+        <form hx-post="/auth" hx-target="#auth-message" hx-swap="innerHTML" style="margin: 0;">
+
+            <!-- NOVĚ: Předáme ID turnaje, pokud na stránce existuje -->
+            {% if tournament %}
+                <input type="hidden" name="tournament_id" value="{{ tournament.id }}">
+            {% endif %}
+
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" name="username" placeholder="Jméno" required style="flex: 1;">
+                <input type="password" name="password" placeholder="Heslo" required style="flex: 1;">
+                <button type="submit" style="white-space: nowrap;">Vstoupit</button>
+            </div>
+            <div id="auth-message" style="color: red; margin-top: 5px; font-weight: bold; font-size: 0.9em;"></div>
+            <small style="color: #666; display: block; margin-top: 5px;">
+                Pokud zadané jméno neexistuje, automaticky se vytvoří nový účet.
+            </small>
+        </form>
+    {% endif %}
+</fieldset>

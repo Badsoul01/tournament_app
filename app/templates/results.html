@@ -1,6 +1,8 @@
-{% extends "base_tournament.html" %}
-{% block content %}
+{% extends base_template | default('base_tournament.html') %}
 
+{% block content %}
+{% block stats_content %}
+    {% include "partials/_tournament_nav.html" %}
 <h2>VÝSLEDKY</h2>
 
 {% if results %}
@@ -51,4 +53,5 @@
     </div>
 {% endif %}
 
+{% endblock %}
 {% endblock %}

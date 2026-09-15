@@ -1,4 +1,4 @@
-{% extends "base_tournament.html" %}
+{% extends base_template | default('base_tournament.html') %}
 {% block extra_style %}
 <style>
    .group-container {
@@ -25,6 +25,8 @@
 {% endblock %}
 
 {% block content %}
+{% block stats_content %}
+    {% include "partials/_tournament_nav.html" %}
     <h2>ZÁKLADNÍ SKUPINY</h2>
 
     {% for group_name, data in group_data.items() %}
@@ -38,4 +40,5 @@
         </details>
         <hr>
     {% endfor %}
+{% endblock %}
 {% endblock %}

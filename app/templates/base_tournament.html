@@ -14,94 +14,27 @@
             padding-bottom: 10px;
             text-align: center;
         }
-        nav a { margin-right: 15px;
+        nav a {
+            margin-right: 15px;
             text-decoration: none;
             color: #333;
         }
-        table { border-collapse: collapse;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-        table th, table td { border: 1px solid #ccc;
-            padding: 8px;
-            text-align: left;
-        }
-        .match { border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-        }
-        .match-input { width: 40px !important;
-            padding: 5px !important;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            text-align: center;
-        }
-        .set-container {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin-bottom: 5px;
-        }
-        .bracket {
-            display: flex;
-            gap: 40px;
-            padding: 20px;
-        }
-        .round {
-            margin-right: 20px;
-        }
-        .winner-alert {
-            background-color: #d4edda;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid #c3e6cb;
-        }
-        .placement-container {
-            display: flex;
-            gap: 20px;
-            padding: 20px;
-            overflow-x: auto;
-            align-items: flex-start;
-        }
-
-
-        @media (max-width: 600px) {
-            table { display: table !important;
-                width: 100% !important;
-            }
-            td { display: table-cell !important;
-                padding: 5px !important; }
-        }
 
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tournament_styles.css') }}">
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     {% block extra_style %}{% endblock %}
 </head>
 <body>
 
     <header>
-        <h1 style="text-align: center"> {{ tournament.name }}</h1>
+    <div style="max-width: 400px; margin: 0 auto 15px auto;">
+        {% include "partials/_auth_box.html" %}
+    </div>
 
-        <nav style="display:grid;grid-template-columns: 1fr auto 1fr; align-items: center; padding: 10px; border-bottom: 1px solid #ccc;">
-            <a href="/" style="justify-self: start;">Domů</a>
-            <div>
-                <a href="/tournament/{{ tournament.id }}/groups">Základní skupiny</a>
-                <a href="/tournament/{{ tournament.id }}/playoff">Playoff</a>
-                {% if tournament.has_consolation %}
-                    <!-- Rozcestník pro typ útěchy -->
-                    {% if tournament.group_elimination_action == 'minigroup' %}
-                        <a href="/tournament/{{ tournament.id }}/consolation_minigroup">Útěcha</a>
-                    {% else %}
-                        <a href="/tournament/{{ tournament.id }}/consolation_playoff">Útěcha</a>
-                    {% endif %}
-                {% endif %}
+    <h1 style="text-align: center"> {{ tournament.name }}</h1>
 
-                <a href="/tournament/{{ tournament.id }}/results">Výsledky</a>
-            </div>
-        </nav>
-    </header>
+</header>
 
     <main>
         {% block content %}
