@@ -1,5 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 db = SQLAlchemy()
 
@@ -24,6 +26,7 @@ class Tournament(db.Model):
 
     # Cizí klíč na celkového vítěze
     winner_id = db.Column(db.Integer, db.ForeignKey("players.id", use_alter=True, name="fk_tournament_winner"), nullable=True)
+    organizer_id = db.Column(db.Integer, db.ForeignKey("organizers.id"), nullable=True)
 
     # Virtuální vazby (relationsships) - tyto nevytváří sloupce, usnadnují práci v pythonu
     # Například "turnaj.players" vytvoří rovnou seznam všech jeho hráčů
@@ -32,6 +35,7 @@ class Tournament(db.Model):
     matches = db.relationship("Match",backref="tournament",lazy="dynamic")
     brackets = db.relationship("Bracket", backref="tournament",lazy="dynamic")
     winner = db.relationship("Player", foreign_keys=[winner_id])
+
 
 
 class Group(db.Model):
@@ -218,9 +222,31 @@ class ConsolationStats(db.Model):
     balls_win = db.Column(db.Integer, default=0)
     balls_lost = db.Column(db.Integer, default=0)
     final_rank = db.Column(db.Integer, nullable=True)
-    points_gained = db.Column(db.Integer, default=0)
+
 
     player = db.relationship("Player", backref=db.backref("consolation_stats", uselist=False, cascade="all, delete-orphan"))
+
+
+class Organizer(db.Model):
+    __tablename__ = "organizers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    pwd_hash = db.Column(db.String(255), nullable=False)
+
+    # Ukládá datum a čas posledního přihlášení.
+    # Při vytvoření účtu se rovnou zapíše aktuální čas.
+    last_login = db.Column(db.DateTime, default=datetime.now)
+
+    tournaments = db.relationship("Tournament", backref="organizer", lazy="dynamic")
+
+    def set_password(self, password):
+        """Vygeneruje bezpečný hash z textového hesla a uloží ho."""
+        self.pwd_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        """Porovná zadané heslo s uloženým hashem a vrátí True/False."""
+        return check_password_hash(self.pwd_hash, password)
 
 
 class Bracket(db.Model):

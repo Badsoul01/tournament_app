@@ -187,6 +187,7 @@ class GroupManager:
         if not all(g.is_finished for g in all_groups):
             return  # Pokud základní skupiny ještě neskončily, minitabulku NEVYHODNOCUJEME do konce!
 
+        # 2. Kontrola minitabulky útěchy
         matches = MatchModel.query.filter_by(bracket_id=cons_bracket.id).all()
         if matches and all(m.is_finished for m in matches):
             player_ids = {m.player_a_id for m in matches if m.player_a_id} | {m.player_b_id for m in matches if m.player_b_id}
@@ -194,7 +195,7 @@ class GroupManager:
             main_groups_count = GroupModel.query.filter_by(tournament_id=self.tournament_id,
                                                            is_consolation=False).count()
             start_rank = (current_tournament.advance_per_group * main_groups_count) + 1
-            ranked = sorted(players, key=lambda p: (PlayerHelper.get_or_create_stats(p.id, "minigroup").points,
+            ranked = sorted(players, key=lambda p: (PlayerHelper.get_or_create_group_stats(p.id).points,
                                                     PlayerHelper.difference_of_score(p.id, "minigroup")["Balls"]),
                             reverse=True)
             for idx, p in enumerate(ranked):
@@ -230,11 +231,11 @@ class GroupManager:
 
         mini_stats = {p.id: {"points": 0, "game_diff": 0, "ball_diff": 0} for p in subgroup}
         for m in rel_matches:
-            # Spočítáme celkové skóre setů z nové tabulky match_results
+            # Používáme správnou relaci .sets místo .match_results / .results
             p_a_sets = 0
             p_b_sets = 0
-            if hasattr(m, 'match_results') and m.match_results:
-                for s in m.results:
+            if hasattr(m, 'sets') and m.sets:
+                for s in m.sets:
                     if s.score_a > s.score_b:
                         p_a_sets += 1
                     elif s.score_b > s.score_a:

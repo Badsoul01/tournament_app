@@ -66,12 +66,13 @@ class WebManager:
             all_player_ids = match_player_ids | {p.id for p in seeded_players}
             players = PlayerModel.query.filter(PlayerModel.id.in_(all_player_ids)).all()
 
+            all_player_ids = match_player_ids | {p.id for p in seeded_players}
+            players = PlayerModel.query.filter(PlayerModel.id.in_(all_player_ids)).all()
+
+            #Použití get_sorting_stats pro správnou fázi turnaje
             ranked = sorted(
                 players,
-                key=lambda p: (
-                    PlayerHelper.get_or_create_stats(p.id, "minigroup").points,
-                    PlayerHelper.difference_of_score(p.id, "minigroup")["Balls"]
-                ),
+                key=lambda p: PlayerHelper.get_sorting_stats(p.id, "minigroup"),
                 reverse=True
             )
 
