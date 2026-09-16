@@ -1,4 +1,4 @@
-{% extends "base_stats.html" %}
+{% extends "stats/base_stats.html" %}
 
 {% block stats_content %}
     <h2>Statistiky turnajů</h2>
@@ -20,7 +20,7 @@
 
     <br>
 
-    {% include "partials/_tournaments_table.html" %}
+    {% include "stats/partials/_tournaments_table.html" %}
 
     <script src="{{ url_for('static', filename='js/rows_details.js') }}?v=1"></script>
 {% endblock %}
