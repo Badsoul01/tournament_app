@@ -1,5 +1,5 @@
 
-{% extends "base_stats.html" %}
+{% extends "stats/base_stats.html" %}
 
 {% block stats_content %}
     <h2>Globální žebříček hráčů</h2>
@@ -20,6 +20,6 @@
     </form>
 
     <!-- Zde se vkládá tabulka (vyrenderuje se z partialu nebo přímo) -->
-    {% include "partials/_players_table.html" %}
+    {% include "stats/partials/_players_table.html" %}
 
 {% endblock %}

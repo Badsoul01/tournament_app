@@ -1,0 +1,83 @@
+{% extends "stats/base_stats.html" %}
+
+{% block stats_content %}
+    <!-- HLAVIČKA PROFILU -->
+    <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9;">
+        <h2 style="margin-top: 0;">Profil hráče: {{ player.name }}</h2>
+        <p style="margin: 5px 0;"><strong>Aktuální rank:</strong> {{ current_rank }}. místo</p>
+        <p style="margin: 5px 0;"><strong>Počet bodů:</strong> {{ player.total_points }} b.</p>
+        <a href="/stats/players" style="font-size: 0.9em;">← Zpět na žebříček</a>
+    </div>
+
+    <!-- ZÁLOŽKY (TABS) NAVIGATION S HTMX -->
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ccc; padding-bottom: 10px;"
+         hx-target="#tab-content"
+         hx-push-url="true">
+
+        <!-- Záložka 1 -->
+        <a href="?tab=obecne"
+           hx-get="?tab=obecne"
+           style="padding: 10px 15px; text-decoration: none; border: 1px solid #ccc; font-weight: bold;
+                  background-color: {% if active_tab == 'obecne' %}#e0e0e0{% else %}#fff{% endif %};
+                  color: black; border-radius: 5px 5px 0 0;">
+            Obecné informace
+        </a>
+
+        <!-- Záložka 2 -->
+        <a href="?tab=turnaje"
+           hx-get="?tab=turnaje"
+           style="padding: 10px 15px; text-decoration: none; border: 1px solid #ccc; font-weight: bold;
+                  background-color: {% if active_tab == 'turnaje' %}#e0e0e0{% else %}#fff{% endif %};
+                  color: black; border-radius: 5px 5px 0 0;">
+            Přehled turnajů ({{ player.tournaments_played }})
+        </a>
+
+        <!-- Záložka 3 -->
+        <a href="?tab=zapasy"
+           hx-get="?tab=zapasy"
+           style="padding: 10px 15px; text-decoration: none; border: 1px solid #ccc; font-weight: bold;
+                  background-color: {% if active_tab == 'zapasy' %}#e0e0e0{% else %}#fff{% endif %};
+                  color: black; border-radius: 5px 5px 0 0;">
+            Přehled zápasů ({{ player.matches_played }})
+        </a>
+
+        <!-- Záložka 4 -->
+        <a href="?tab=h2h"
+           hx-get="?tab=h2h"
+           style="padding: 10px 15px; text-decoration: none; border: 1px solid #ccc; font-weight: bold;
+                  background-color: {% if active_tab == 'h2h' %}#e0e0e0{% else %}#fff{% endif %};
+                  color: black; border-radius: 5px 5px 0 0;">
+            Head-to-Head
+        </a>
+    </div>
+
+    <!-- KONTEJNER PRO OBSAH ZÁLOŽEK -->
+    <div id="tab-content">
+        {% if active_tab == 'obecne' %}
+            {% include "stats/partials/_tab_player_overall.html" %}
+        {% elif active_tab == 'turnaje' %}
+            {% include "stats/partials/_tab_player_tournaments.html" %}
+        {% elif active_tab == 'zapasy' %}
+            {% include "stats/partials/_tab_player_matches.html" %}
+        {% elif active_tab == 'h2h' %}
+            {% include "stats/partials/_tab_player_h2h.html" %}
+        {% endif %}
+    </div>
+
+<!-- KNIHOVNA CHART.JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- PŘEDÁNÍ DAT Z PYTHONU DO JAVASCRIPTU -->
+<script>
+    window.playerChartData = {
+        labels: JSON.parse('{{ chart_labels | tojson }}'),
+        ranks: JSON.parse('{{ chart_ranks | tojson }}'),
+        points: JSON.parse('{{ chart_points | tojson }}'),
+        globalRanks: JSON.parse('{{ chart_global_ranks | tojson }}')
+    };
+</script>
+
+<!-- NATAŽENÍ EXTERNÍHO SOUBORU S LOGIKOU -->
+<script src="{{ url_for('static', filename='js/player_profile.js') }}?v=5"></script>
+
+{% endblock %}

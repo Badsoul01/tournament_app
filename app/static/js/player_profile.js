@@ -1,12 +1,19 @@
-document.addEventListener("DOMContentLoaded", function() {
+// Globální proměnné pro uložení instancí grafů (abychom je mohli mazat při přenačtení)
+let rankChartInstance = null;
+let pointsChartInstance = null;
+let h2hChartInstance = null;
+
+function initPlayerCharts() {
+    // 1. GRAFY PRO VÝVOJ UMÍSTĚNÍ A BODŮ (Obecné informace)
     const rankCanvas = document.getElementById('rankChart');
     const pointsCanvas = document.getElementById('pointsChart');
 
-    // Zkontrolujeme, jestli jsme na záložce s grafy a jestli máme k dispozici data
     if (rankCanvas && pointsCanvas && window.playerChartData) {
         const data = window.playerChartData;
 
-        new Chart(rankCanvas, {
+        // Pokud už graf existuje, zničíme ho, než vytvoříme nový
+        if (rankChartInstance) rankChartInstance.destroy();
+        rankChartInstance = new Chart(rankCanvas, {
             type: 'line',
             data: {
                 labels: data.labels,
@@ -14,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     {
                         label: 'Umístění v turnaji',
                         data: data.ranks,
-                        borderColor: '#1976d2', // Modrá
+                        borderColor: '#1976d2',
                         backgroundColor: 'rgba(25, 118, 210, 0.1)',
                         borderWidth: 2,
                         pointRadius: 4,
@@ -22,9 +29,9 @@ document.addEventListener("DOMContentLoaded", function() {
                         tension: 0.1
                     },
                     {
-                        label: 'Celkové umístění v  žebříčku',
+                        label: 'Celkové umístění v žebříčku',
                         data: data.globalRanks,
-                        borderColor: '#e91e63', // Růžová
+                        borderColor: '#e91e63',
                         borderWidth: 2,
                         borderDash: [5, 5],
                         pointRadius: 3,
@@ -38,7 +45,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 maintainAspectRatio: false,
                 scales: {
                     y: {
-                        reverse: true, // 1. místo / 1. rank je nahoře
+                        reverse: true,
                         min: 1,
                         suggestedMax: 5,
                         title: { display: true, text: 'Pozice / Rank' },
@@ -51,11 +58,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         callbacks: {
                             title: function(tooltipItems) {
                                 const item = tooltipItems[0];
-                                // Pokud uživatel najede na růžovou čáru (index 1), nadpis (název turnaje) nezobrazíme
-                                if (item.datasetIndex === 1) {
-                                    return '';
-                                }
-                                // Pro modrou čáru (index 0) název turnaje jako nadpis zůstane
+                                if (item.datasetIndex === 1) return '';
                                 return item.label;
                             }
                         }
@@ -64,7 +67,6 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
 
-        // Výpočet celkových (kumulativních) a průměrných bodů v JS
         let cumulativePoints = [];
         let averagePoints = [];
         let runningTotal = 0;
@@ -72,12 +74,11 @@ document.addEventListener("DOMContentLoaded", function() {
         data.points.forEach((pts, index) => {
             runningTotal += pts;
             cumulativePoints.push(runningTotal);
-            // Zaokrouhlení průměru na 1 desetinné místo
             averagePoints.push(+(runningTotal / (index + 1)).toFixed(1));
         });
 
-        // 2. GRAF: Bodový vývoj (Čárový - více os)
-        new Chart(pointsCanvas, {
+        if (pointsChartInstance) pointsChartInstance.destroy();
+        pointsChartInstance = new Chart(pointsCanvas, {
             type: 'line',
             data: {
                 labels: data.labels,
@@ -85,24 +86,24 @@ document.addEventListener("DOMContentLoaded", function() {
                     {
                         label: 'Celkový počet bodů',
                         data: cumulativePoints,
-                        borderColor: '#2e7d32', // Zelená
+                        borderColor: '#2e7d32',
                         backgroundColor: 'rgba(46, 125, 50, 0.1)',
                         borderWidth: 2,
                         pointRadius: 4,
-                        fill: 'start', // Výplň pod čarou celkových bodů
+                        fill: 'start',
                         tension: 0.1,
-                        yAxisID: 'y' // Přiřazeno k levé ose
+                        yAxisID: 'y'
                     },
                     {
                         label: 'Průměr bodů na turnaj',
                         data: averagePoints,
-                        borderColor: '#f57c00', // Oranžová
-                        borderDash: [5, 5], // Přerušovaná čára pro odlišení
+                        borderColor: '#f57c00',
+                        borderDash: [5, 5],
                         borderWidth: 2,
                         pointRadius: 3,
                         fill: false,
                         tension: 0.1,
-                        yAxisID: 'y1' // Přiřazeno k pravé ose
+                        yAxisID: 'y1'
                     }
                 ]
             },
@@ -123,7 +124,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         position: 'right',
                         title: { display: true, text: 'Průměr bodů' },
                         beginAtZero: true,
-                        grid: { drawOnChartArea: false } // Vypne mřížku pro pravou osu, aby se nekřížila s levou
+                        grid: { drawOnChartArea: false }
                     }
                 },
                 plugins: {
@@ -132,14 +133,14 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
     }
-});
 
-// 3. H2H GRAF: Porovnání umístění na společných turnajích
+    // 2. H2H GRAF: Porovnání umístění na společných turnajích
     const h2hCanvas = document.getElementById('h2hRankChart');
     if (h2hCanvas && window.h2hChartData) {
         const h2hData = window.h2hChartData;
 
-        new Chart(h2hCanvas, {
+        if (h2hChartInstance) h2hChartInstance.destroy();
+        h2hChartInstance = new Chart(h2hCanvas, {
             type: 'line',
             data: {
                 labels: h2hData.labels,
@@ -147,7 +148,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     {
                         label: h2hData.playerName,
                         data: h2hData.playerRanks,
-                        borderColor: '#1976d2', // Modrá
+                        borderColor: '#1976d2',
                         backgroundColor: '#1976d2',
                         borderWidth: 2,
                         tension: 0.1
@@ -155,7 +156,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     {
                         label: h2hData.opponentName,
                         data: h2hData.oppRanks,
-                        borderColor: '#d32f2f', // Červená
+                        borderColor: '#d32f2f',
                         backgroundColor: '#d32f2f',
                         borderWidth: 2,
                         tension: 0.1
@@ -167,7 +168,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 maintainAspectRatio: false,
                 scales: {
                     y: {
-                        reverse: true, // 1. místo je nahoře
+                        reverse: true,
                         min: 1,
                         suggestedMax: 5,
                         title: { display: true, text: 'Umístění' },
@@ -180,3 +181,10 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
     }
+}
+
+// Spustit při klasickém načtení stránky
+document.addEventListener("DOMContentLoaded", initPlayerCharts);
+
+// Spustit pokaždé, když HTMX vymění část obsahu (např. po přepnutí záložky nebo výběru soupeře v H2H)
+document.addEventListener("htmx:afterSettle", initPlayerCharts);

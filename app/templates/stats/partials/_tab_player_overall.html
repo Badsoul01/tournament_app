@@ -1,0 +1,71 @@
+<!-- ZÁLOŽKA: OBECNÉ INFORMACE -->
+<div style="display: flex; gap: 20px; flex-wrap: wrap;">
+    <!-- Levý sloupec: Výkonnost a Forma -->
+    <div style="flex: 1; min-width: 300px; border: 1px solid #ddd; padding: 15px;">
+        <h3>Výkonnost</h3>
+
+        <div style="margin-bottom: 15px;">
+            <strong>Forma (posledních 5 zápasů): </strong>
+            {% if recent_form %}
+                {% for result in recent_form %}
+                    {% if result == 'V' %}
+                        <span style="display: inline-block; width: 22px; height: 22px; border-radius: 50%; background-color: #4caf50; color: white; text-align: center; line-height: 22px; font-size: 12px; font-weight: bold; margin-right: 3px;" title="Výhra">V</span>
+                    {% elif result == 'P' %}
+                        <span style="display: inline-block; width: 22px; height: 22px; border-radius: 50%; background-color: #f44336; color: white; text-align: center; line-height: 22px; font-size: 12px; font-weight: bold; margin-right: 3px;" title="Prohra">P</span>
+                    {% else %}
+                        <span style="display: inline-block; width: 22px; height: 22px; border-radius: 50%; background-color: #9e9e9e; color: white; text-align: center; line-height: 22px; font-size: 12px; font-weight: bold; margin-right: 3px;" title="Remíza">R</span>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <span style="color: #888;">Nedostatek dat</span>
+            {% endif %}
+        </div>
+
+        <p><strong>Win Rate:</strong> {{ win_rate }} %</p>
+        <p><strong>Celkové skóre (V/P/R):</strong> {{ player.matches_won }} / {{ player.matches_lost }} / {{ player.matches_drawn }}</p>
+        <p><strong>Body za poslední turnaj:</strong>
+            {% if player.last_points_gained and player.last_points_gained > 0 %}
+                <span style="color: #2e7d32; font-weight: bold;">+ {{ player.last_points_gained }} b.</span>
+            {% else %}
+            <span>0 b.</span>
+            {% endif %}
+        </p>
+
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+        <!-- Graf vývoje umístění -->
+        <div style="position: relative; height: 250px; margin-bottom: 30px;">
+            <canvas id="rankChart"></canvas>
+        </div>
+
+        <!-- Graf získaných bodů -->
+        <div style="position: relative; height: 250px;">
+            <canvas id="pointsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Pravý sloupec: Rivalové a H2H -->
+    <div style="flex: 1; min-width: 300px; border: 1px solid #ddd; padding: 15px;">
+        <h3>Rivalita na stole</h3>
+
+        <h4 style="color: #2e7d32; margin-bottom: 5px;">Nejvíce výher proti:</h4>
+        {% if favorite_opponent %}
+            <p style="margin-top: 0;">
+                <strong><a href="/stats/player/{{ favorite_opponent.id }}" style="color: inherit;">{{ favorite_opponent.name }}</a></strong><br>
+                Bilance: <span style="color: green;">{{ favorite_opponent.wins_against }} výher</span> / <span style="color: red;">{{ favorite_opponent.losses_against }} proher</span>
+            </p>
+        {% else %}
+            <p style="margin-top: 0; color: #888;">Zatím nemá žádného oblíbeného soupeře.</p>
+        {% endif %}
+
+        <h4 style="color: #c62828; margin-bottom: 5px; margin-top: 20px;">Nejvíce proher proti:</h4>
+        {% if nemesis %}
+            <p style="margin-top: 0;">
+                <strong><a href="/stats/player/{{ nemesis.id }}" style="color: inherit;">{{ nemesis.name }}</a></strong><br>
+                Bilance: <span style="color: green;">{{ nemesis.wins_against }} výher</span> / <span style="color: red;">{{ nemesis.losses_against }} proher</span>
+            </p>
+        {% else %}
+            <p style="margin-top: 0; color: #888;">Zatím nenašel přemožitele.</p>
+        {% endif %}
+    </div>
+</div>
