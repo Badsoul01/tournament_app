@@ -2,30 +2,20 @@
 <html lang="cs">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Statistiky</title>
-    <style>
-       h1 {
-            text-align: center;
-        }
-       nav { margin-bottom: 20px;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 10px;
-            text-align: center;
-        }
-        nav a { margin-right: 15px;
-            text-decoration: none;
-            color: #333;
-        }
-    </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tournament_styles.css') }}">
+
+    <!-- Připojení našeho jednotného externího CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 <body>
     <div class="stats-container">
         <h1>Statistiky</h1>
 
-
-        <nav style="display:grid;grid-template-columns: 1fr auto 1fr; align-items: center; padding: 10px; border-bottom: 1px solid #ccc;">
+        <!-- Navigační menu pro statistiky s ošetřeným ohraničením -->
+        <nav style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
             <a href="/" style="justify-self: start;">Domů</a>
             <div>
                 <a href="/stats/tournaments">Turnaje</a>
@@ -34,7 +24,7 @@
             </div>
         </nav>
 
-        <!-- Dynamnický blok, do kterého se načte kontrétní obsah záložky -->
+        <!-- Dynamický blok, do kterého se načte konkrétní obsah záložky -->
         <main id="stats-content">
             {% block stats_content %}
             {% endblock %}

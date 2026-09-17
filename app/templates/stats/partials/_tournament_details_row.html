@@ -1,17 +1,17 @@
-<tr id="detail-row-{{ tournament.id }}" style="background-color: #fdfdfd; border-bottom: 2px solid #ccc;">
+<tr id="detail-row-{{ tournament.id }}" style="background-color: #0d121c; border-bottom: 2px solid var(--border-color);">
     <td colspan="6" style="padding: 15px;">
         <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
 
             <!-- TOP 3 s prokliky -->
             <div style="flex: 1; min-width: 200px;">
-                <h4 style="margin-top: 0; color: #333;">Pódium</h4>
+                <h4 style="margin-top: 0; color: var(--accent-silver);">Pódium</h4>
                 {% for r in [1, 2, 3] %}
                     {% set p_info = top_3.get(r) %}
                     <p style="margin: 5px 0;">
                         {% if r == 1 %}🥇{% elif r == 2 %}🥈{% else %}🥉{% endif %} {{ r }}. místo:
                         {% if p_info %}
                             {% if p_info.global_id %}
-                                <a href="/stats/player/{{ p_info.global_id }}" style="text-decoration: none; color: #1976d2; font-weight: bold;">
+                                <a href="/stats/player/{{ p_info.global_id }}" style="font-weight: bold;">
                                     {{ p_info.name }}
                                 </a>
                             {% else %}
@@ -26,12 +26,12 @@
 
             <!-- Formát turnaje -->
             <div style="flex: 1; min-width: 250px;">
-                <h4 style="margin-top: 0; color: #333;">Detaily formátu</h4>
-                <ul style="margin: 0; padding-left: 20px; line-height: 1.5; font-size: 0.95em;">
-                    <li><strong>Postupujících do playoff:</strong> {{ tournament.total_players_in_playoff }}</li>
-                    <li><strong>Postupujících ze skupiny:</strong> {{ tournament.advance_per_group }}</li>
+                <h4 style="margin-top: 0; color: var(--accent-silver);">Detaily formátu</h4>
+                <ul style="margin: 0; padding-left: 20px; line-height: 1.5; font-size: 0.95em; color: var(--text-muted);">
+                    <li><strong style="color: var(--text-main);">Postupujících do playoff:</strong> {{ tournament.total_players_in_playoff }}</li>
+                    <li><strong style="color: var(--text-main);">Postupujících ze skupiny:</strong> {{ tournament.advance_per_group }}</li>
                     <li>
-                        <strong>Formát skupin:</strong>
+                        <strong style="color: var(--text-main);">Formát skupin:</strong>
                         {% if tournament.group_match_format == 2 %}
                             2 hrané sety
                         {% elif tournament.group_match_format == 3 %}
@@ -41,14 +41,14 @@
                         {% endif %}
                     </li>
                     <li>
-                        <strong>Formát playoff:</strong>
+                        <strong style="color: var(--text-main);">Formát playoff:</strong>
                         {% if tournament.playoff_match_format == 3 %}
                             2 vítězné sety
                         {% else %}
                             {{ tournament.playoff_match_format }} vítězné sety
                         {% endif %}
                     </li>
-                    <li><strong>Útěcha:</strong> {% if tournament.has_consolation %}{{ tournament.consolation_display_name }}{% else %}Nehrála se{% endif %}</li>
+                    <li><strong style="color: var(--text-main);">Útěcha:</strong> {% if tournament.has_consolation %}{{ tournament.consolation_display_name }}{% else %}Nehrála se{% endif %}</li>
                 </ul>
             </div>
 
@@ -57,18 +57,18 @@
 
                 {% if tournament.is_finished %}
                     <!-- Akce pro DOKONČENÉ turnaje -->
-                    <a href="/stats/tournament/{{ tournament.id }}/results" style="text-decoration: none; width: 100%; text-align: right;">
-                        <button type="button" style="padding: 8px 15px; font-weight: bold; cursor: pointer; width: 100%;">Celkové výsledky →</button>
+                    <a href="/stats/tournament/{{ tournament.id }}/results" style="width: 100%; text-align: right;">
+                        <button type="button" style="padding: 8px 15px; font-weight: bold; cursor: pointer; width: 100%; background: var(--bg-card); color: var(--accent-silver); border: 1px solid var(--border-color); border-radius: 4px;">Celkové výsledky →</button>
                     </a>
 
                     <form method="POST" action="/tournament/{{ tournament.id }}/results" style="width: 100%; margin: 0;">
                         <input type="hidden" name="action" value="download">
-                        <button type="submit" style="padding: 6px 15px; background-color: #f1f1f1; border: 1px solid #ccc; cursor: pointer; width: 100%;">📥 Stáhnout výsledky</button>
+                        <button type="submit" style="padding: 6px 15px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; width: 100%;">📥 Stáhnout výsledky</button>
                     </form>
                 {% else %}
                     <!-- Akce pro PROBÍHAJÍCÍ / AKTIVNÍ turnaje -->
-                    <a href="/tournament/{{ tournament.id }}/groups" style="text-decoration: none; width: 100%; text-align: right;">
-                        <button type="button" style="padding: 8px 15px; font-weight: bold; background-color: #e3f2fd; color: #0d47a1; border: 1px solid #90caf9; cursor: pointer; width: 100%;">Přejít na turnaj →</button>
+                    <a href="/tournament/{{ tournament.id }}/groups" style="width: 100%; text-align: right;">
+                        <button type="button" style="padding: 8px 15px; font-weight: bold; background-color: var(--bg-card); color: var(--accent-silver); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; width: 100%;">Přejít na turnaj →</button>
                     </a>
                 {% endif %}
 

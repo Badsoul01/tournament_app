@@ -1,44 +1,21 @@
 {% extends base_template | default('base_tournament.html') %}
-{% block extra_style %}
-<style>
-   .group-container {
-       display: flex;
-       flex-wrap: wrap;
-       gap: 20px;
-       margin-bottom: 20px;
-   }
-   .group-left, .group-right {
-       flex: 1;
-       min-width: 300px;
-   }
-   tr.qualifying-row td {
-       background-color: #c3e6cb !important;
-   }
-   .match-card {
-       border: 1px solid #ccc;
-       padding: 10px;
-       margin-bottom: 10px;
-       background: #fafafa;
-       border-radius: 4px;
-   }
-</style>
-{% endblock %}
 
 {% block content %}
 {% block stats_content %}
-    {% include "partials/_tournament_nav.html" %}
-    <h2>ZÁKLADNÍ SKUPINY</h2>
+    <div class="scroll-parchment">
+        {% include "partials/_tournament_nav.html" %}
+        <h2 style="text-align: center; color: var(--accent-silver); margin-top: 10px; margin-bottom: 20px;">ZÁKLADNÍ SKUPINY</h2>
 
-    {% for group_name, data in group_data.items() %}
-        <details open>
-            <summary><strong>Skupina {{ group_name }}</strong></summary>
+        {% for group_name, data in group_data.items() %}
+            <details open style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                <summary><strong>Skupina {{ group_name }}</strong></summary>
 
-            <!-- Cílový kontejner pro HTMX. Při odeslání dat se překreslí jen jeho vnitřek -->
-            <div id="group-{{ group_name }}">
-                {% include "partials/_group_content.html" %}
-            </div>
-        </details>
-        <hr>
-    {% endfor %}
+                <!-- Cílový kontejner pro HTMX. Při odeslání dat se překreslí jen jeho vnitřek -->
+                <div id="group-{{ group_name }}" style="margin-top: 10px;">
+                    {% include "partials/_group_content.html" %}
+                </div>
+            </details>
+        {% endfor %}
+    </div>
 {% endblock %}
 {% endblock %}

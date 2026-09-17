@@ -2,56 +2,63 @@
 
 {% block content %}
 {% block stats_content %}
-    {% include "partials/_tournament_nav.html" %}
-<h2>VÝSLEDKY</h2>
+    <div class="scroll-parchment">
+        {% include "partials/_tournament_nav.html" %}
+        <h2 style="text-align: center; color: var(--accent-silver); margin-top: 10px; margin-bottom: 20px;">VÝSLEDKY</h2>
 
-{% if results %}
-    <table style="width: 100%; max-width: 400px; text-align: left; border-collapse: collapse;">
-        <thead>
-            <tr style="border-bottom: 2px solid #ccc;">
-                <th style="padding: 8px;">Pořadí</th>
-                <th style="padding: 8px;">Hráč</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for player, rank in results %}
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 8px;"><strong>{{ rank }}.</strong></td>
-                <td style="padding: 8px;">{{ player.name }}</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+        {% if results %}
+            <table style="width: 100%; max-width: 500px; margin: 0 auto 20px auto; text-align: left; border-collapse: collapse; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
+                <thead>
+                    <tr style="background-color: var(--border-color); border-bottom: 2px solid var(--border-color);">
+                        <th style="padding: 10px; width: 25%; text-align: center;">Pořadí</th>
+                        <th style="padding: 10px; width: 75%;">Hráč</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for player, rank in results %}
+                    <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;"
+                        onmouseover="this.style.backgroundColor='#1a2333'"
+                        onmouseout="this.style.backgroundColor='transparent'">
+                        <td style="padding: 10px; text-align: center; font-weight: bold; color: {% if rank == 1 %}var(--winner-color){% else %}var(--text-main){% endif %};">
+                            {% if rank == 1 %}🥇 {% elif rank == 2 %}🥈 {% elif rank == 3 %}🥉 {% endif %}{{ rank }}.
+                        </td>
+                        <td style="padding: 10px; font-weight: bold; color: var(--text-main);">
+                            {{ player.name }}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
 
-    <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;">
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 25px; flex-wrap: wrap;">
 
-            <!-- Tlačítko pro Excel (změněno na POST, aby odpovídalo run.py) -->
-            <form method="POST" action="{{ url_for('main.results_view', tournament_id=tournament.id) }}" style="margin: 0;">
-                <button type="submit" name="action" value="download"
-                        style="background-color: #10B981; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                    📥 Stáhnout Excel
-                </button>
-            </form>
+                <!-- Tlačítko pro Excel v temném stříbrném stylu -->
+                <form method="POST" action="{{ url_for('main.results_view', tournament_id=tournament.id) }}" style="margin: 0;">
+                    <button type="submit" name="action" value="download"
+                            style="background-color: var(--bg-card); color: var(--accent-silver); border: 1px solid var(--border-color); padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                        📥 Stáhnout Excel
+                    </button>
+                </form>
 
-        {% if not tournament.is_finished and results %}
-            <!-- Tlačítko pro zamčení turnaje (POST) -->
-            <form method="POST" action="{{ url_for('main.results_view', tournament_id=tournament.id) }}" style="margin: 0;" onsubmit="return confirm('Opravdu chceš turnaj zamknout a odeslat výsledky do globálních statistik?');">
-                <button type="submit" name="action" value="finish_tournament"
-                        style="background-color: #EF4444; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                    🔒 Zamknout turnaj
-                </button>
-            </form>
-        {% elif tournament.is_finished %}
-            <span style="background-color: #E5E7EB; color: #374151; padding: 10px 16px; border-radius: 6px; font-weight: bold;">
-                🔒 Turnaj je zamčen
-            </span>
+                {% if not tournament.is_finished and results %}
+                    <!-- Tlačítko pro zamčení turnaje (POST) -->
+                    <form method="POST" action="{{ url_for('main.results_view', tournament_id=tournament.id) }}" style="margin: 0;" onsubmit="return confirm('Opravdu chceš turnaj zamknout a odeslat výsledky do globálních statistik?');">
+                        <button type="submit" name="action" value="finish_tournament"
+                                style="background-color: var(--danger-color); color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            🔒 Zamknout turnaj
+                        </button>
+                    </form>
+                {% elif tournament.is_finished %}
+                    <span style="background-color: var(--bg-main); color: var(--accent-silver); border: 1px solid var(--border-color); padding: 10px 16px; border-radius: 6px; font-weight: bold;">
+                        🔒 Turnaj je zamčen
+                    </span>
+                {% endif %}
+            </div>
+        {% else %}
+            <div style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 20px; border-radius: 6px; text-align: center; color: var(--text-muted);">
+                <p style="margin: 0; font-style: italic;">Turnaj se stále hraje.</p>
+            </div>
         {% endif %}
     </div>
-{% else %}
-    <div class="status-box">
-        <p>Turnaj se stále hraje.</p>
-    </div>
-{% endif %}
-
 {% endblock %}
 {% endblock %}

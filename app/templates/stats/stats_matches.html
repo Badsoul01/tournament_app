@@ -1,27 +1,28 @@
 {% extends "stats/base_stats.html" %}
 
 {% block stats_content %}
-    <h2>Historie zápasů</h2>
 
-    <!-- Formulář venku pro zachování fokusu v inputu -->
-    <form method="GET" action="/stats/matches" style="margin-bottom: 20px;">
-        <input type="hidden" name="sort_by" value="{{ sort_by }}">
-        <input type="hidden" name="order" value="{{ order }}">
+    <div class="scroll-parchment">
+        <h2 style="margin-top: 0; color: var(--accent-silver); text-align: center;">Historie zápasů</h2>
 
-        <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat hráče, fázi nebo turnaj..."
-               hx-get="/stats/matches"
-               hx-target="#matches-table-container"
-               hx-swap="innerHTML"
-               hx-trigger="keyup changed delay:300ms, search"
-               hx-include="[name='sort_by'], [name='order']"
-               style="padding: 6px; width: 300px;">
-    </form>
+        <!-- Formulář venku pro zachování fokusu v inputu -->
+        <form method="GET" action="/stats/matches" style="margin-bottom: 20px; text-align: center;">
+            <input type="hidden" name="sort_by" value="{{ sort_by }}">
+            <input type="hidden" name="order" value="{{ order }}">
 
-    <br>
+            <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat hráče, fázi nebo turnaj..."
+                   hx-get="/stats/matches"
+                   hx-target="#matches-table-container"
+                   hx-swap="innerHTML"
+                   hx-trigger="keyup changed delay:300ms, search"
+                   hx-include="[name='sort_by'], [name='order']"
+                   style="padding: 8px 12px; width: 350px;">
+        </form>
 
-    <!-- Kontejner pro tabulku a tlačítko zrušení filtru -->
-    <div id="matches-table-container">
-        {% include "stats/partials/_matches_table.html" %}
+        <!-- Kontejner pro tabulku a tlačítko zrušení filtru -->
+        <div id="matches-table-container">
+            {% include "stats/partials/_matches_table.html" %}
+        </div>
     </div>
 
     <script src="{{ url_for('static', filename='js/rows_details.js') }}?v=1"></script>

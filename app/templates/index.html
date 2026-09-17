@@ -4,70 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Turnajový organizátor</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            padding: 20px;
-            line-height: 1.4;
-            max-width: 600px;
-            margin: 0 auto;
-            text-align: center;
-        }
-        .tournament-box {
-            border: 1px solid #ccc;
-            padding: 12px 15px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-            background: #fafafa;
-            text-align: left;
-        }
-        .tournament-box a {
-            font-size: 1.1em;
-            font-weight: bold;
-            text-decoration: none;
-            color: #2563eb;
-        }
-        .tournament-box a:hover {
-            text-decoration: underline;
-        }
-        .tournament-info {
-            font-size: 0.85em;
-            color: #555;
-            margin-top: 6px;
-        }
-    </style>
+
+    <!-- Tady připojujeme externí CSS soubor -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>Turnajový Organizátor</h1>
 
-    <!-- Hlavní rychlé odkazy -->
-    <div style="margin-bottom: 25px;">
-        <a href="/settings_groups">Připravit nový turnaj</a> <br>
-        <a href="/stats/tournaments">Statistiky</a>
-    </div>
+    <!-- Tady začíná náš luxusní temný pergamen -->
+    <div class="scroll-parchment">
 
-    <hr style="border: 0; border-top: 1px solid #ddd; margin-bottom: 20px;">
+        <h1 style="margin-top: 0; color: var(--accent-silver); font-size: 2.2em;">Turnajový organizátor</h1>
 
-    <h3>Rozehrané turnaje</h3>
+        <!-- Hlavní rychlé odkazy (Menu) -->
+        <div class="home-menu">
+            <a href="/settings_groups" class="home-menu-link">Připravit nový turnaj</a>
+            <a href="/stats/tournaments" class="home-menu-link">Statistiky turnajů</a>
+        </div>
 
-    {% if active_tournaments %}
-        {% for t in active_tournaments %}
-            <div class="tournament-box">
-                <a href="/tournament/{{ t.id }}/groups">{{ t.name }}</a>
-                <div class="tournament-info">
-                    📅 {{ t.formatted_date }} &nbsp;|&nbsp;
-                    👥 Hráčů: <strong>{{ t.total_players }}</strong> &nbsp;|&nbsp;
-                    ⚗️ Skupin: <strong>{{ t.groups.count() }}</strong> &nbsp;|&nbsp;
-                    🏆 Postup: <strong>{{ t.advance_per_group }}</strong>
-                    {% if t.group_elimination_action %}
-                        &nbsp;|&nbsp; 🛡️ Útěcha: <strong>{{ t.consolation_display_name }}</strong>
-                    {% endif %}
+        <!-- Jemná oddělovací linka ladící s pergamenem -->
+        <hr style="border: 0; border-top: 1px solid rgba(51, 69, 99, 0.5); margin-bottom: 25px;">
+
+        <h3 style="color: var(--text-main);">Rozehrané turnaje</h3>
+
+        {% if active_tournaments %}
+            {% for t in active_tournaments %}
+                <div class="tournament-box">
+                    <a href="/tournament/{{ t.id }}/groups" style="font-size: 1.2em;">{{ t.name }}</a>
+                    <div class="tournament-info" style="margin-top: 10px;">
+                        📅 <span style="color: var(--text-main);">{{ t.formatted_date }}</span> &nbsp;|&nbsp;
+                        👥 Hráčů: <strong style="color: var(--text-main);">{{ t.total_players }}</strong> &nbsp;|&nbsp;
+                        ⚗️ Skupin: <strong style="color: var(--text-main);">{{ t.groups.count() }}</strong> &nbsp;|&nbsp;
+                        🏆 Postup: <strong style="color: var(--text-main);">{{ t.advance_per_group }}</strong>
+                        {% if t.group_elimination_action %}
+                            &nbsp;|&nbsp; 🛡️ Útěcha: <strong style="color: var(--text-main);">{{ t.consolation_display_name }}</strong>
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
-        {% endfor %}
-    {% else %}
-        <p style="color: #666; font-style: italic;">Zatím se nehraje žádný aktivní turnaj.</p>
-    {% endif %}
+            {% endfor %}
+        {% else %}
+            <!-- Zpráva využívá tlumenou stříbrnou z našeho tématu -->
+            <p style="color: var(--text-muted); font-style: italic;">Zatím se nehraje žádný aktivní turnaj.</p>
+        {% endif %}
+
+    </div>
+    <!-- Konec pergamenu -->
 
 </body>
 </html>

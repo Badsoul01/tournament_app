@@ -5,14 +5,16 @@
 <form action="/settings_playoff" method="POST" id="wizard_form">
     <fieldset>
         <legend>Nastavení Playoff</legend>
-        <label>Formát zápasu:</label>
-        <select name="playoff_match_format">
+
+        <label>Formát zápasu:</label><br>
+        <select name="playoff_match_format" style="width: 100%; margin-bottom: 15px;">
             {% for val,name in PLAYOFF_RULES.playoff_match_format.items() %}
                 <option value="{{ val }}" {% if wizard.playoff_match_format == val %}selected{% endif %}>{{ name }}</option>
             {% endfor %}
         </select>
-        <label>Nepostupující:</label>
-        <select name="elimination_actions">
+
+        <label>Nepostupující:</label><br>
+        <select name="elimination_actions" style="width: 100%;">
             {% for key,name in PLAYOFF_RULES.elimination_actions.items() %}
                 <option value="{{ key }}" {% if wizard.playoff_elimination_actions == key %}selected{% endif %}>{{ name }}</option>
             {% endfor %}

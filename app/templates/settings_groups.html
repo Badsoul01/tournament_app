@@ -11,10 +11,10 @@
             <fieldset style="height: 100%;">
                 <legend>Skupiny a hráči</legend>
 
-                <label>Přidat nebo odebrat skupinu:</label>
+                <label>Přidat nebo odebrat skupinu:</label><br>
 
                 <!-- TLAČÍTKA S TARGETEM NA WIZARD-CONTAINER -->
-                <div id="group-buttons-wrapper" style="display: inline;">
+                <div id="group-buttons-wrapper" style="display: inline; margin-bottom: 10px; display: inline-block;">
                     <!-- Tlačítko MÍNUS -->
                     <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display: inline;">
                         <button type="submit" name="action" value="decrease_groups" {% if not wizard.has_empty_group %}disabled{% endif %}>-</button>
@@ -25,18 +25,18 @@
                         <button type="submit" name="action" value="increase_groups" {% if wizard.total_groups >= wizard.max_groups %}disabled{% endif %}>+</button>
                     </form>
                 </div>
-                <br><br>
+                <br>
 
                 <!-- Přidání hráče -->
                 <form hx-post="/settings_groups"
                       hx-target="#wizard-container"
                       hx-swap="innerHTML"
                       hx-on::after-request="this.reset()">
-                    <label>Přidání hráče:</label>
+                    <label>Přidání hráče:</label><br>
                     <input name="players_text"
                            list="global-players-list"
-                           placeholder="Jména hráčů (oddělena čárkou)"
-                           autocomplete="off">
+                           placeholder="Jména hráčů (oddělená čárkou)"
+                           autocomplete="off" style="width: 100%; box-sizing: border-box;">
                     <datalist id="global-players-list">
                         {% for name in all_global_players %}
                             <option value="{{ name }}">
@@ -44,7 +44,6 @@
                     </datalist>
                     <button type="submit" name="action" value="add_players">Přidat hráče</button>
                 </form>
-
                 <br>
 
                 <!-- Import z odkazu -->
@@ -52,64 +51,62 @@
                       hx-target="#wizard-container"
                       hx-swap="innerHTML"
                       hx-on::after-request="this.reset()">
-                    <label>Přidání hráče z odkazu:</label>
-                    <input type="url" name="scrap_url" placeholder="Událost Vaší ligy">
+                    <label>Přidání hráče z odkazu:</label><br>
+                    <input type="url" name="scrap_url" placeholder="Událost Vaší ligy" style="width: 100%; box-sizing: border-box;">
                     <button type="submit" name="action" value="scrap_players">Importovat</button>
                 </form>
-                <br>
             </fieldset>
 
 
             <fieldset style="height: 100%;">
-    <legend>Automatické nasazení (Seeding)</legend>
-    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML">
+                <legend>Automatické nasazení (Seeding)</legend>
+                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML">
 
-            <!-- 1. Kritérium -->
-            Nasazovat podle:<br>
-            <input type="radio" id="seed_last" name="seed_criterion" value="last_tournament" checked>
-            <label for="seed_last">Posledního turnaje</label>
+                    <!-- 1. Kritérium -->
+                    <span style="color: var(--text-main); font-weight: bold;">Nasazovat podle:</span><br>
+                    <input type="radio" id="seed_last" name="seed_criterion" value="last_tournament" checked>
+                    <label for="seed_last">Posledního turnaje</label><br>
 
-            <input type="radio" id="seed_global" name="seed_criterion" value="global_rank">
-            <label for="seed_global">Celkového žebříčku</label>
+                    <input type="radio" id="seed_global" name="seed_criterion" value="global_rank">
+                    <label for="seed_global">Celkového žebříčku</label><br>
 
-            <input type="radio" id="seed_random" name="seed_criterion" value="random">
-            <label for="seed_random">Zcela náhodně</label><br><br>
+                    <input type="radio" id="seed_random" name="seed_criterion" value="random">
+                    <label for="seed_random">Zcela náhodně</label><br><br>
 
-            <!-- 2. Rozsah nasazení -->
-            Rozsah nasazení:<br>
-            <input type="radio" id="scope_unassigned" name="seed_scope" value="reset_all" checked>
-            <label for="scope_reset">Resetovat skupiny a rozlosovat znovu</label>
+                    <!-- 2. Rozsah nasazení -->
+                    <span style="color: var(--text-main); font-weight: bold;">Rozsah nasazení:</span><br>
+                    <input type="radio" id="scope_unassigned" name="seed_scope" value="reset_all" checked>
+                    <label for="scope_reset">Resetovat skupiny a rozlosovat znovu</label><br>
 
-            <input type="radio" id="scope_reset" name="seed_scope" value="unassigned_only">
-            <label for="scope_unassigned">Doplnit jen nezařazené hráče</label><br><br>
+                    <input type="radio" id="scope_reset" name="seed_scope" value="unassigned_only">
+                    <label for="scope_unassigned">Doplnit jen nezařazené hráče</label><br><br>
 
-            <!-- 3. Režim skupin -->
-            Správa skupin při losování:<br>
-            <input type="radio" id="mode_auto" name="group_mode" value="auto_create" checked>
-            <label for="mode_auto">Vytvořit/dopočítat skupiny (po 3 hráče)</label>
+                    <!-- 3. Režim skupin -->
+                    <span style="color: var(--text-main); font-weight: bold;">Správa skupin při losování:</span><br>
+                    <input type="radio" id="mode_auto" name="group_mode" value="auto_create" checked>
+                    <label for="mode_auto">Vytvořit/dopočítat skupiny (po 3 hráče)</label><br>
 
-            <input type="radio" id="mode_fixed" name="group_mode" value="use_existing">
-            <label for="mode_fixed">Použít pouze vytvořené skupiny</label><br><br>
+                    <input type="radio" id="mode_fixed" name="group_mode" value="use_existing">
+                    <label for="mode_fixed">Použít pouze vytvořené skupiny</label><br><br>
 
-            <button type="submit" name="action" value="seed_players" style="width: 100%;">
-                🎲 Rozlosovat a nasadit hráče
-            </button>
-        </form>
-</fieldset>
+                    <button type="submit" name="action" value="seed_players" style="width: 100%;">
+                        🎲 Rozlosovat a nasadit hráče
+                    </button>
+                </form>
+            </fieldset>
         </div>
 
 
         <!-- PRAVÝ SLOUPEC: Minulé turnaje a jejich hráči -->
         <div style="display: table-cell; vertical-align: top; width: 50%;">
-
-
             <fieldset style="height: 100%;">
                 <legend>Minulé turnaje</legend>
 
-                <div style="display: table; width: 100%; border: 1px solid #ccc; height: 180px; background: #fff;">
+                <!-- Ošetřené pozadí namísto bělostné #fff -->
+                <div style="display: table; width: 100%; border: 1px solid var(--border-color); height: 180px; background: var(--bg-main); border-radius: 4px;">
 
                     <!-- Pod-sloupec 1: Seznam a vyhledávání -->
-                    <div style="display: table-cell; width: 50%; border-right: 1px solid #ccc; vertical-align: top; padding: 5px; overflow-y: auto;">
+                    <div style="display: table-cell; width: 50%; border-right: 1px solid var(--border-color); vertical-align: top; padding: 5px; overflow-y: auto;">
 
                         <div style="margin-bottom: 8px;">
                             <input type="text"
@@ -122,7 +119,7 @@
                                    autocomplete="off">
                         </div>
 
-                        <strong style="display:block; border-bottom:1px solid #eee; padding-bottom:3px; margin-bottom:5px;">Turnaj / Datum</strong>
+                        <strong style="display:block; border-bottom:1px solid var(--border-color); padding-bottom:3px; margin-bottom:5px; color: var(--text-muted);">Turnaj / Datum</strong>
 
                         <!-- Seznam turnajů -->
                         <div id="past-tournaments-list">
@@ -146,32 +143,32 @@
         {% include "partials/_wizard_content.html" %}
     </div>
 
-    <hr>
+    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
 
     <!-- DOLNÍ ČÁST: Nastavení pravidel -->
     <form action="/settings_groups" method="POST" id="wizard_form">
         <fieldset>
             <legend>Nastavení pravidel</legend>
 
-            <label>Název turnaje:</label>
-            <input type="text" name="name" value="{{ wizard.name }}" placeholder="Název turnaje"><br><br>
+            <label>Název turnaje:</label><br>
+            <input type="text" name="name" value="{{ wizard.name }}" placeholder="Název turnaje" style="width: 100%; box-sizing: border-box;"><br><br>
 
-            <label>Formát zápasu:</label>
-            <select name="group_match_format">
+            <label>Formát zápasu:</label><br>
+            <select name="group_match_format" style="width: 100%;">
                 {% for val, name in GROUPS_RULES.group_match_format.items() %}
                     <option value="{{val}}" {% if wizard.group_match_format|string == val|string %}selected{% endif %}>{{ name }}</option>
                 {% endfor %}
             </select><br><br>
 
-            <label>Počet postupujících ze skupiny:</label>
-            <select name="advance_per_group">
+            <label>Počet postupujících ze skupiny:</label><br>
+            <select name="advance_per_group" style="width: 100%;">
                 {% for val in GROUPS_RULES.advance_per_group %}
                     <option value="{{ val }}" {% if wizard.advance_per_group|string == val|string %}selected{% endif %}>{{ val }}</option>
                 {% endfor %}
             </select><br><br>
 
-            <label>Nepostupující ze skupiny:</label>
-            <select name="group_elimination_action">
+            <label>Nepostupující ze skupiny:</label><br>
+            <select name="group_elimination_action" style="width: 100%;">
                 {% for key, name in GROUPS_RULES.elimination_actions.items() %}
                     <option value="{{ key }}" {% if wizard.group_elimination_action == key %}selected{% endif %}>{{ name }}</option>
                 {% endfor %}

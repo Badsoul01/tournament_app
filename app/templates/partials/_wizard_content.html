@@ -14,25 +14,25 @@
 {% endif %}
 
 <!-- INFORMAČNÍ PANEL -->
-<div>
-    <span>Celkový počet hráčů: <strong>{{ wizard.total_tournament_players }}</strong></span> |
-    <span>Počet nezařazených hráčů: <strong>{{ wizard.non_classification_players }}</strong></span> |
-    <span>Počet skupin: <strong>{{ wizard.total_groups }} / {{ wizard.max_groups }}</strong></span>
+<div style="color: var(--text-muted); font-size: 0.95em; margin-bottom: 15px;">
+    <span>Celkový počet hráčů: <strong style="color: var(--text-main);">{{ wizard.total_tournament_players }}</strong></span> |
+    <span>Počet nezařazených hráčů: <strong style="color: var(--text-main);">{{ wizard.non_classification_players }}</strong></span> |
+    <span>Počet skupin: <strong style="color: var(--text-main);">{{ wizard.total_groups }} / {{ wizard.max_groups }}</strong></span>
 </div>
 
-<hr>
+<hr style="border: 0; border-top: 1px solid var(--border-color); margin: 15px 0;">
 
 <!-- SEZNAM HRÁČŮ -->
-<h3>Seznam hráčů:</h3>
+<h3 style="color: var(--text-main);">Seznam hráčů:</h3>
 <ul class="responsive-grid" style="list-style-type: none; padding-left: 0; row-gap: 10px;">
     {% for player in wizard.players %}
-    <li style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
+    <li style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
         <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="margin: 0;">
             <input type="hidden" name="player_name" value="{{ player }}">
             <button type="submit" name="action" value="remove_player" title="Smazat hráče">X</button>
         </form>
 
-        <strong>{{ player }}</strong>
+        <span style="color: var(--text-main);">{{ player }}</span>
 
         <div style="flex-grow: 1;"></div>
 
@@ -49,11 +49,11 @@
     {% endfor %}
 </ul>
 
-<hr>
+<hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
 
 <!-- SKUPINY -->
-<div style="display: flex; justify-content: space-between; align-items: center;">
-    <h3>Skupiny:</h3>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+    <h3 style="color: var(--text-main); margin: 0;">Skupiny:</h3>
 
     {% if wizard.groups %}
     <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="margin: 0;">
@@ -62,26 +62,33 @@
     {% endif %}
 </div>
 
-<ul class="responsive-grid" style="list-style-type: none; padding-left: 0;">
+<!-- KARTY SKUPIN V MŘÍŽCE -->
+<ul class="responsive-grid" style="list-style-type: none; padding-left: 0; gap: 15px;">
     {% for letter, players in wizard.groups.items() %}
-        <li>
-            <h4>
-                Skupina {{ letter }} ({{ wizard.total_players_in_group(letter) }} / {{ wizard.max_players_per_group }})
+        <li style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; border-radius: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">
+                <h4 style="margin: 0; color: var(--accent-silver);">
+                    Skupina {{ letter }}
+                    <span style="font-size: 0.85em; font-weight: normal; color: var(--text-muted);">
+                        ({{ wizard.total_players_in_group(letter) }} / {{ wizard.max_players_per_group }})
+                    </span>
+                </h4>
 
-                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display:inline;">
+                <!-- Tlačítko s košem namísto textu -->
+                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display:inline; margin: 0;">
                     <input type="hidden" name="group_letter" value="{{ letter }}">
                     <input type="hidden" name="force" value="true">
-                    <button type="submit" name="action" value="remove_single_group" title="Smazat skupinu">Smazat skupinu</button>
+                    <button type="submit" name="action" value="remove_single_group" title="Smazat skupinu" class="btn-delete-group">🗑️</button>
                 </form>
-            </h4>
+            </div>
 
-            <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
             {% for player in players %}
-                <span>
+                <span style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; font-size: 0.9em; color: var(--text-main);">
                     {{ player }}
-                    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display:inline;">
+                    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display:inline; margin: 0;">
                         <input type="hidden" name="player_name" value="{{ player }}">
-                        <button type="submit" name="action" value="remove_player">-</button>
+                        <button type="submit" name="action" value="remove_player" style="background: none; border: none; color: var(--accent-silver); cursor: pointer; padding: 0; font-weight: bold;" title="Odebrat ze skupiny">×</button>
                     </form>
                 </span>
             {% endfor %}

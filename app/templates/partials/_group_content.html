@@ -4,37 +4,52 @@
         <!-- LEVÝ SLOUPEC -->
         <td class="group-left-col">
             <table class="group-table">
-                <tr>
-                    <th>Hráč</th><th>Sety</th><th>Míčky +/-</th><th>Body</th>
-                </tr>
-                {% for p in data.players %}
-                   <tr class="{% if not is_consolation and loop.index|int <= tournament.advance_per_group|int %}qualifying-row{% endif %}">
-                        <td>{{ p.name }}</td>
-                        <td>{{ p.games_win }}:{{ p.games_lost }}</td>
-                        <td>{{ p.balls_diff }}</td>
-                        <td>{{ p.points }}</td>
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">Hráč</th>
+                        <th style="text-align: center;">Sety</th>
+                        <th style="text-align: center;">Míčky +/-</th>
+                        <th style="text-align: center;">Body</th>
                     </tr>
-                {% endfor %}
+                </thead>
+                <tbody>
+                    {% for p in data.players %}
+                        <tr class="{% if not is_consolation and loop.index|int <= tournament.advance_per_group|int %}qualifying-row{% endif %}">
+                            <td style="font-weight: bold;">{{ p.name }}</td>
+                            <td style="text-align: center;">{{ p.games_win }}-{{ p.games_lost }}</td>
+                            <td style="text-align: center;">{{ p.balls_diff }}</td>
+                            <td style="text-align: center; font-weight: bold;">{{ p.points }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
             </table>
-            <p style="font-size: 0.8em; color:#555;">
+            <p style="font-size: 0.85em; color: var(--text-muted); margin-top: 8px;">
                 V případě shody pořadí určuje: Vzájemný zápas, Sety, Míčky.
             </p>
 
             <!-- ODEHRANÉ ZÁPASY -->
-            <h4 style="margin-top: 15px;">Odehrané zápasy</h4>
+            <h4 style="margin-top: 20px; color: var(--accent-silver);">Odehrané zápasy</h4>
             <table class="matches-table">
                 {% for match in data.matches if match.is_finished %}
                     <tr>
-                        <!-- 1. sloupec: Hráči -->
-                        <td style="width: 60%;">{{ match.player_a_name }} - {{ match.player_b_name }}</td>
+                        <!-- 1. sloupec: Hráči s nezalamitelným řádkem -->
+                        <td style="width: 68%; white-space: nowrap;">
+                            <span style="color: {% if match.winner_name and match.player_a_name == match.winner_name %}var(--winner-color); font-weight: bold;{% else %}var(--text-main);{% endif %}">
+                                {{ match.player_a_name }}
+                            </span>
+                            <span style="color: var(--text-muted); margin: 0 4px;">-</span>
+                            <span style="color: {% if match.winner_name and match.player_b_name == match.winner_name %}var(--winner-color); font-weight: bold;{% else %}var(--text-main);{% endif %}">
+                                {{ match.player_b_name }}
+                            </span>
+                        </td>
 
-                        <!-- 2. sloupec: Skóre setů + kolečko hned za ním na konci řádku -->
-                        <td style="width: 40%; text-align: right;">
+                        <!-- 2. sloupec: Skóre setů + kolečko -->
+                        <td style="width: 32%; text-align: right; color: var(--accent-silver); white-space: nowrap;">
                             {% for game_a, game_b in match.played_sets %}
                                 {{ game_a }}:{{ game_b }}{% if not loop.last %}, {% endif %}
                             {% endfor %}
 
-                            <!-- Formulář pro úpravu zápasu (Skryto pro diváky a u ukončených turnajů) -->
+                            <!-- Formulář pro úpravu zápasu -->
                             {% if editable and not tournament.is_finished %}
                                 <form hx-post="{{ request.path }}"
                                       hx-target="#group-{{ group_name }}"
@@ -42,7 +57,7 @@
                                       style="display: inline; margin-left: 8px;">
                                     <input type="hidden" name="match_id" value="{{ match.match_id }}">
                                     <input type="hidden" name="group_name" value="{{ group_name }}">
-                                    <button type="submit" name="action" value="edit_match" title="Upravit zápas" style="background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0;">⚙️</button>
+                                    <button type="submit" name="action" value="edit_match" title="Upravit zápas" style="background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0; box-shadow: none;">⚙️</button>
                                 </form>
                             {% endif %}
                         </td>
@@ -55,41 +70,59 @@
         <td class="group-right-col">
             {% for match in data.matches %}
                 {% if not match.is_finished %}
-                    <div class="match-card">
-
-                        {% if not match.is_in_progress %}
-                            <!-- STAV 1: Zápas čeká -->
-                            <div class="match-header-row">
-                                <strong style="white-space: nowrap;">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
-
+                    {% if not match.is_in_progress %}
+                        <!-- STAV 1: Zápas čeká - CELÁ KARTA JE KLIKACÍ -->
+                        <div class="match-card"
+                             {% if editable %}
+                             hx-post="{{ request.path }}"
+                             hx-vals='{"action": "toggle_progress", "match_id": "{{ match.match_id }}", "group_name": "{{ group_name }}"}'
+                             hx-target="#group-{{ group_name }}"
+                             hx-swap="innerHTML"
+                             style="padding: 12px; margin-bottom: 12px; cursor: pointer; transition: border-color 0.2s;"
+                             onmouseover="this.style.borderColor='var(--accent-silver)'"
+                             onmouseout="this.style.borderColor=''"
+                             title="Kliknutím otevřeš zápas"
+                             {% else %}
+                             style="padding: 12px; margin-bottom: 12px;"
+                             {% endif %}>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong style="color: var(--text-main);">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
                                 {% if editable %}
-                                    <form hx-post="{{ request.path }}"
-                                          hx-target="#group-{{ group_name }}"
-                                          hx-swap="innerHTML"
-                                          style="margin: 0;">
-                                        <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                                        <input type="hidden" name="group_name" value="{{ group_name }}">
-                                        <button type="submit" name="action" value="toggle_progress"><strong>+</strong></button>
-                                    </form>
+                                    <span style="color: var(--text-muted); font-size: 0.85em;">otevřít ⚙️</span>
                                 {% endif %}
                             </div>
-                        {% else %}
-                            <!-- STAV 2: Zápas probíhá -->
-                            <div class="match-header-row {% if editable %}match-in-progress-border{% endif %}">
-                                <strong style="white-space: nowrap;">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
+                        </div>
+                    {% else %}
+                        <!-- STAV 2: Zápas probíhá (otevřený formulář) -->
+                        <!-- Přidána třída active-match pro stříbrné zvýraznění -->
+                        <div class="match-card active-match" style="padding: 12px; margin-bottom: 12px;">
+
+                            <!-- Klikací hlavička pro zavření -->
+                            <div {% if editable %}
+                                 hx-post="{{ request.path }}"
+                                 hx-vals='{"action": "toggle_progress", "match_id": "{{ match.match_id }}", "group_name": "{{ group_name }}"}'
+                                 hx-target="#group-{{ group_name }}"
+                                 hx-swap="innerHTML"
+                                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color); cursor: pointer;"
+                                 onmouseover="this.style.opacity='0.8'"
+                                 onmouseout="this.style.opacity='1'"
+                                 title="Kliknutím zavřeš zápas"
+                                 {% else %}
+                                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);"
+                                 {% endif %}>
+
+                                <!-- OPRAVA: Neutrální barva pro jména, text (Probíhá) je teď jemnější -->
+                                <div>
+                                    <strong style="color: var(--text-main);">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
+                                    <span style="color: var(--text-muted); font-size: 0.9em; font-weight: normal;"> (Probíhá)</span>
+                                </div>
 
                                 {% if editable %}
-                                    <form hx-post="{{ request.path }}"
-                                          hx-target="#group-{{ group_name }}"
-                                          hx-swap="innerHTML"
-                                          style="margin: 0;">
-                                        <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                                        <input type="hidden" name="group_name" value="{{ group_name }}">
-                                        <button type="submit" name="action" value="toggle_progress"><strong>-</strong></button>
-                                    </form>
+                                    <span style="color: var(--danger-color); font-size: 0.85em;">zavřít ✕</span>
                                 {% endif %}
                             </div>
 
+                            <!-- Formulář se sety a tlačítkem Uložit zůstává netknutý dole -->
                             {% if editable %}
                                 <form hx-post="{{ request.path }}"
                                       hx-target="#group-{{ group_name }}"
@@ -100,18 +133,18 @@
                                     <div class="match-sets-wrapper">
                                         {% set fmt = match.match_format | int if match.match_format else (tournament.group_match_format | int if tournament.group_match_format else 3) %}
                                         {% for i in range(1, fmt + 1) %}
-                                            <div class="set-container">
+                                            <div class="set-container" style="color: var(--text-muted); font-size: 0.9em;">
                                                 <strong>{{ i }}. set:</strong>
-                                                <input type="number" class="match-input" name="game_a[]" min="0" style="width: 40px;"> :
-                                                <input type="number" class="match-input" name="game_b[]" min="0" style="width: 40px;">
+                                                <input type="number" class="match-input" name="game_a[]" min="0"> :
+                                                <input type="number" class="match-input" name="game_b[]" min="0">
                                             </div>
                                         {% endfor %}
                                     </div>
-                                    <button type="submit" name="action" value="submit_result">Uložit výsledek</button>
+                                    <button type="submit" name="action" value="submit_result" style="width: 100%; font-weight: bold; margin-top: 5px;">Uložit výsledek</button>
                                 </form>
                             {% endif %}
-                        {% endif %}
-                    </div>
+                        </div>
+                    {% endif %}
                 {% endif %}
             {% endfor %}
         </td>

@@ -1,59 +1,61 @@
 <div id="tournaments-table-container">
-    <!-- Odkaz 'Zrušit filtr' je uvnitř kontejneru, takže se s každým úderem klávesy dynamicky ukáže/schová -->
+    <!-- Odkaz 'Zrušit filtr' -->
     <div style="margin-bottom: 15px; min-height: 20px;">
         {% if q %}
             <a href="/stats/tournaments"
                hx-get="/stats/tournaments"
                hx-target="#tournaments-table-container"
                hx-swap="innerHTML"
-               style="color: #1976d2; text-decoration: none; font-weight: bold;">Zrušit filtr</a>
+               style="font-weight: bold;">Zrušit filtr</a>
         {% endif %}
     </div>
 
-    <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; max-width: 1000px; border-collapse: collapse;">
+    <!-- Tabulka turnajů v temném stylu -->
+    <table style="width: 100%; max-width: 1000px; border-collapse: collapse; margin: 0 auto; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
         <thead>
-            <tr style="background-color: #f1f1f1;">
-                <th style="text-align: left;">
+            <tr style="background-color: var(--border-color); border-bottom: 2px solid var(--border-color);">
+                <th style="text-align: left; padding: 10px;">
                     <a hx-get="/stats/tournaments?q={{ q }}&sort_by=date&order={{ 'desc' if sort_by == 'date' and order == 'asc' else 'asc' }}"
                        hx-target="#tournaments-table-container"
                        hx-swap="innerHTML"
-                       style="text-decoration: none; color: inherit; cursor: pointer;">Datum</a>
+                       style="cursor: pointer;">Datum</a>
                     {% if sort_by == 'date' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: left;">
+                <th style="text-align: left; padding: 10px;">
                     <a hx-get="/stats/tournaments?q={{ q }}&sort_by=name&order={{ 'desc' if sort_by == 'name' and order == 'asc' else 'asc' }}"
                        hx-target="#tournaments-table-container"
                        hx-swap="innerHTML"
-                       style="text-decoration: none; color: inherit; cursor: pointer;">Název turnaje</a>
+                       style="cursor: pointer;">Název turnaje</a>
                     {% if sort_by == 'name' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: left;">
+                <th style="text-align: left; padding: 10px;">
                     <a hx-get="/stats/tournaments?q={{ q }}&sort_by=status&order={{ 'desc' if sort_by == 'status' and order == 'asc' else 'asc' }}"
                        hx-target="#tournaments-table-container"
                        hx-swap="innerHTML"
-                       style="text-decoration: none; color: inherit; cursor: pointer;">Stav</a>
+                       style="cursor: pointer;">Stav</a>
                     {% if sort_by == 'status' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: left;">
+                <th style="text-align: left; padding: 10px;">
                     <a hx-get="/stats/tournaments?q={{ q }}&sort_by=winner&order={{ 'desc' if sort_by == 'winner' and order == 'asc' else 'asc' }}"
                        hx-target="#tournaments-table-container"
                        hx-swap="innerHTML"
-                       style="text-decoration: none; color: inherit; cursor: pointer;">Vítěz</a>
+                       style="cursor: pointer;">Vítěz</a>
                     {% if sort_by == 'winner' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: center;">
+                <th style="text-align: center; padding: 10px;">
                     <a hx-get="/stats/tournaments?q={{ q }}&sort_by=total_players&order={{ 'desc' if sort_by == 'total_players' and order == 'asc' else 'asc' }}"
                        hx-target="#tournaments-table-container"
                        hx-swap="innerHTML"
-                       style="text-decoration: none; color: inherit; cursor: pointer;">Počet hráčů</a>
+                       style="cursor: pointer;">Počet hráčů</a>
                     {% if sort_by == 'total_players' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
+                <th style="padding: 10px;"></th>
             </tr>
         </thead>
         <tbody>
             {% for t in tournaments %}
-            <tr style="transition: background-color 0.2s;"
-                onmouseover="this.style.backgroundColor='#f1f1f1'"
+            <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;"
+                onmouseover="this.style.backgroundColor='#1a2333'"
                 onmouseout="this.style.backgroundColor='transparent'">
 
                 <td style="padding: 10px;">{{ t.formatted_date }}</td>
@@ -62,7 +64,7 @@
                 <td style="padding: 10px;">
                     {% if t.winner %}
                         {% if t.winner.global_player_id %}
-                            <a href="/stats/player/{{ t.winner.global_player_id }}" style="text-decoration: none; color: #1976d2; font-weight: bold;">
+                            <a href="/stats/player/{{ t.winner.global_player_id }}" style="font-weight: bold;">
                                 {{ t.winner.name }}
                             </a>
                         {% else %}
@@ -75,7 +77,7 @@
                 <td style="padding: 10px; text-align: center;">{{ t.total_players }}</td>
                 <td style="padding: 10px; text-align: center;">
                     <button onclick="toggleTournamentDetails(this, {{ t.id }})"
-                            style="background: none; border: 1px solid #ccc; padding: 4px 10px; cursor: pointer; color: #1976d2; font-weight: bold; border-radius: 4px;">
+                            style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 4px 10px; cursor: pointer; color: var(--accent-silver); font-weight: bold; border-radius: 4px;">
                         Detaily ▼
                     </button>
                 </td>
@@ -83,7 +85,7 @@
             <tr id="detail-row-{{ t.id }}" style="display: none;"></tr>
             {% else %}
             <tr>
-                <td colspan="6" style="text-align: center; padding: 20px;">Nebyly nalezeny žádné turnaje.</td>
+                <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Nebyly nalezeny žádné turnaje.</td>
             </tr>
             {% endfor %}
         </tbody>

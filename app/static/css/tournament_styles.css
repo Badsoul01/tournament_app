@@ -7,7 +7,7 @@
 .winner-alert { background-color: #d4edda; padding: 20px; margin-bottom: 20px; border: 1px solid #c3e6cb; }
 .placement-container { display: flex; gap: 20px; padding: 20px; overflow-x: auto; align-items: flex-start; }
 
-/* Styly pro tabulky (pokud je nemáš už vyřešené globálně jinde) */
+/* Styly pro tabulky */
 .tournament-table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
 .tournament-table th, .tournament-table td { border: 1px solid #ccc; padding: 8px; text-align: left; }
 
