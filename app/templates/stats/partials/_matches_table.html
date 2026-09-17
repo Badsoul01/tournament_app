@@ -1,50 +1,51 @@
 <div id="matches-table-container">
+    <div style="margin-bottom: 15px; min-height: 20px;">
+        {% if q %}
+            <a href="/stats/matches"
+               hx-get="/stats/matches"
+               hx-target="#matches-table-container"
+               hx-swap="innerHTML"
+               style="color: #1976d2; text-decoration: none; font-weight: bold;">Zrušit filtr</a>
+        {% endif %}
+    </div>
+
     <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; max-width: 900px;">
         <thead>
             <tr>
-                <!-- Sloupec pro Turnaj s HTMX řazením -->
                 <th style="text-align: left; width: 20%;">
                     <a hx-get="/stats/matches?q={{ q }}&sort_by=tournament&order={{ 'desc' if sort_by == 'tournament' and order == 'asc' else 'asc' }}"
                        hx-target="#matches-table-container"
-                       hx-swap="outerHTML"
+                       hx-swap="innerHTML"
                        style="text-decoration: none; color: inherit; cursor: pointer;">
                         Turnaj
                     </a>
                     {% if sort_by == 'tournament' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-
-                <!-- Sloupec pro Fázi turnaje -->
                 <th style="text-align: center; width: 10%;">
                     <a hx-get="/stats/matches?q={{ q }}&sort_by=phase&order={{ 'desc' if sort_by == 'phase' and order == 'asc' else 'asc' }}"
                        hx-target="#matches-table-container"
-                       hx-swap="outerHTML"
+                       hx-swap="innerHTML"
                        style="text-decoration: none; color: inherit; cursor: pointer;">
                         Fáze
                     </a>
                     {% if sort_by == 'phase' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-
-                <!-- Sloupec pro Hráče A -->
                 <th style="text-align: right; width: 20%;">
                     <a hx-get="/stats/matches?q={{ q }}&sort_by=player_a&order={{ 'desc' if sort_by == 'player_a' and order == 'asc' else 'asc' }}"
                        hx-target="#matches-table-container"
-                       hx-swap="outerHTML"
+                       hx-swap="innerHTML"
                        style="text-decoration: none; color: inherit; cursor: pointer;">
                         Hráč A
                     </a>
                     {% if sort_by == 'player_a' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-
-                <!-- Sloupec pro Výsledek (tlačítko roletky) -->
                 <th style="text-align: center; width: 30%;">
                     Výsledek
                 </th>
-
-                <!-- Sloupec pro Hráče B -->
                 <th style="text-align: left; width: 20%;">
                     <a hx-get="/stats/matches?q={{ q }}&sort_by=player_b&order={{ 'desc' if sort_by == 'player_b' and order == 'asc' else 'asc' }}"
                        hx-target="#matches-table-container"
-                       hx-swap="outerHTML"
+                       hx-swap="innerHTML"
                        style="text-decoration: none; color: inherit; cursor: pointer;">
                         Hráč B
                     </a>
@@ -54,63 +55,50 @@
         </thead>
         <tbody>
             {% for m in matches %}
-            <!-- Hlavní řádek zápasu -->
             <tr style="transition: background-color 0.2s;"
                 onmouseover="this.style.backgroundColor='#f1f1f1'"
                 onmouseout="this.style.backgroundColor='transparent'">
 
-                <!-- Název turnaje -->
                 <td>
                     <a href="/tournament/{{ m.tournament.id }}/results">{{ m.tournament.name }}</a>
                 </td>
-
-                <!-- Fáze zápasu -->
                 <td style="text-align: center;">{{ m.phase_display_name }}</td>
-
-                <!-- Hráč A -->
                 <td style="text-align: right;">
                     {% if m.player_a and m.player_a.global_player_id %}
                         <a href="/stats/player/{{ m.player_a.global_player_id }}"
                            style="text-decoration: none; font-weight: bold; color: {% if m.winner_id and m.winner_id == m.player_a_id %}#2e7d32{% else %}#1976d2{% endif %};">
-                            {{ m.player_a.name }} {% if m.winner_id and m.winner_id == m.player_a_id %}{% endif %}
+                            {{ m.player_a.name }}
                         </a>
                     {% elif m.player_a %}
                         <span style="font-weight: bold; color: {% if m.winner_id and m.winner_id == m.player_a_id %}#2e7d32{% else %}inherit{% endif %};">
-                            {{ m.player_a.name }} {% if m.winner_id and m.winner_id == m.player_a_id %}{% endif %}
+                            {{ m.player_a.name }}
                         </span>
                     {% else %}
                         BYE
                     {% endif %}
                 </td>
-
-                <!-- Celkový výsledek a tlačítko pro otevření roletky -->
                 <td style="text-align: center;">
                     <button onclick="toggleMatchDetails(this, {{ m.id }})"
                             style="background: none; border: 1px solid #ccc; padding: 4px 10px; cursor: pointer; color: #1976d2; font-weight: bold; border-radius: 4px;">
                         {{ m.overall_score }} ▼
                     </button>
                 </td>
-
-                <!-- Hráč B -->
                 <td style="text-align: left;">
                     {% if m.player_b and m.player_b.global_player_id %}
                         <a href="/stats/player/{{ m.player_b.global_player_id }}"
                            style="text-decoration: none; font-weight: bold; color: {% if m.winner_id and m.winner_id == m.player_b_id %}#2e7d32{% else %}#1976d2{% endif %};">
-                            {% if m.winner_id and m.winner_id == m.player_b_id %} {% endif %}{{ m.player_b.name }}
+                            {{ m.player_b.name }}
                         </a>
                     {% elif m.player_b %}
                         <span style="font-weight: bold; color: {% if m.winner_id and m.winner_id == m.player_b_id %}#2e7d32{% else %}inherit{% endif %};">
-                            {% if m.winner_id and m.winner_id == m.player_b_id %} {% endif %}{{ m.player_b.name }}
+                            {{ m.player_b.name }}
                         </span>
                     {% else %}
                         BYE
                     {% endif %}
                 </td>
             </tr>
-
-            <!-- Skrytý řádek, kam se přes HTMX nahraje detail setů a H2H -->
             <tr id="match-detail-{{ m.id }}" style="display: none;"></tr>
-
             {% else %}
             <tr>
                 <td colspan="5" style="text-align: center; padding: 20px;">Nebyly nalezeny žádné zápasy.</td>

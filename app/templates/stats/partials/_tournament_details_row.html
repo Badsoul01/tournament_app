@@ -33,19 +33,19 @@
                     <li>
                         <strong>Formát skupin:</strong>
                         {% if tournament.group_match_format == 2 %}
-                            Hrajou se 2 sety
+                            2 hrané sety
                         {% elif tournament.group_match_format == 3 %}
-                            Hraje se na 2 vítězné sety
+                            2 vítězné sety
                         {% else %}
-                            Hraje se na {{ tournament.group_match_format }} vítězné sety
+                            {{ tournament.group_match_format }} vítězné sety
                         {% endif %}
                     </li>
                     <li>
                         <strong>Formát playoff:</strong>
                         {% if tournament.playoff_match_format == 3 %}
-                            Hraje se na 2 vítězné sety
+                            2 vítězné sety
                         {% else %}
-                            Hraje se na {{ tournament.playoff_match_format }} vítězné sety
+                            {{ tournament.playoff_match_format }} vítězné sety
                         {% endif %}
                     </li>
                     <li><strong>Útěcha:</strong> {% if tournament.has_consolation %}{{ tournament.consolation_display_name }}{% else %}Nehrála se{% endif %}</li>

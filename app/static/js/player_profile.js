@@ -146,7 +146,7 @@ function initPlayerCharts() {
                 labels: h2hData.labels,
                 datasets: [
                     {
-                        label: h2hData.playerName,
+                        label: h2hData.playerName + ' (Umístění v turnaji)',
                         data: h2hData.playerRanks,
                         borderColor: '#1976d2',
                         backgroundColor: '#1976d2',
@@ -154,11 +154,31 @@ function initPlayerCharts() {
                         tension: 0.1
                     },
                     {
-                        label: h2hData.opponentName,
+                        label: h2hData.playerName + ' (Globální umístění)',
+                        data: h2hData.playerGlobalRanks,
+                        borderColor: '#64b5f6', // Světle modrá
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 3,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: h2hData.opponentName + ' (Umístění v turnaji)',
                         data: h2hData.oppRanks,
                         borderColor: '#d32f2f',
                         backgroundColor: '#d32f2f',
                         borderWidth: 2,
+                        tension: 0.1
+                    },
+                    {
+                        label: h2hData.opponentName + ' (Globální umístění)',
+                        data: h2hData.oppGlobalRanks,
+                        borderColor: '#ef9a9a', // Světle červená
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 3,
+                        fill: false,
                         tension: 0.1
                     }
                 ]
@@ -171,12 +191,12 @@ function initPlayerCharts() {
                         reverse: true,
                         min: 1,
                         suggestedMax: 5,
-                        title: { display: true, text: 'Umístění' },
-                        ticks: { stepSize: 1, precision: 0 }
+                        title: {display: true, text: 'Pozice / Rank'},
+                        ticks: {stepSize: 1, precision: 0}
                     }
                 },
                 plugins: {
-                    title: { display: false }
+                    title: {display: false}
                 }
             }
         });

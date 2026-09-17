@@ -3,24 +3,26 @@
 {% block stats_content %}
     <h2>Historie zápasů</h2>
 
-    <!-- HTMX Vyhledávací formulář -->
+    <!-- Formulář venku pro zachování fokusu v inputu -->
     <form method="GET" action="/stats/matches" style="margin-bottom: 20px;">
         <input type="hidden" name="sort_by" value="{{ sort_by }}">
         <input type="hidden" name="order" value="{{ order }}">
 
-        <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat hráče nebo turnaj..."
+        <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat hráče, fázi nebo turnaj..."
                hx-get="/stats/matches"
                hx-target="#matches-table-container"
-               hx-swap="outerHTML"
+               hx-swap="innerHTML"
                hx-trigger="keyup changed delay:300ms, search"
+               hx-include="[name='sort_by'], [name='order']"
                style="padding: 6px; width: 300px;">
-
-        <a href="/stats/matches" style="margin-left: 10px; color: #1976d2; text-decoration: none;">Zrušit filtr</a>
     </form>
 
     <br>
 
-    {% include "stats/partials/_matches_table.html" %}
+    <!-- Kontejner pro tabulku a tlačítko zrušení filtru -->
+    <div id="matches-table-container">
+        {% include "stats/partials/_matches_table.html" %}
+    </div>
 
     <script src="{{ url_for('static', filename='js/rows_details.js') }}?v=1"></script>
 {% endblock %}

@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from dotenv import load_dotenv
 from flask_migrate import Migrate
-from app.web.routes import main_bp
+from app.web import main_bp
 from app.models.models import db
 
 migrate = Migrate()

@@ -1,11 +1,10 @@
 from app.models.models import Tournament as TournamentModel, Group as GroupModel, Match as MatchModel, Bracket as BracketModel, \
-    Player as PlayerModel, PlayoffStats as PlayoffStatsModel, ConsolationStats as ConsolationStatsModel, \
-    GroupStats as GroupStatsModel
+    Player as PlayerModel, ConsolationStats as ConsolationStatsModel, \
+    GroupStats as GroupStatsModel, PlayoffStats as PlayoffStatsModel
 from app.services.player import PlayerHelper
 from app.services.groupmanager import GroupManager
 from app.services.playoff import Playoff
-import io
-import openpyxl
+from app.services.match import evaluate,toggle_match_progress, unlock_match
 
 
 class WebManager:
@@ -32,6 +31,32 @@ class WebManager:
                 "matches": self._format_matches(group.matches)
             }
         return group_data
+
+    def process_match_action(self, form_data, is_playoff=False, is_consolation=False):
+        """Univerzální zpracování zápasových akcí (toggle, unlock, submit_result)."""
+        match_id = int(form_data.get("match_id", 0))
+        action = form_data.get("action")
+
+        if not match_id or not action:
+            return
+
+        if action == "toggle_progress":
+            toggle_match_progress(match_id)
+        elif action == "edit_match":
+            unlock_match(match_id=match_id)
+        elif action == "submit_result":
+            # Vyhodnocení samotného zápasu (sety)
+            evaluate(
+                match_id=match_id,
+                player_a_games=form_data.getlist("game_a[]"),
+                player_b_games=form_data.getlist("game_b[]")
+            )
+
+            # Dokončení podle typu turnaje (skupina vs playoff)
+            if is_playoff:
+                self.handle_playoff_completion(is_consolation=is_consolation)
+            else:
+                self.group_manager.handle_match_completion(match_id, self.tournament)
 
     def get_minigroup_page_data(self) -> dict:
         """Připraví data pro minitabulku útěchy (consolation_minigroup.html)."""
@@ -135,8 +160,8 @@ class WebManager:
             stage_name = "main"
         return bracket, rank_offset, stage_name
 
-    def generate_results_excel(self) -> io.BytesIO:
-        """Vygeneruje Excel soubor s konečným pořadím turnaje a vrátí ho jako BytesIO stream."""
+    def get_results_data(self) -> list:
+        """Připraví seřazená data s konečným pořadím hráčů pro výsledkovou stránku."""
         players = PlayerModel.query.filter_by(tournament_id=self.tournament_id).all()
         results_data = []
 
@@ -153,59 +178,9 @@ class WebManager:
             if rank is not None:
                 results_data.append((player, rank))
 
-        # Seřadíme podle pořadí vzestupně
+        # Seřadíme podle získaného pořadí vzestupně (1., 2., 3. místo...)
         results_data.sort(key=lambda x: x[1])
-
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Konečné pořadí"
-
-        # Styly
-        header_font = openpyxl.styles.Font(bold=True, color="FFFFFF")
-        header_fill = openpyxl.styles.PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
-        align_center = openpyxl.styles.Alignment(horizontal="center", vertical="center")
-        border_thin = openpyxl.styles.Border(
-            left=openpyxl.styles.Side(style='thin', color='D1D5DB'),
-            right=openpyxl.styles.Side(style='thin', color='D1D5DB'),
-            top=openpyxl.styles.Side(style='thin', color='D1D5DB'),
-            bottom=openpyxl.styles.Side(style='thin', color='D1D5DB')
-        )
-
-        # Nadpis v Excelu
-        ws.merge_cells("A1:B1")
-        ws["A1"] = f"Výsledky turnaje: {self.tournament.name}"
-        ws["A1"].font = openpyxl.styles.Font(size=14, bold=True)
-        ws["A1"].alignment = openpyxl.styles.Alignment(horizontal="center")
-
-        # Hlavička tabulky
-        headers = ["Pořadí", "Hráč"]
-        for col_num, header_title in enumerate(headers, 1):
-            cell = ws.cell(row=3, column=col_num)
-            cell.value = header_title
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = align_center
-            cell.border = border_thin
-
-        # Zápis dat
-        for row_idx, (player, rank) in enumerate(results_data, start=4):
-            c1 = ws.cell(row=row_idx, column=1, value=f"{rank}.")
-            c2 = ws.cell(row=row_idx, column=2, value=player.name)
-
-            c1.alignment = align_center
-            c1.border = border_thin
-            c2.border = border_thin
-
-        # Šířka sloupců
-        for col in ws.columns:
-            max_length = max(len(str(cell.value or '')) for cell in col)
-            col_letter = openpyxl.utils.get_column_letter(col[0].column)
-            ws.column_dimensions[col_letter].width = max(max_length + 5, 15)
-
-        file_stream = io.BytesIO()
-        wb.save(file_stream)
-        file_stream.seek(0)
-        return file_stream
+        return results_data
 
     # ==========================================
     # PRIVÁTNÍ POMOCNÉ METODY PRO FORMÁTOVÁNÍ

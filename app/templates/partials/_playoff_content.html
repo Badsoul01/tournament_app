@@ -1,16 +1,22 @@
-HTML
 {% macro render_match(match, action_url) %}
     {% if match.is_real_match %}
         {% if match.is_finished %}
             <!-- STAV 0: Dohráno -->
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <div>
-                    <strong>{{ match.player_a_name }}</strong> <small style="color: #888;">({{match.player_a_seed }})</small>
+                    <!-- Hráč A (obarvený, pokud vyhrál) -->
+                    <strong style="color: {% if match.winner_name and match.player_a_name == match.winner_name %}#2e7d32{% else %}inherit{% endif %};">
+                        {{ match.player_a_name }}
+                    </strong>
+                    <small style="color: #888;">({{match.player_a_seed }})</small>
+
                     <div style="font-size: 0.85em; color: #666; margin: 2px 0;">vs</div>
-                    <strong>{{ match.player_b_name }}</strong> <small style="color: #888;">({{match.player_b_seed }})</small>
-                    {% if match.winner_name %}
-                        <div style="margin-top: 5px; font-size: 0.9em;">Vítěz: <strong>{{ match.winner_name }}</strong></div>
-                    {% endif %}
+
+                    <!-- Hráč B (obarvený, pokud vyhrál) -->
+                    <strong style="color: {% if match.winner_name and match.player_b_name == match.winner_name %}#2e7d32{% else %}inherit{% endif %};">
+                        {{ match.player_b_name }}
+                    </strong>
+                    <small style="color: #888;">({{match.player_b_seed }})</small>
                 </div>
 
                 {% if match.player_a_name != "BYE" and match.player_b_name != "BYE" %}

@@ -38,7 +38,7 @@
                            placeholder="Jména hráčů (oddělena čárkou)"
                            autocomplete="off">
                     <datalist id="global-players-list">
-                        {% for name in global_player_names %}
+                        {% for name in all_global_players %}
                             <option value="{{ name }}">
                         {% endfor %}
                     </datalist>
