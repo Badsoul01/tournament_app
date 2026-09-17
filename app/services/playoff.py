@@ -336,8 +336,14 @@ class Playoff:
                                 )
 
     def get_sorted_placement_rounds(self):
-        return sorted(self.placement_rounds.items(), key=lambda x: (x[1]["ranks"][1]-x[1]["ranks"][0], x[1]["ranks"][0]),
-                      reverse=True)
+        return sorted(
+            self.placement_rounds.items(),
+            key=lambda x: (
+                x[1]["source_main_round"],                  # 1. Podle kola v hlavním pavouku (zleva doprava)
+                -(x[1]["ranks"][1] - x[1]["ranks"][0]),     # 2. Od velkých pavouků po konkrétní zápasy
+                -x[1]["ranks"][0]                           # 3. Podle výše ranku
+            )
+        )
 
 
     def _pregenerate_sub_brackets_recursive(self,low: int, high: int,match_count: int,source_main_round: int) -> None:
@@ -518,12 +524,11 @@ class Playoff:
 
             p_data["rounds"][round_name] = round_ui
 
-
-
-        # Zpracování dohrávek (placement rounds)
-        for bracket_name, data in self.placement_rounds.items():
+        # Zpracování dohrávek (placement rounds) - SEŘAZENO
+        for bracket_name, data in self.get_sorted_placement_rounds():
             placement_ui = {"name": bracket_name, "matches": []}
-            for item in data["matches"]:
+            low, high = data["ranks"]
+            for idx, item in enumerate(data["matches"]):
                 if isinstance(item, int):
                     m = MatchModel.query.get(item)
                     placement_ui["matches"].append({
@@ -540,22 +545,36 @@ class Playoff:
                     })
                 else:
                     slot_a, slot_b = item
+                    slot_a_seed, slot_b_seed = "", ""
+
+                    # Zpracování Slotu A
                     if isinstance(slot_a, int):
                         p = PlayerModel.query.get(slot_a)
                         slot_a = p.name if p else "TBD"
+                        slot_a_seed = p.group_seed if p else ""
                     elif slot_a is None or slot_a == "None":
                         slot_a = "BYE"
+                    elif slot_a == "Čeká se..":
+                        slot_a = self._get_previous_placement_match_text(bracket_name, low, high, idx,
+                                                                         is_slot_b=False)
 
+                    # Zpracování Slotu B
                     if isinstance(slot_b, int):
                         p = PlayerModel.query.get(slot_b)
                         slot_b = p.name if p else "TBD"
+                        slot_b_seed = p.group_seed if p else ""
                     elif slot_b is None or slot_b == "None":
                         slot_b = "BYE"
+                    elif slot_b == "Čeká se..":
+                        slot_b = self._get_previous_placement_match_text(bracket_name, low, high, idx,
+                                                                         is_slot_b=True)
 
                     placement_ui["matches"].append({
                         "is_real_match": False,
                         "slot_a": slot_a,
-                        "slot_b": slot_b
+                        "slot_a_seed": slot_a_seed,
+                        "slot_b": slot_b,
+                        "slot_b_seed": slot_b_seed
                     })
             p_data["placement_rounds"].append(placement_ui)
 
@@ -567,23 +586,78 @@ class Playoff:
         return p_data
 
 
-    def _get_previous_match_winner_text(self,round_num: int,m_idx: int, is_slot_b: bool = False) -> str:
+    def _get_previous_match_winner_text(self, round_num: int, m_idx: int, is_slot_b: bool = False) -> str:
         """
-        Podívá se do předchozího kola a zjistí, kdo proti sobě hraje.
-        Vrací text např. 'Vítěž (Hřáč A - Hráč B' nebo 'Čeká se..'
+        Podívá se do předchozího kola v hlavním pavouku a zjistí, kdo proti sobě hraje.
         """
-        prev_r = round_num- 1
+        prev_r = round_num - 1
         if prev_r in self.rounds:
-            # Výpočet indexu zápasu v předchozím kole
             prev_r_idx = (m_idx * 2) + (1 if is_slot_b else 0)
 
             if prev_r_idx < len(self.rounds[prev_r]):
                 prev_item = self.rounds[prev_r][prev_r_idx]
-                if isinstance(prev_item,int):
-                   prev_m = MatchModel.query.get(prev_item)
-                   if prev_m:
-                       pa_name = prev_m.player_a.name if prev_m.player_a else "BYE"
-                       pb_name = prev_m.player_b.name if prev_m.player_b else "BYE"
-                       return f"Vítěz ({pa_name} - {pb_name})"
+                if isinstance(prev_item, int):
+                    prev_m = MatchModel.query.get(prev_item)
+                    if prev_m:
+                        pa_name = prev_m.player_a.name if prev_m.player_a else "BYE"
+                        pb_name = prev_m.player_b.name if prev_m.player_b else "BYE"
+
+                        if pa_name == "BYE" and pb_name == "BYE":
+                            return "BYE"
+
+                        return f"Vítěz ({pa_name} - {pb_name})"
+
+        return "Čeká se.."
+
+    def _find_parent_placement_bracket(self, target_low: int, target_high: int):
+        """Najde rodičovský pavouk dohrávek pro daný pod-pavouk."""
+        best_parent_name = None
+        min_span = float('inf')
+        for b_name, b_data in self.placement_rounds.items():
+            p_low, p_high = b_data["ranks"]
+            span = p_high - p_low
+            if p_low <= target_low and p_high >= target_high and span > (target_high - target_low):
+                if span < min_span:
+                    min_span = span
+                    best_parent_name = b_name
+        return best_parent_name
+
+    def _get_previous_placement_match_text(self, bracket_name: str, low: int, high: int, m_idx: int,
+                                           is_slot_b: bool = False) -> str:
+        """
+        Zjistí předchozí zápas v dohrávkách, ze kterého vzejde postupující
+        (vítěz pro horní polovinu, poražený pro dolní polovinu) pro daný slot.
+        """
+        parent_name = self._find_parent_placement_bracket(low, high)
+        if not parent_name:
+            return "Čeká se.."
+
+        parent_data = self.placement_rounds.get(parent_name)
+        if not parent_data:
+            return "Čeká se.."
+
+        p_low, p_high = parent_data["ranks"]
+        parent_mid = (p_low + p_high) // 2
+
+        # Horní polovina pod-pavouka bere VÍTĚZE, dolní polovina bere PORAŽENÉHO
+        is_upper_half = high <= parent_mid
+        prefix = "Vítěz" if is_upper_half else "Poražený"
+
+        parent_m_idx = (m_idx * 2) + (1 if is_slot_b else 0)
+        matches_list = parent_data["matches"]
+
+        if parent_m_idx < len(matches_list):
+            parent_item = matches_list[parent_m_idx]
+            if isinstance(parent_item, int):
+                parent_m = MatchModel.query.get(parent_item)
+                if parent_m:
+                    pa_name = parent_m.player_a.name if parent_m.player_a else "BYE"
+                    pb_name = parent_m.player_b.name if parent_m.player_b else "BYE"
+
+                    # Pokud jsou oba BYE, nebudeme vypisovat Vítěz (BYE - BYE)
+                    if pa_name == "BYE" and pb_name == "BYE":
+                        return "BYE"
+
+                    return f"{prefix} ({pa_name} - {pb_name})"
 
         return "Čeká se.."

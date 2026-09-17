@@ -1,13 +1,29 @@
 <!-- ZÁLOŽKA: TURNAJE -->
 <h3>Historie odehraných turnajů</h3>
 
-<form hx-get="" hx-target="#tab-content" hx-push-url="true" style="margin-bottom: 15px;">
+<form style="margin-bottom: 15px;">
     <input type="hidden" name="tab" value="turnaje">
     <input type="hidden" name="sort_by" value="{{ tab_sort_by }}">
     <input type="hidden" name="order" value="{{ tab_order }}">
-    <input type="text" name="q" value="{{ tab_q }}" placeholder="🔍 Hledat turnaj..." style="padding: 5px; width: 250px;">
-    <button type="submit" style="padding: 5px 15px;">Hledat</button>
-    <a href="?tab=turnaje" hx-get="?tab=turnaje" hx-target="#tab-content" hx-push-url="true" style="margin-left: 10px; color: #1976d2; text-decoration: none;">Zrušit filtr</a>
+
+    <input type="text"
+           name="q"
+           value="{{ tab_q }}"
+           placeholder="🔍 Hledat turnaj nebo datum (např. 2026)..."
+           style="padding: 5px; width: 300px;"
+           hx-get="/stats/player/{{ player.id }}"
+           hx-trigger="keyup changed delay:300ms, search"
+           hx-target="#tab-content"
+           hx-push-url="true"
+           hx-include="[name='tab'], [name='sort_by'], [name='order']">
+
+    {% if tab_q %}
+        <a href="?tab=turnaje"
+           hx-get="?tab=turnaje"
+           hx-target="#tab-content"
+           hx-push-url="true"
+           style="margin-left: 10px; color: #1976d2; text-decoration: none;">Zrušit filtr</a>
+    {% endif %}
 </form>
 
 {% if tournaments_data %}

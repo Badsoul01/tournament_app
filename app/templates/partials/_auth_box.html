@@ -1,31 +1,43 @@
-<!--PŘIHLAŠOVACÍ OKNO -->
-<fieldset style="margin-bottom: 15px;">
-    <legend>Organizátor</legend>
+<!-- PŘIHLAŠOVACÍ TLAČÍTKO / MENU -->
+<div style="margin-bottom: 15px;">
     {% if session.get('organizer_id') %}
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span>Přihlášen jako: <strong>{{ session.get('organizer_name') }}</strong></span>
+        <!-- Stav: Přihlášen -->
+        <div style="display: flex; justify-content: space-between; align-items: center; background: #f9f9f9; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; max-width: 400px;">
+            <span>👤 Organizátor: <strong>{{ session.get('organizer_name') }}</strong></span>
             <form action="/logout" method="POST" style="margin: 0;">
-                <button type="submit">Odhlásit se</button>
+                <button type="submit" style="padding: 4px 10px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px;">Odhlásit se</button>
             </form>
         </div>
     {% else %}
-        <!-- Formulář pomocí HTMX. Cílíme na #auth-message pro zobrazení chyby -->
-        <form hx-post="/auth" hx-target="#auth-message" hx-swap="innerHTML" style="margin: 0;">
+        <!-- Stav: Odhlášen - Tlačítko pro zobrazení formuláře -->
+        <div id="login-trigger-container">
+            <button type="button"
+                    onclick="var box = document.getElementById('login-form-popup'); box.style.display = box.style.display === 'none' ? 'block' : 'none';"
+                    style="padding: 6px 14px; cursor: pointer; background: #f1f1f1; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; color: #333;">
+                🔑 Přihlásit se / Registrovat
+            </button>
+        </div>
 
-            <!-- NOVĚ: Předáme ID turnaje, pokud na stránce existuje -->
-            {% if tournament %}
-                <input type="hidden" name="tournament_id" value="{{ tournament.id }}">
-            {% endif %}
+        <!-- Skrytý formulář, který se rozbalí po kliknutí na tlačítko -->
+        <div id="login-form-popup" style="display: none; margin-top: 10px; padding: 12px; background: #fff; border: 1px solid #ccc; border-radius: 4px; max-width: 350px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <form hx-post="/auth" hx-target="#auth-message" hx-swap="innerHTML" style="margin: 0;">
 
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="text" name="username" placeholder="Jméno" required style="flex: 1;">
-                <input type="password" name="password" placeholder="Heslo" required style="flex: 1;">
-                <button type="submit" style="white-space: nowrap;">Vstoupit</button>
-            </div>
-            <div id="auth-message" style="color: red; margin-top: 5px; font-weight: bold; font-size: 0.9em;"></div>
-            <small style="color: #666; display: block; margin-top: 5px;">
-                Pokud zadané jméno neexistuje, automaticky se vytvoří nový účet.
-            </small>
-        </form>
+                {% if tournament %}
+                    <input type="hidden" name="tournament_id" value="{{ tournament.id }}">
+                {% endif %}
+
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <input type="text" name="username" placeholder="Jméno (např. daniel)" required style="padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
+                    <input type="password" name="password" placeholder="Heslo" required style="padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
+                    <button type="submit" style="padding: 6px; cursor: pointer; background: #1976d2; color: white; border: none; border-radius: 3px; font-weight: bold;">Vstoupit</button>
+                </div>
+
+                <div id="auth-message" style="color: red; margin-top: 5px; font-weight: bold; font-size: 0.85em;"></div>
+
+                <small style="color: #666; display: block; margin-top: 8px; font-size: 0.8em;">
+                    Nezadané jméno vytvoří nový účet automaticky.
+                </small>
+            </form>
+        </div>
     {% endif %}
-</fieldset>
+</div>

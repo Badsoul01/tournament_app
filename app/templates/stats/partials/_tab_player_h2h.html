@@ -3,17 +3,22 @@
 <div style="background-color: #f9f9f9; padding: 15px; border: 1px solid #e0e0e0; margin-bottom: 20px; max-width: 800px;">
     <p style="margin: 0 0 10px 0; color: #555;">Vyberte soupeře pro porovnání vzájemných zápasů a celkové bilance.</p>
 
-    <!-- Formulář pro H2H můžeme taky hnát přes HTMX do #tab-content -->
-   <form hx-get="/stats/player/{{ player.id }}" hx-target="#tab-content" hx-push-url="true">
-    <input type="hidden" name="tab" value="h2h">
+    <!-- Formulář bez tlačítka, spouští se automaticky změnou v selectu -->
+    <form>
+        <input type="hidden" name="tab" value="h2h">
 
-    <select name="opponent_id" style="width: 60%; padding: 8px;">
-        <option value="">Vyberte soupeře...</option>
-        {% for opp in opponents_list %}
-            <option value="{{ opp.id }}" {% if h2h_data and h2h_data.opponent.id == opp.id %}selected{% endif %}>{{ opp.name }}</option>
-        {% endfor %}
-    </select>
-    <button type="submit" style="padding: 8px 15px; font-weight: bold;">Porovnat</button>
+        <select name="opponent_id"
+                style="width: 80%; padding: 8px;"
+                hx-get="/stats/player/{{ player.id }}"
+                hx-target="#tab-content"
+                hx-push-url="true"
+                hx-include="[name='tab']"
+                hx-trigger="change">
+            <option value="">Vyberte soupeře...</option>
+            {% for opp in opponents_list %}
+                <option value="{{ opp.id }}" {% if h2h_data and h2h_data.opponent.id == opp.id %}selected{% endif %}>{{ opp.name }}</option>
+            {% endfor %}
+        </select>
     </form>
 </div>
 
@@ -51,10 +56,12 @@
             <script>
                 window.h2hChartData = {
                     labels: JSON.parse('{{ h2h_data.chart_labels | tojson }}'),
-                    playerRanks: JSON.parse('{{ h2h_data.player_ranks | tojson }}'),
-                    oppRanks: JSON.parse('{{ h2h_data.opp_ranks | tojson }}'),
                     playerName: '{{ player.name }}',
-                    opponentName: '{{ h2h_data.opponent.name }}'
+                    playerRanks: JSON.parse('{{ h2h_data.player_ranks | tojson }}'),
+                    playerGlobalRanks: JSON.parse('{{ h2h_data.player_global_ranks | tojson }}'),
+                    opponentName: '{{ h2h_data.opponent.name }}',
+                    oppRanks: JSON.parse('{{ h2h_data.opp_ranks | tojson }}'),
+                    oppGlobalRanks: JSON.parse('{{ h2h_data.opp_global_ranks | tojson }}')
                 };
             </script>
         {% endif %}
