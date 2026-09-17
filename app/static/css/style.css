@@ -1,0 +1,661 @@
+/* ==========================================
+   1. BAREVNÉ TÉMA & GLOBÁLNÍ ZÁKLADY
+   ========================================== */
+:root {
+    --bg-main: #0a0d14;       /* Hluboká temná černomodrá */
+    --bg-card: #131a26;       /* Temně modrá pro karty a tabulky */
+    --text-main: #e2e8f0;     /* Světlá stříbřitě-krémová pro text */
+    --text-muted: #8a99ad;    /* Tlumená modro-šedá pro detaily */
+    --border-color: #22304a;  /* Temný modrý okraj */
+
+    --accent-silver: #cbd5e1; /* Zářivá, mrazivě stříbrná */
+    --accent-silver-glow: #f8fafc; /* Světlejší stříbrná pro hover */
+
+    --winner-color: #fbbf24;      /* Zlatavá pro výhry a body */
+    --danger-color: #dc2626;      /* Jemnější, tlumená korálově červená pro prohry */
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    font-family: "Georgia", "Times New Roman", serif;
+    padding: 20px 30px;
+    line-height: 1.4;
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: center;
+
+    /* Nově pro vertikální centrování */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+h1, h3 {
+    color: var(--text-main);
+    text-align: center;
+}
+
+/* Styl pro položky uvnitř rozbalovací nabídky */
+select option {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    padding: 10px;
+}
+
+/* Vynucená stříbrná pro odkazy */
+a, a:link, a:visited {
+    color: var(--accent-silver) !important;
+    text-decoration: none;
+}
+
+a:hover, a:active {
+    color: var(--accent-silver-glow) !important;
+    text-decoration: underline;
+}
+
+/* ==========================================
+   2. STYLY PRO INDEX (Domovskou stránku)
+   ========================================== */
+.tournament-box {
+    background-color: #1c2638 !important;  /* Světlejší modro-šedá jako u zápasů */
+    border: 1px solid #334563 !important;  /* Světlejší rámeček */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    padding: 15px !important;
+    margin-bottom: 15px !important;
+    border-radius: 6px !important;
+    text-align: left;
+    transition: border-color 0.2s, background-color 0.2s, transform 0.2s;
+}
+
+/* Interaktivní efekt při najetí myší na turnaj */
+.tournament-box:hover {
+    border-color: var(--accent-silver) !important;
+    background-color: #223046 !important;
+    transform: translateY(-2px); /* Jemně se nadzvedne */
+}
+
+.tournament-box a {
+    color: var(--accent-silver);
+    font-size: 1.15em;
+    font-weight: bold;
+}
+
+.tournament-info {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+/* ==========================================
+   3. STYLY PRO NASTAVENÍ A NAVIGACI
+   ========================================== */
+nav {
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+nav a {
+    margin-right: 15px;
+    text-decoration: none;
+    color: var(--accent-silver);
+}
+
+nav a:hover {
+    color: var(--accent-silver-glow);
+    text-decoration: underline;
+}
+
+.group-count {
+    font-size: 0.85em;
+    font-weight: normal;
+    color: var(--text-muted);
+    margin-left: 5px;
+}
+
+.stats-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    background-color: var(--bg-card);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 25px;
+}
+
+.stat-item {
+    font-size: 16px;
+}
+
+.stat-label {
+    color: var(--text-muted);
+}
+
+.stat-value {
+    font-weight: bold;
+    color: var(--text-main);
+    margin-left: 5px;
+}
+
+.responsive-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+@media (max-width: 768px) {
+    .responsive-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+footer {
+    margin-top: 20px;
+    padding: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* ==========================================
+   4. FORMULÁŘE, FIELDSETY A INPUTY
+   ========================================== */
+fieldset {
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-card);
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+legend {
+    color: var(--accent-silver);
+    font-weight: bold;
+    padding: 0 8px;
+}
+
+label {
+    color: var(--text-main);
+    display: inline-block;
+    margin-bottom: 5px;
+}
+
+input[type="text"],
+input[type="url"],
+input[type="password"],
+input:not([type]),
+select {
+    background-color: var(--bg-main) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.95em;
+    margin-bottom: 10px;
+}
+
+input[type="text"]:focus,
+input[type="url"]:focus,
+input[type="password"]:focus,
+input:not([type]):focus,
+select:focus {
+    background-color: var(--bg-main) !important;
+    color: var(--text-main) !important;
+    border-color: var(--accent-silver) !important;
+    outline: none !important;
+    box-shadow: 0 0 5px rgba(203, 213, 225, 0.2);
+}
+
+input::placeholder {
+    color: var(--text-muted) !important;
+}
+
+button {
+    background-color: var(--bg-card);
+    color: var(--accent-silver);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+button:hover:not(:disabled) {
+    background-color: var(--border-color);
+    border-color: var(--accent-silver);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ==========================================
+   5. AUTH BOX (PŘIHLÁŠENÍ)
+   ========================================== */
+.auth-wrapper {
+    position: relative;
+    display: inline-block;
+    text-align: left;
+}
+
+.auth-box-logged {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-card);
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-main);
+    font-size: 0.9em;
+}
+
+.auth-trigger-btn {
+    background-color: var(--bg-card) !important;
+    color: var(--accent-silver) !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 6px 12px;
+    cursor: pointer;
+    border-radius: 6px;
+    font-weight: bold;
+    font-family: inherit;
+    font-size: 0.9em;
+    white-space: nowrap;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.auth-trigger-btn:hover {
+    border-color: var(--accent-silver) !important;
+    background-color: var(--border-color) !important;
+}
+
+.auth-popup {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 5px;
+    padding: 15px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    width: 260px;
+    box-sizing: border-box;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+    z-index: 100;
+}
+
+.btn-delete-group {
+    background-color: #2a1515 !important;
+    border: 1px solid #662222 !important;
+    color: #ff8080 !important;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-delete-group:hover {
+    background-color: #421c1c !important;
+    border-color: #ff4d4d !important;
+}
+
+/* ==========================================
+   6. EFEKT STARÉHO TMAVÉHO PERGAMENU
+   ========================================== */
+.scroll-parchment {
+    position: relative;
+    background-color: #121824;
+
+    /* --- TADY JE ÚPRAVA PRO ŠÍŘKU PROTI NUDLI --- */
+    width: 900px;           /* Ideální výchozí šířka */
+    max-width: 100%;        /* Zajišťuje responzivitu, aby neutekl z obrazovky */
+    min-width: 720px;       /* Tvoje "min X" – pod tuto hranici se nikdy nezúží! */
+
+    /* Zbytek tvých stávajících vlastností: */
+    background-image:
+        radial-gradient(circle at 50% 25%, rgba(35, 48, 70, 0.35) 0%, rgba(13, 18, 28, 0.9) 90%),
+        linear-gradient(to right, rgba(0, 0, 0, 0.35) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.35) 100%);
+    background-position: center;
+    background-repeat: no-repeat;
+
+    border-left: 4px solid #22304a;
+    border-right: 4px solid #22304a;
+
+    padding: 70px 80px;
+    margin: auto auto;      /* Drží vertikální i horizontální vycentrování */
+    box-sizing: border-box;
+
+    box-shadow:
+        0 25px 50px rgba(0, 0, 0, 0.9),
+        inset 8px 0 20px rgba(0, 0, 0, 0.4),
+        inset -8px 0 20px rgba(0, 0, 0, 0.4);
+    border-radius: 4px;
+}
+
+/* Horní a dolní CSS ruličky svitku (zůstanou vždy perfektně tvarované) */
+.scroll-parchment::before,
+.scroll-parchment::after {
+    content: '';
+    position: absolute;
+    left: -26px;
+    right: -26px;
+    height: 26px;
+    background: linear-gradient(to bottom, #64748b, #334155 35%, #1e293b 70%, #05070a 100%);
+    border-radius: 13px;
+    border: 1px solid #475569;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.9), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+    z-index: 2;
+}
+
+.scroll-parchment::before {
+    top: -13px;
+}
+
+.scroll-parchment::after {
+    bottom: -13px;
+}
+
+/* ==========================================
+   7. PAVOUCI, ZÁPASY A ROZVRŽENÍ
+   ========================================== */
+.bracket {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    padding-bottom: 15px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.bracket .round {
+    flex: 0 0 280px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+.bracket .round h4 {
+    color: var(--accent-silver);
+    margin-top: 0;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 8px;
+    text-align: center;
+}
+
+.match {
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    background: var(--bg-card);
+}
+
+.match-input {
+    width: 70px !important;
+    background-color: var(--bg-main) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+    padding: 4px !important;
+    text-align: center;
+    font-size: 0.95em;
+}
+
+.set-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.placement-container {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    overflow-x: auto;
+    align-items: flex-start;
+}
+
+.winner-alert {
+    background-color: #162235;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--winner-color);
+    font-weight: bold;
+}
+
+/* ==========================================
+   8. TABULKY A SKUPINY
+   ========================================== */
+.tournament-table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 20px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.tournament-table th, .tournament-table td {
+    border: 1px solid var(--border-color);
+    padding: 8px 10px;
+    text-align: left;
+    color: var(--text-main);
+}
+
+.tournament-table th {
+    background-color: var(--border-color);
+    color: var(--accent-silver);
+}
+
+.group-layout-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.group-layout-table td {
+    vertical-align: top;
+}
+
+.group-left-col {
+    padding-right: 15px;
+    width: 50%;
+}
+
+.group-right-col {
+    width: 50%;
+    padding-left: 15px;
+}
+
+/* SVĚTLEJŠÍ ZÁKLAD PRO TABULKY SKUPIN */
+.group-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    background-color: #1c2638 !important;  /* Světlejší modro-šedá */
+    border: 1px solid #334563 !important;  /* Světlejší rámeček */
+    border-radius: 6px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+.group-table th, .group-table td {
+    border: 1px solid #334563 !important;
+    padding: 8px;
+    text-align: left;
+    color: var(--text-main);
+}
+
+.group-table thead tr {
+    background-color: #2a3a54 !important;
+    border-bottom: 2px solid #334563 !important;
+}
+
+.group-table th {
+    color: var(--accent-silver);
+}
+
+.group-table tbody tr {
+    transition: background-color 0.2s;
+}
+
+.group-table tbody tr:hover {
+    background-color: #1a2333 !important;
+}
+
+/* TEMNĚJŠÍ BARVA POSTUPUJÍCÍCH ŘÁDKŮ */
+table.group-table tbody tr.qualifying-row td {
+    background-color: #081f16 !important; /* Hluboká temně zelená, skoro černá */
+    color: var(--text-main) !important;
+}
+
+table.group-table tbody tr.qualifying-row:hover td {
+    background-color: #0e3022 !important; /* Jemné zesvětlení při najetí myší */
+}
+
+/* SVĚTLEJŠÍ POZADÍ PRO KARTIČKY ZÁPASŮ NAPRAVO */
+.match-card {
+    background-color: #1c2638 !important;
+    border: 1px solid #334563 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.matches-table {
+    width: 100%;
+    font-size: 0.9em;
+    border-collapse: collapse;
+}
+
+.matches-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.match-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.match-in-progress-border {
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+}
+
+.match-form-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.match-sets-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+/* ==========================================
+   9. VNĚJŠÍ OBAL SKUPINY (Rozbalovací box)
+   ========================================== */
+details {
+    background-color: transparent !important; /* Zprůhledníme, aby prosvítal pergamen */
+    border: 1px solid #334563 !important;     /* Rámeček ladící s vnitřními tabulkami */
+    padding: 20px !important;
+    border-radius: 8px !important;
+    margin-bottom: 25px !important;
+    box-shadow: none !important;
+}
+
+details summary {
+    cursor: pointer;
+    color: var(--text-main) !important;
+    font-size: 1.15em !important;
+    font-weight: bold;
+    margin-bottom: 15px !important;
+    padding-bottom: 10px !important;
+    border-bottom: 1px solid rgba(51, 69, 99, 0.5) !important; /* Elegantní linka oddělující nadpis */
+    transition: color 0.2s;
+}
+
+details summary:hover {
+    color: var(--accent-silver-glow) !important;
+}
+
+/* ==========================================
+   9. VNĚJŠÍ OBAL KOL V PAVOUKU (Průhlednost)
+   ========================================== */
+.bracket .round {
+    background: transparent !important;   /* Zrušíme tmavou krabici */
+    border: none !important;              /* Zrušíme vnější rámeček sloupce */
+    box-shadow: none !important;          /* Zrušíme stín sloupce */
+    padding: 0 10px !important;           /* Necháme jen lehké odsazení mezi sloupci */
+}
+
+/* Sladění nadpisu kola (např. "1. kolo") se zbytkem designu */
+.bracket .round h4 {
+    color: var(--text-main) !important;
+    font-size: 1.15em !important;
+    border-bottom: 1px solid rgba(51, 69, 99, 0.5) !important; /* Jemná linka jako u skupin */
+    padding-bottom: 10px !important;
+    margin-bottom: 20px !important;
+}
+
+/* ==========================================
+   10. ZVÝRAZNĚNÍ AKTIVNÍHO ZÁPASU (Otevřená karta)
+   ========================================== */
+.match-card.active-match {
+    border-color: var(--accent-silver) !important;       /* Stříbrný rámeček */
+    background-color: #223046 !important;                /* O kousek světlejší pozadí */
+    box-shadow: 0 0 12px rgba(203, 213, 225, 0.15) !important; /* Jemná stříbrná záře */
+}
+
+/* ==========================================
+   11. HLAVNÍ MENU NA DOMOVSKÉ STRÁNCE
+   ========================================== */
+.home-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;              /* Menší mezera mezi tlačítky */
+    margin-bottom: 30px;
+}
+
+.home-menu-link {
+    display: block;
+    width: 200px;           /* Zmenšená šířka (z původních 260px) */
+    text-align: center;
+    background-color: #1c2638 !important;
+    border: 1px solid #334563 !important;
+    color: var(--accent-silver) !important;
+    padding: 8px 15px;      /* Jemnější vnitřní odsazení */
+    border-radius: 6px;
+    font-size: 0.95em;      /* Zmenšené písmo */
+    font-weight: bold;
+    text-decoration: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: all 0.2s ease;
+}
+
+.home-menu-link:hover {
+    background-color: #223046 !important;
+    border-color: var(--accent-silver) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
+}

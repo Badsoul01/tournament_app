@@ -1,5 +1,5 @@
 <!-- ZÁLOŽKA: TURNAJE -->
-<h3>Historie odehraných turnajů</h3>
+<h3 style="color: var(--accent-silver);">Historie odehraných turnajů</h3>
 
 <form style="margin-bottom: 15px;">
     <input type="hidden" name="tab" value="turnaje">
@@ -10,7 +10,7 @@
            name="q"
            value="{{ tab_q }}"
            placeholder="🔍 Hledat turnaj nebo datum (např. 2026)..."
-           style="padding: 5px; width: 300px;"
+           style="padding: 6px 10px; width: 300px;"
            hx-get="/stats/player/{{ player.id }}"
            hx-trigger="keyup changed delay:300ms, search"
            hx-target="#tab-content"
@@ -22,55 +22,57 @@
            hx-get="?tab=turnaje"
            hx-target="#tab-content"
            hx-push-url="true"
-           style="margin-left: 10px; color: #1976d2; text-decoration: none;">Zrušit filtr</a>
+           style="margin-left: 10px; font-weight: bold;">Zrušit filtr</a>
     {% endif %}
 </form>
 
 {% if tournaments_data %}
-    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+    <table style="width: 100%; border-collapse: collapse; background-color: var(--bg-main); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
         <thead>
-            <tr style="background-color: #f1f1f1; border-bottom: 2px solid #ddd;">
-                <th style="padding: 10px; border: 1px solid #ddd;">
+            <tr style="background-color: var(--border-color); border-bottom: 2px solid var(--border-color);">
+                <th style="padding: 10px;">
                     <a href="?tab=turnaje&q={{ tab_q }}&sort_by=date&order={{ 'desc' if tab_sort_by == 'date' and tab_order == 'asc' else 'asc' }}"
                        hx-get="?tab=turnaje&q={{ tab_q }}&sort_by=date&order={{ 'desc' if tab_sort_by == 'date' and tab_order == 'asc' else 'asc' }}"
-                       hx-target="#tab-content" hx-push-url="true" style="color: inherit; text-decoration: none;">Datum</a>
+                       hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Datum</a>
                     {% if tab_sort_by == 'date' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="padding: 10px; border: 1px solid #ddd;">
+                <th style="padding: 10px;">
                     <a href="?tab=turnaje&q={{ tab_q }}&sort_by=name&order={{ 'desc' if tab_sort_by == 'name' and tab_order == 'asc' else 'asc' }}"
                        hx-get="?tab=turnaje&q={{ tab_q }}&sort_by=name&order={{ 'desc' if tab_sort_by == 'name' and tab_order == 'asc' else 'asc' }}"
-                       hx-target="#tab-content" hx-push-url="true" style="color: inherit; text-decoration: none;">Název turnaje</a>
+                       hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Název turnaje</a>
                     {% if tab_sort_by == 'name' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="padding: 10px; border: 1px solid #ddd;">
+                <th style="padding: 10px;">
                     <a href="?tab=turnaje&q={{ tab_q }}&sort_by=rank&order={{ 'desc' if tab_sort_by == 'rank' and tab_order == 'asc' else 'asc' }}"
                        hx-get="?tab=turnaje&q={{ tab_q }}&sort_by=rank&order={{ 'desc' if tab_sort_by == 'rank' and tab_order == 'asc' else 'asc' }}"
-                       hx-target="#tab-content" hx-push-url="true" style="color: inherit; text-decoration: none;">Konečné umístění</a>
+                       hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Konečné umístění</a>
                     {% if tab_sort_by == 'rank' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="padding: 10px; border: 1px solid #ddd;">
+                <th style="padding: 10px;">
                     <a href="?tab=turnaje&q={{ tab_q }}&sort_by=points&order={{ 'desc' if tab_sort_by == 'points' and tab_order == 'asc' else 'asc' }}"
                        hx-get="?tab=turnaje&q={{ tab_q }}&sort_by=points&order={{ 'desc' if tab_sort_by == 'points' and tab_order == 'asc' else 'asc' }}"
-                       hx-target="#tab-content" hx-push-url="true" style="color: inherit; text-decoration: none;">Získané body</a>
+                       hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Získané body</a>
                     {% if tab_sort_by == 'points' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Akce</th>
+                <th style="padding: 10px; text-align: center;">Akce</th>
             </tr>
         </thead>
         <tbody>
             {% for t in tournaments_data %}
-                <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding: 10px; border: 1px solid #ddd;">{{ t.tournament_date.strftime('%d.%m.%Y') if t.tournament_date else '-' }}</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>{{ t.tournament_name }}</strong></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{{ t.rank }}</td>
-                    <td style="padding: 10px; border: 1px solid #ddd; color: #2e7d32; font-weight: bold;">+{{ t.points }} b.</td>
-                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
-                        <a href="/stats/tournament/{{ t.tournament_id }}/results?from=player&player_id={{ player.id }}" style="text-decoration: none; color: #1976d2; font-size: 0.9em;">Detail turnaje →</a>
+                <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;"
+                    onmouseover="this.style.backgroundColor='#1a2333'"
+                    onmouseout="this.style.backgroundColor='transparent'">
+                    <td style="padding: 10px; color: var(--text-muted);">{{ t.tournament_date.strftime('%d.%m.%Y') if t.tournament_date else '-' }}</td>
+                    <td style="padding: 10px;"><strong style="color: var(--text-main);">{{ t.tournament_name }}</strong></td>
+                    <td style="padding: 10px; color: var(--text-main);">{{ t.rank }}</td>
+                    <td style="padding: 10px; color: var(--winner-color); font-weight: bold;">+{{ t.points }} b.</td>
+                    <td style="padding: 10px; text-align: center;">
+                        <a href="/stats/tournament/{{ t.tournament_id }}/results?from=player&player_id={{ player.id }}" style="font-size: 0.9em; font-weight: bold;">Detail turnaje →</a>
                     </td>
                 </tr>
             {% endfor %}
         </tbody>
     </table>
 {% else %}
-    <p style="color: #888;">Hráč se zatím zúčastnil pouze testovacích nebo žádných dokončených turnajů.</p>
+    <p style="color: var(--text-muted); font-style: italic;">Hráč se zatím zúčastnil pouze testovacích nebo žádných dokončených turnajů.</p>
 {% endif %}

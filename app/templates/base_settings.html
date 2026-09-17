@@ -4,78 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nastavení turnaje</title>
-    <style>
-        h1 {
-            text-align: center;
-        }
-        body { font-family: sans-serif;
-            padding: 20px;
-            line-height: 1.4;
-        }
-        nav { margin-bottom: 20px;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 10px;
-            text-align: center;
-        }
-        nav a { margin-right: 15px;
-            text-decoration: none;
-            color: #333;
-        }
-        .group-count {
-            font-size: 0.85em;      /* Zmenší písmo jen trochu (na 85 % velikosti okolního textu) */
-            font-weight: normal;    /* Zruší tučné písmo, které dělá nadpis <h3> - text okamžitě "zhubne" */
-            color: #666;            /* Změní barvu na středně šedou, takže text tolik "neřve" */
-            margin-left: 5px;       /* Udělá drobnou mezeru za názvem skupiny */
-            }
-        .stats-bar {
-            display: flex;
-            flex-wrap: wrap;        /* Na mobilu se to hezky zalamí pod sebe */
-            gap: 20px;              /* Mezery mezi jednotlivými statistikami */
-            background-color: #ffffff; /* Velmi jemné šedé pozadí */
-            padding: 15px;
-            border-radius: 8px;     /* Zakulacené rohy pro moderní vzhled */
-            border: 1px solid #ddd; /* Lehký rámeček */
-            margin-bottom: 25px;
-        }
 
-        .stat-item {
-            font-size: 16px;        /* Normální, neřvoucí velikost písma */
-        }
+    <!-- Připojení našeho jednotného externího CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
-        .stat-label {
-            color: #000000;            /* Popisek bude šedý, aby tolik nerušil */
-        }
-
-        .stat-value {
-            font-weight: bold;      /* Pouze samotné číslo bude tučné */
-            color: #000;            /* Číslo bude černé, aby vyniklo */
-            margin-left: 5px;
-        }
-        /* --- TADY JSEM PŘIDAL RESPONSIVE GRID PRO TABLETY A MOBILY --- */
-        .responsive-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        /* Na menších displejích (mobil / tablet na výšku) se to srovná pod sebe do jednoho sloupce */
-        @media (max-width: 768px) {
-            .responsive-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 <body>
 
-
     <!-- Navigační menu -->
-
-    <nav style="display:flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #ccc;">
+    <nav>
         <a href="/">Domů</a>
         <div>
-            <a href="/settings_groups">Nastavení skupin</a>|
+            <a href="/settings_groups">Nastavení skupin</a> |
             <a href="/settings_playoff">Nastavení playoff</a>
         </div>
 
@@ -83,52 +24,47 @@
             <button type="submit"
             style="background: none;
                    border: none;
-                   color: #000000;
-                   text-decoration: None;
+                   color: var(--accent-silver);
+                   text-decoration: none;
                    cursor: pointer;
                    font-family: inherit;
                    font-size: inherit;
                    padding: 0;
                    margin: 0;">Reset nastavení</button>
         </form>
-
     </nav>
-    <div style="max-width: 400px; margin: 0 auto 15px auto;">
+
+    <!-- Přihlašovací box zarovnaný vpravo a zmenšený -->
+    <div style="display: flex; justify-content: flex-end; margin: 10px 0 15px 0;">
         {% include "partials/_auth_box.html" %}
     </div>
-
-
 
     <main>
         {% block content %}{% endblock %}
     </main>
 
-
-
-    <footer style="margin-top: 20px; padding: 10px; border-top: 1px solid #ccc;">
-        <form action = "" method="POST" id="wizard_form">
-                {% if "settings_playoff" in request.path %}
-                    <!-- Přidány závorky pro explicitní volání metody check_readiness() -->
-                    {% if wizard.check_readiness() %}
-                    <button type="submit" name="action" value="next" form="wizard_form">Generovat turnaj</button>
-                    {% else %}
-                        <button type="button" disabled>Turnaj není připraven</button>
-
-
-                        <div style="color: #dc3545; font-size: 0.9em; margin-top: 15px;">
-                            <strong>Před vygenerováním turnaje je nutné:</strong>
-                            <ul style="list-style-position: inside; padding-left: 0; margin-top: 5px;">
-                                {% for error in wizard.get_readiness_errors() %}
-                                    <li>{{ error }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-
-                    {% endif %}
+    <footer>
+        <form action="" method="POST" id="wizard_form">
+            {% if "settings_playoff" in request.path %}
+                {% if wizard.check_readiness() %}
+                <button type="submit" name="action" value="next" form="wizard_form">Generovat turnaj</button>
                 {% else %}
-                    <button type="submit" name="action" value="next" form="wizard_form">Uložit a pokračovat</button>
+                    <button type="button" disabled>Turnaj není připraven</button>
+
+                    <div style="color: #ef4444; font-size: 0.9em; margin-top: 15px;">
+                        <strong>Před vygenerováním turnaje je nutné:</strong>
+                        <ul style="list-style-position: inside; padding-left: 0; margin-top: 5px;">
+                            {% for error in wizard.get_readiness_errors() %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
                 {% endif %}
+            {% else %}
+                <button type="submit" name="action" value="next" form="wizard_form">Uložit a pokračovat</button>
+            {% endif %}
         </form>
     </footer>
+
 </body>
 </html>

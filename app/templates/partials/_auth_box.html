@@ -1,43 +1,67 @@
 <!-- PŘIHLAŠOVACÍ TLAČÍTKO / MENU -->
-<div style="margin-bottom: 15px;">
+<div class="auth-wrapper" style="margin-bottom: 15px; position: relative;">
     {% if session.get('organizer_id') %}
         <!-- Stav: Přihlášen -->
-        <div style="display: flex; justify-content: space-between; align-items: center; background: #f9f9f9; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; max-width: 400px;">
+        <div class="auth-box-logged">
             <span>👤 Organizátor: <strong>{{ session.get('organizer_name') }}</strong></span>
             <form action="/logout" method="POST" style="margin: 0;">
-                <button type="submit" style="padding: 4px 10px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px;">Odhlásit se</button>
+                <button type="submit" style="padding: 4px 10px; font-size: 0.9em;">Odhlásit se</button>
             </form>
         </div>
     {% else %}
         <!-- Stav: Odhlášen - Tlačítko pro zobrazení formuláře -->
         <div id="login-trigger-container">
             <button type="button"
-                    onclick="var box = document.getElementById('login-form-popup'); box.style.display = box.style.display === 'none' ? 'block' : 'none';"
-                    style="padding: 6px 14px; cursor: pointer; background: #f1f1f1; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; color: #333;">
+                    class="auth-trigger-btn"
+                    onclick="event.stopPropagation(); var box = document.getElementById('login-form-popup'); box.style.display = box.style.display === 'none' ? 'block' : 'none';">
                 🔑 Přihlásit se / Registrovat
             </button>
         </div>
 
-        <!-- Skrytý formulář, který se rozbalí po kliknutí na tlačítko -->
-        <div id="login-form-popup" style="display: none; margin-top: 10px; padding: 12px; background: #fff; border: 1px solid #ccc; border-radius: 4px; max-width: 350px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <!-- Skrytý formulář, který se vysune jako okno po kliknutí -->
+        <div id="login-form-popup" class="auth-popup" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 15px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 1000; width: 250px;">
             <form hx-post="/auth" hx-target="#auth-message" hx-swap="innerHTML" style="margin: 0;">
 
                 {% if tournament %}
                     <input type="hidden" name="tournament_id" value="{{ tournament.id }}">
                 {% endif %}
 
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <input type="text" name="username" placeholder="Jméno (např. daniel)" required style="padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
-                    <input type="password" name="password" placeholder="Heslo" required style="padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
-                    <button type="submit" style="padding: 6px; cursor: pointer; background: #1976d2; color: white; border: none; border-radius: 3px; font-weight: bold;">Vstoupit</button>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <input type="text" name="username" placeholder="Jméno (např. daniel)" required style="width: 100%; box-sizing: border-box; background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px; border-radius: 4px;">
+                    <input type="password" name="password" placeholder="Heslo" required style="width: 100%; box-sizing: border-box; background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px; border-radius: 4px;">
+
+                    <!-- Výrazné tlačítko pro vstup ve stříbrném stylu -->
+                    <button type="submit" style="width: 100%; background-color: var(--accent-silver); color: var(--bg-main); font-weight: bold; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
+                        Vstoupit
+                    </button>
                 </div>
 
-                <div id="auth-message" style="color: red; margin-top: 5px; font-weight: bold; font-size: 0.85em;"></div>
+                <div id="auth-message" style="color: var(--danger-color); margin-top: 8px; font-weight: bold; font-size: 0.85em;"></div>
 
-                <small style="color: #666; display: block; margin-top: 8px; font-size: 0.8em;">
+                <small style="color: var(--text-muted); display: block; margin-top: 8px; font-size: 0.8em;">
                     Nezadané jméno vytvoří nový účet automaticky.
                 </small>
             </form>
         </div>
+
+        <!-- Script pro zavření okna při kliknutí kamkoliv jinam -->
+        <script>
+            if (typeof authListenerInitialized === 'undefined') {
+                var authListenerInitialized = true;
+                document.addEventListener('click', function(event) {
+                    var popup = document.getElementById('login-form-popup');
+                    var trigger = document.getElementById('login-trigger-container');
+                    if (!popup) return;
+
+                    // Zjistíme, jestli kliknutí proběhlo uvnitř popupu nebo na spouštěcí tlačítko
+                    var isClickInside = popup.contains(event.target) || (trigger && trigger.contains(event.target));
+
+                    // Pokud ne a okno je otevřené, zavřeme ho
+                    if (!isClickInside && popup.style.display === 'block') {
+                        popup.style.display = 'none';
+                    }
+                });
+            }
+        </script>
     {% endif %}
 </div>

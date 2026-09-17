@@ -231,6 +231,15 @@ class WebManager:
                 sorted_sets = sorted(m.sets, key=lambda s: s.set_number)
                 for s in sorted_sets:
                     played_sets.append((s.score_a, s.score_b))
+
+            # Zjistíme jméno vítěze zápasu (pokud má nastavený winner_id)
+            winner_name = None
+            if m.winner_id:
+                if m.winner_id == m.player_a_id and m.player_a:
+                    winner_name = m.player_a.name
+                elif m.winner_id == m.player_b_id and m.player_b:
+                    winner_name = m.player_b.name
+
             ui_data.append({
                 "match_id": m.id,
                 "player_a_name": m.player_a.name if m.player_a else "TBD",
@@ -238,7 +247,8 @@ class WebManager:
                 "is_finished": m.is_finished,
                 "is_in_progress": getattr(m, "is_in_progress", False),
                 "match_format": m.match_format,
-                "played_sets": played_sets
+                "played_sets": played_sets,
+                "winner_name": winner_name
             })
         return ui_data
 

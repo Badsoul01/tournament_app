@@ -1,14 +1,14 @@
 <!-- ZÁLOŽKA: HEAD-TO-HEAD -->
-<h3>Head-to-Head (Vzájemná bilance)</h3>
-<div style="background-color: #f9f9f9; padding: 15px; border: 1px solid #e0e0e0; margin-bottom: 20px; max-width: 800px;">
-    <p style="margin: 0 0 10px 0; color: #555;">Vyberte soupeře pro porovnání vzájemných zápasů a celkové bilance.</p>
+<h3 style="color: var(--accent-silver);">Head-to-Head (Vzájemná bilance)</h3>
+<div style="background-color: var(--bg-main); padding: 15px; border: 1px solid var(--border-color); margin-bottom: 20px; border-radius: 6px;">
+    <p style="margin: 0 0 10px 0; color: var(--text-muted);">Vyberte soupeře pro porovnání vzájemných zápasů a celkové bilance.</p>
 
     <!-- Formulář bez tlačítka, spouští se automaticky změnou v selectu -->
     <form>
         <input type="hidden" name="tab" value="h2h">
 
         <select name="opponent_id"
-                style="width: 80%; padding: 8px;"
+                style="width: 80%; max-width: 400px;"
                 hx-get="/stats/player/{{ player.id }}"
                 hx-target="#tab-content"
                 hx-push-url="true"
@@ -27,26 +27,26 @@
     <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-start;">
 
         <!-- Levý sloupec: Textový souhrn -->
-        <div style="flex: 1; min-width: 280px; border: 1px solid #ccc; padding: 15px; background-color: #fff; box-sizing: border-box;">
-            <h4 style="margin-top: 0;">
+        <div style="flex: 1; min-width: 280px; border: 1px solid var(--border-color); padding: 15px; background-color: var(--bg-main); border-radius: 6px; box-sizing: border-box;">
+            <h4 style="margin-top: 0; color: var(--accent-silver);">
                 Souhrn proti:
-                <a href="/stats/player/{{ h2h_data.opponent.id }}" style="color: inherit; text-decoration: underline;">
+                <a href="/stats/player/{{ h2h_data.opponent.id }}" style="text-decoration: underline; color: var(--accent-silver);">
                     {{ h2h_data.opponent.name }}
                 </a>
             </h4>
-            <p style="margin: 5px 0;"><strong>Celkem odehráno:</strong> {{ h2h_data.total }} zápasů</p>
-            <p style="margin: 5px 0;"><strong>Bilance (Výhry / Prohry / Remízy):</strong>
-                <span style="color: green; font-weight: bold;">{{ h2h_data.wins }}V</span> /
-                <span style="color: red; font-weight: bold;">{{ h2h_data.losses }}P</span> /
-                <span style="color: gray; font-weight: bold;">{{ h2h_data.draws }}R</span>
+            <p style="margin: 5px 0; color: var(--text-main);"><strong>Celkem odehráno:</strong> {{ h2h_data.total }} zápasů</p>
+            <p style="margin: 5px 0; color: var(--text-main);"><strong>Bilance (Výhry / Prohry / Remízy):</strong>
+                <span style="color: var(--winner-color); font-weight: bold;">{{ h2h_data.wins }}V</span> /
+                <span style="color: var(--danger-color); font-weight: bold;">{{ h2h_data.losses }}P</span> /
+                <span style="color: var(--text-muted); font-weight: bold;">{{ h2h_data.draws }}R</span>
             </p>
-            <p style="margin: 5px 0;"><strong>Úspěšnost:</strong> {{ h2h_data.win_rate }} %</p>
+            <p style="margin: 5px 0; color: var(--text-main);"><strong>Úspěšnost:</strong> {{ h2h_data.win_rate }} %</p>
         </div>
 
         <!-- Pravý sloupec: Srovnávací graf umístění -->
         {% if h2h_data.chart_labels %}
-            <div style="flex: 1.5; min-width: 320px; border: 1px solid #ccc; padding: 15px; background-color: #fff; box-sizing: border-box;">
-                <h4 style="margin-top: 0;">Porovnání umístění na společných turnajích</h4>
+            <div style="flex: 1.5; min-width: 320px; border: 1px solid var(--border-color); padding: 15px; background-color: var(--bg-main); border-radius: 6px; box-sizing: border-box;">
+                <h4 style="margin-top: 0; color: var(--accent-silver);">Porovnání umístění na společných turnajích</h4>
                 <div style="position: relative; height: 200px;">
                     <canvas id="h2hRankChart"></canvas>
                 </div>
@@ -68,66 +68,84 @@
     </div>
 
     <!-- Celá šířka pod tím: Historie vzájemných duelů -->
-    <h4>Historie vzájemných duelů</h4>
-    <form hx-get="" hx-target="#tab-content" hx-push-url="true" style="margin-bottom: 10px;">
+    <h4 style="color: var(--accent-silver);">Historie vzájemných duelů</h4>
+    <form style="margin-bottom: 15px;">
         <input type="hidden" name="tab" value="h2h">
         <input type="hidden" name="opponent_id" value="{{ request.args.get('opponent_id', '') }}">
         <input type="hidden" name="sort_by" value="{{ tab_sort_by }}">
         <input type="hidden" name="order" value="{{ tab_order }}">
-        <input type="text" name="q" value="{{ tab_q }}" placeholder="🔍 Hledat turnaj nebo fázi..." style="padding: 5px; width: 250px;">
-        <button type="submit" style="padding: 5px 10px;">Hledat</button>
-        <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}" hx-get="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}" hx-target="#tab-content" hx-push-url="true" style="margin-left: 10px; color: #1976d2; text-decoration: none;">Zrušit filtr</a>
+
+        <input type="text"
+               name="q"
+               value="{{ tab_q }}"
+               placeholder="🔍 Hledat turnaj nebo fázi..."
+               style="padding: 6px 10px; width: 250px;"
+               hx-get="/stats/player/{{ player.id }}"
+               hx-trigger="keyup changed delay:300ms, search"
+               hx-target="#tab-content"
+               hx-push-url="true"
+               hx-include="[name='tab'], [name='opponent_id'], [name='sort_by'], [name='order']">
+
+        {% if tab_q %}
+            <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}"
+               hx-get="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}"
+               hx-target="#tab-content"
+               hx-push-url="true"
+               style="margin-left: 10px; font-weight: bold;">Zrušit filtr</a>
+        {% endif %}
     </form>
 
     {% if h2h_data.history %}
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: var(--bg-main); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
             <thead>
-                <tr style="background-color: #f1f1f1; border-bottom: 2px solid #ddd;">
-                    <th style="padding: 10px; border: 1px solid #ddd;">
+                <tr style="background-color: var(--border-color); border-bottom: 2px solid var(--border-color);">
+                    <th style="padding: 10px;">
                         <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=tournament&order={{ 'desc' if tab_sort_by == 'tournament' and tab_order == 'asc' else 'asc' }}"
                            hx-get="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=tournament&order={{ 'desc' if tab_sort_by == 'tournament' and tab_order == 'asc' else 'asc' }}"
-                           hx-target="#tab-content" hx-push-url="true" style="color: inherit; text-decoration: none;">Turnaj</a>
+                           hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Turnaj</a>
                         {% if tab_sort_by == 'tournament' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                     </th>
-                    <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                    <th style="padding: 10px; text-align: center;">
                         <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=phase&order={{ 'desc' if tab_sort_by == 'phase' and tab_order == 'asc' else 'asc' }}"
                            hx-get="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=phase&order={{ 'desc' if tab_sort_by == 'phase' and tab_order == 'asc' else 'asc' }}"
-                           hx-target="#tab-content" hx-push-url="true" style="color: inherit; text-decoration: none;">Fáze</a>
+                           hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Fáze</a>
                         {% if tab_sort_by == 'phase' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                     </th>
-                    <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                    <th style="padding: 10px; text-align: center;">
                         <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=score&order={{ 'desc' if tab_sort_by == 'score' and tab_order == 'asc' else 'asc' }}"
                            hx-get="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=score&order={{ 'desc' if tab_sort_by == 'score' and tab_order == 'asc' else 'asc' }}"
-                           hx-target="#tab-content" hx-push-url="true" style="color: inherit; text-decoration: none;">Skóre</a>
+                           hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Skóre</a>
                         {% if tab_sort_by == 'score' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                     </th>
-                    <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                    <th style="padding: 10px; text-align: center;">
                         <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=result&order={{ 'desc' if tab_sort_by == 'result' and tab_order == 'asc' else 'asc' }}"
                            hx-get="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=result&order={{ 'desc' if tab_sort_by == 'result' and tab_order == 'asc' else 'asc' }}"
-                           hx-target="#tab-content" hx-push-url="true" style="color: inherit; text-decoration: none;">Výsledek</a>
+                           hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Výsledek</a>
                         {% if tab_sort_by == 'result' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                     </th>
                 </tr>
             </thead>
             <tbody>
                 {% for hm in h2h_data.history %}
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 10px; border: 1px solid #ddd;">
+                    <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;"
+                        onmouseover="this.style.backgroundColor='#1a2333'"
+                        onmouseout="this.style.backgroundColor='transparent'">
+                        <td style="padding: 10px;">
                             {% if hm.tournament_id %}
-                                <a href="/stats/tournament/{{ hm.tournament_id }}/results?from=player&player_id={{ player.id }}" style="color: inherit; text-decoration: none;">{{ hm.tournament_name }}</a>
+                                <a href="/stats/tournament/{{ hm.tournament_id }}/results?from=player&player_id={{ player.id }}">{{ hm.tournament_name }}</a>
                             {% else %}
                                 {{ hm.tournament_name }}
                             {% endif %}
                         </td>
-                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: #555;">{{ hm.phase }}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">{{ hm.score }}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                        <td style="padding: 10px; text-align: center; color: var(--text-muted);">{{ hm.phase }}</td>
+                        <td style="padding: 10px; text-align: center; font-weight: bold; color: var(--text-main);">{{ hm.score }}</td>
+                        <td style="padding: 10px; text-align: center;">
                             {% if hm.result == 'V' %}
-                                <span style="color: #4caf50; font-weight: bold;">Výhra (V)</span>
+                                <span style="color: var(--winner-color); font-weight: bold;">Výhra (V)</span>
                             {% elif hm.result == 'P' %}
-                                <span style="color: #f44336; font-weight: bold;">Prohra (P)</span>
+                                <span style="color: var(--danger-color); font-weight: bold;">Prohra (P)</span>
                             {% else %}
-                                <span style="color: #9e9e9e; font-weight: bold;">Remíza (R)</span>
+                                <span style="color: var(--text-muted); font-weight: bold;">Remíza (R)</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -135,8 +153,8 @@
             </tbody>
         </table>
     {% else %}
-        <p style="color: #888;">Zatím spolu nemají zaznamenaný žádný dokončený zápas.</p>
+        <p style="color: var(--text-muted); font-style: italic;">Zatím spolu nemají zaznamenaný žádný dokončený zápas.</p>
     {% endif %}
 {% else %}
-    <p style="color: #888;">Vyberte soupeře výše a klikněte na "Porovnat" pro zobrazení vzájemné bilance.</p>
+    <p style="color: var(--text-muted); font-style: italic;">Vyberte soupeře výše pro zobrazení vzájemné bilance.</p>
 {% endif %}
