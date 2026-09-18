@@ -28,8 +28,9 @@
             <div style="flex: 1; min-width: 250px;">
                 <h4 style="margin-top: 0; color: var(--accent-silver);">Detaily formátu</h4>
                 <ul style="margin: 0; padding-left: 20px; line-height: 1.5; font-size: 0.95em; color: var(--text-muted);">
-                    <li><strong style="color: var(--text-main);">Postupujících do playoff:</strong> {{ tournament.total_players_in_playoff }}</li>
                     <li><strong style="color: var(--text-main);">Postupujících ze skupiny:</strong> {{ tournament.advance_per_group }}</li>
+                    <li><strong style="color: var(--text-main);">Postupujících do playoff:</strong> {{ tournament.total_players_in_playoff }}</li>
+
                     <li>
                         <strong style="color: var(--text-main);">Formát skupin:</strong>
                         {% if tournament.group_match_format == 2 %}

@@ -19,5 +19,11 @@
         {% endblock %}
     </main>
 
+<!-- Kontejner pro svitkové notifikace v pravém dolním rohu -->
+<div id="scroll-toast-container" style="position: fixed; bottom: 25px; right: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
+
+<!-- Načtení vašeho JavaScriptu -->
+<script src="{{ url_for('static', filename='js/showScroll.js') }}"></script>
+<script src="{{ url_for('static', filename='js/authBox.js') }}"></script>
 </body>
 </html>

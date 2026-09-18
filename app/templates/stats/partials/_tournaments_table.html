@@ -14,28 +14,28 @@
     <table style="width: 100%; max-width: 1000px; border-collapse: collapse; margin: 0 auto; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
         <thead>
             <tr style="background-color: var(--border-color); border-bottom: 2px solid var(--border-color);">
-                <th style="text-align: left; padding: 10px;">
+                <th style="text-align: center; padding: 10px;">
                     <a hx-get="/stats/tournaments?q={{ q }}&sort_by=date&order={{ 'desc' if sort_by == 'date' and order == 'asc' else 'asc' }}"
                        hx-target="#tournaments-table-container"
                        hx-swap="innerHTML"
                        style="cursor: pointer;">Datum</a>
                     {% if sort_by == 'date' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: left; padding: 10px;">
+                <th style="text-align: center; padding: 10px;">
                     <a hx-get="/stats/tournaments?q={{ q }}&sort_by=name&order={{ 'desc' if sort_by == 'name' and order == 'asc' else 'asc' }}"
                        hx-target="#tournaments-table-container"
                        hx-swap="innerHTML"
                        style="cursor: pointer;">Název turnaje</a>
                     {% if sort_by == 'name' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: left; padding: 10px;">
+                <th style="text-align: center; padding: 10px;">
                     <a hx-get="/stats/tournaments?q={{ q }}&sort_by=status&order={{ 'desc' if sort_by == 'status' and order == 'asc' else 'asc' }}"
                        hx-target="#tournaments-table-container"
                        hx-swap="innerHTML"
                        style="cursor: pointer;">Stav</a>
                     {% if sort_by == 'status' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: left; padding: 10px;">
+                <th style="text-align: center; padding: 10px;">
                     <a hx-get="/stats/tournaments?q={{ q }}&sort_by=winner&order={{ 'desc' if sort_by == 'winner' and order == 'asc' else 'asc' }}"
                        hx-target="#tournaments-table-container"
                        hx-swap="innerHTML"
@@ -49,7 +49,7 @@
                        style="cursor: pointer;">Počet hráčů</a>
                     {% if sort_by == 'total_players' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="padding: 10px;"></th>
+                <th style="text-align: center; padding: 10px;"></th>
             </tr>
         </thead>
         <tbody>

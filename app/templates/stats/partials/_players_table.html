@@ -13,7 +13,7 @@
         <thead>
             <tr style="background-color: var(--border-color); border-bottom: 2px solid var(--border-color);">
                 <th style="text-align: center; width: 15%; padding: 10px;">Rank</th>
-                <th style="text-align: left; width: 55%; padding: 10px;">
+                <th style="text-align: center; width: 55%; padding: 10px;">
                     <a hx-get="/stats/players?q={{ q }}&sort_by=name&order={{ 'desc' if sort_by == 'name' and order == 'asc' else 'asc' }}"
                        hx-target="#players-table-container"
                        hx-swap="innerHTML"
@@ -22,7 +22,7 @@
                     </a>
                     {% if sort_by == 'name' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: right; width: 30%; padding: 10px;">
+                <th style="text-align: center; width: 30%; padding: 10px;">
                     <a hx-get="/stats/players?q={{ q }}&sort_by=total_points&order={{ 'asc' if sort_by == 'total_points' and order == 'desc' else 'desc' }}"
                        hx-target="#stats/players"
                        hx-target="#players-table-container"

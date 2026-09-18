@@ -1,9 +1,11 @@
-from flask import render_template, request, redirect, send_file
+from urllib.parse import quote
+from flask import render_template, request, redirect, send_file, make_response
 from app.services.tournament import Tournament as TournamentOrchestrator
 from app.web.webmanager import WebManager
 from . import main_bp
 from app.services.permission import can_edit_tournament
 from app.services.export import TournamentExportService
+
 
 @main_bp.route("/tournament/<int:tournament_id>/groups", methods=["GET", "POST"])
 def groups_view(tournament_id):
@@ -16,7 +18,7 @@ def groups_view(tournament_id):
         if "HX-Request" in request.headers:
             group_name = request.form.get("group_name")
             group_data = web_manager.get_groups_page_data()
-            return render_template(
+            response = make_response( render_template(
                 "partials/_group_content.html",
                 group_name=group_name,
                 data=group_data[group_name],
@@ -24,7 +26,14 @@ def groups_view(tournament_id):
                 editable=editable,
                 prefix=f"/tournament/{tournament_id}",
                 base_template="base_tournament.html"
-            )
+            ))
+
+            if request.form.get("action") == "submit_result":
+                # Zakódování textu, aby nevadil HTTP hlavičkám
+                msg = quote("Výsledek zápasu byl přidán do kroniky!")
+                response.headers["HX-Trigger"] = f'{{"showToast": "{msg}"}}'
+
+            return  response
 
         return redirect(f"/tournament/{tournament_id}/groups")
 
@@ -49,14 +58,22 @@ def playoff_view(tournament_id):
 
         if "HX-Request" in request.headers:
             p_data = web_manager.get_playoff_page_data(is_consolation=False)
-            return render_template(
+            response= make_response(render_template(
                 "partials/_playoff_content.html",
                 tournament=web_manager.tournament,
                 p_data=p_data,
                 editable=editable
-            )
+            ))
+
+            if request.form.get("action") == "submit_result":
+                msg = quote("Výsledek zápasu byl přidán do kroniky!")
+                response.headers["HX-Trigger"] = f'{{"showToast": "{msg}"}}'
+
+            return response
 
         return redirect(f"/tournament/{tournament_id}/playoff")
+
+
 
     p_data = web_manager.get_playoff_page_data(is_consolation=False)
     return render_template(
@@ -67,6 +84,7 @@ def playoff_view(tournament_id):
         prefix=f"/tournament/{tournament_id}",
         base_template="base_tournament.html"
     )
+
 
 
 @main_bp.route("/tournament/<int:tournament_id>/consolation_minigroup", methods=["GET", "POST"])
@@ -82,7 +100,7 @@ def consolation_minigroup_view(tournament_id):
         if "HX-Request" in request.headers:
             group_name = request.form.get("group_name")
             group_data = web_manager.get_minigroup_page_data()
-            return render_template(
+            response= make_response(render_template(
                 "partials/_group_content.html",
                 group_name=group_name,
                 data=group_data[group_name],
@@ -91,7 +109,13 @@ def consolation_minigroup_view(tournament_id):
                 editable=editable,
                 prefix=f"/tournament/{tournament_id}",
                 base_template="base_tournament.html"
-            )
+            ))
+
+            if request.form.get("action") == "submit_result":
+                msg = quote("Výsledek zápasu byl přidán do kroniky!")
+                response.headers["HX-Trigger"] = f'{{"showToast": "{msg}"}}'
+
+            return response
 
         return redirect(f"/tournament/{tournament_id}/consolation_minigroup")
 
@@ -117,15 +141,20 @@ def consolation_playoff_view(tournament_id):
 
         if "HX-Request" in request.headers:
             p_data = web_manager.get_playoff_page_data(is_consolation=True)
-            return render_template(
+            response = make_response(render_template(
                 "partials/_playoff_content.html",
                 tournament=web_manager.tournament,
                 p_data=p_data,
                 editable=editable,
                 prefix=f"/tournament/{tournament_id}",
                 base_template="base_tournament.html"
-            )
+            ))
 
+            if request.form.get("action") == "submit_result":
+                msg = quote("Výsledek zápasu byl přidán do kroniky!")
+                response.headers["HX-Trigger"] = f'{{"showToast": "{msg}"}}'
+
+            return response
         return redirect(f"/tournament/{tournament_id}/consolation_playoff")
 
     p_data = web_manager.get_playoff_page_data(is_consolation=True)

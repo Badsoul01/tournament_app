@@ -1,6 +1,6 @@
 <!-- ZÁLOŽKA: HEAD-TO-HEAD -->
 <h3 style="color: var(--accent-silver);">Head-to-Head (Vzájemná bilance)</h3>
-<div style="background-color: var(--bg-main); padding: 15px; border: 1px solid var(--border-color); margin-bottom: 20px; border-radius: 6px;">
+<div style="background-color: transparent; padding: 15px; border: 1px solid var(--border-color); margin-bottom: 20px; border-radius: 6px;">
     <p style="margin: 0 0 10px 0; color: var(--text-muted);">Vyberte soupeře pro porovnání vzájemných zápasů a celkové bilance.</p>
 
     <!-- Formulář bez tlačítka, spouští se automaticky změnou v selectu -->
@@ -23,11 +23,11 @@
 </div>
 
 {% if h2h_data %}
-    <!-- DVA SLOUPCE: Vlevo souhrn, vpravo graf -->
-    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-start;">
+    <!-- SOUHRN A GRAF POD SEBOU PRO DOSTATEK MÍSTA -->
+    <div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 20px;">
 
-        <!-- Levý sloupec: Textový souhrn -->
-        <div style="flex: 1; min-width: 280px; border: 1px solid var(--border-color); padding: 15px; background-color: var(--bg-main); border-radius: 6px; box-sizing: border-box;">
+        <!-- Textový souhrn -->
+        <div style="border: 1px solid var(--border-color); padding: 15px; background-color: transparent; border-radius: 6px; box-sizing: border-box;">
             <h4 style="margin-top: 0; color: var(--accent-silver);">
                 Souhrn proti:
                 <a href="/stats/player/{{ h2h_data.opponent.id }}" style="text-decoration: underline; color: var(--accent-silver);">
@@ -43,11 +43,11 @@
             <p style="margin: 5px 0; color: var(--text-main);"><strong>Úspěšnost:</strong> {{ h2h_data.win_rate }} %</p>
         </div>
 
-        <!-- Pravý sloupec: Srovnávací graf umístění -->
+        <!-- Srovnávací graf umístění (přes celou šířku) -->
         {% if h2h_data.chart_labels %}
-            <div style="flex: 1.5; min-width: 320px; border: 1px solid var(--border-color); padding: 15px; background-color: var(--bg-main); border-radius: 6px; box-sizing: border-box;">
+            <div style="border: 1px solid var(--border-color); padding: 15px; background-color: transparent; border-radius: 6px; box-sizing: border-box;">
                 <h4 style="margin-top: 0; color: var(--accent-silver);">Porovnání umístění na společných turnajích</h4>
-                <div style="position: relative; height: 200px;">
+                <div style="position: relative; height: 250px;">
                     <canvas id="h2hRankChart"></canvas>
                 </div>
             </div>
@@ -96,10 +96,10 @@
     </form>
 
     {% if h2h_data.history %}
-        <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: var(--bg-main); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
             <thead>
                 <tr style="background-color: var(--border-color); border-bottom: 2px solid var(--border-color);">
-                    <th style="padding: 10px;">
+                    <th style="padding: 10px; text-align: center;">
                         <a href="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=tournament&order={{ 'desc' if tab_sort_by == 'tournament' and tab_order == 'asc' else 'asc' }}"
                            hx-get="?tab=h2h&opponent_id={{ request.args.get('opponent_id', '') }}&q={{ tab_q }}&sort_by=tournament&order={{ 'desc' if tab_sort_by == 'tournament' and tab_order == 'asc' else 'asc' }}"
                            hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Turnaj</a>
