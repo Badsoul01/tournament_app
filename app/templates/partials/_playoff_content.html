@@ -57,7 +57,7 @@
                 <small style="color: var(--text-muted);">({{ match.player_b_seed }})</small>
 
                 {% if editable %}
-                    <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85em;">otevřít ⚙️</span>
+                    <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85em;">📜</span>
                 {% endif %}
             </div>
 
@@ -76,8 +76,8 @@
                      onmouseout="this.style.opacity='1'"
                      title="Kliknutím zavřeš zápas"
                      {% else %}
-                     style="position: relative;" <!-- OPRAVA: Pro diváky zrušen zbytečný spodní okraj a mezera -->
-                     {% endif %}>
+                     style="position: relative;" <!-- Pro diváky zrušen zbytečný spodní okraj a mezera -->
+                     {% endif %}
 
                     <strong style="color: var(--text-main);">{{ match.player_a_name }}</strong>
                     <small style="color: var(--text-muted);">({{ match.player_a_seed }})</small>
@@ -100,7 +100,9 @@
                     <form hx-post="{{ action_url }}"
                           hx-target="#playoff-container"
                           hx-swap="innerHTML"
-                          class="match-form-column">
+                          class="match-form-column"
+                          hx-on::before-request="if (!validatePlayoffMatch(this)) event.preventDefault();"
+                          hx-on::after-request="if(event.detail.successful) showScrollToast('Vysledek byl pridan do kroniky!');">
                         <input type="hidden" name="match_id" value="{{ match.match_id }}">
 
                         <div class="match-sets-wrapper">

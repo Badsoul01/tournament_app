@@ -3,7 +3,7 @@
 {% block stats_content %}
     <div class="scroll-parchment">
         <!-- HLAVIČKA PROFILU -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); background-color: var(--bg-main); border-radius: 6px;">
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); background-color: transparent; border-radius: 6px;">
             <h2 style="margin-top: 0; color: var(--accent-silver);">Profil hráče: {{ player.name }}</h2>
             <p style="margin: 5px 0; color: var(--text-main);"><strong>Aktuální rank:</strong> {{ current_rank }}. místo</p>
             <p style="margin: 5px 0; color: var(--text-main);"><strong>Počet bodů:</strong> <span style="color: var(--winner-color); font-weight: bold;">{{ player.total_points }} b.</span></p>
@@ -15,8 +15,8 @@
              hx-target="#tab-content"
              hx-push-url="true">
 
-            {% set active_bg = 'var(--bg-main)' %}
-            {% set inactive_bg = 'var(--bg-card)' %}
+            {% set active_bg = 'var(--bg-card)' %}
+            {% set inactive_bg = 'transparent' %}
 
             <!-- Záložka 1 -->
             <a href="?tab=obecne"

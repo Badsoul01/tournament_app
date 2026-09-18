@@ -12,7 +12,7 @@
     <table style="width: 100%; border-collapse: collapse; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
         <thead>
             <tr style="background-color: var(--border-color); border-bottom: 2px solid var(--border-color);">
-                <th style="text-align: left; width: 20%; padding: 10px;">
+                <th style="text-align: center; width: 20%; padding: 10px;">
                     <a hx-get="/stats/matches?q={{ q }}&sort_by=tournament&order={{ 'desc' if sort_by == 'tournament' and order == 'asc' else 'asc' }}"
                        hx-target="#matches-table-container"
                        hx-swap="innerHTML"
@@ -30,7 +30,7 @@
                     </a>
                     {% if sort_by == 'phase' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: right; width: 20%; padding: 10px;">
+                <th style="text-align: center; width: 20%; padding: 10px;">
                     <a hx-get="/stats/matches?q={{ q }}&sort_by=player_a&order={{ 'desc' if sort_by == 'player_a' and order == 'asc' else 'asc' }}"
                        hx-target="#matches-table-container"
                        hx-swap="innerHTML"
@@ -42,7 +42,7 @@
                 <th style="text-align: center; width: 30%; padding: 10px;">
                     Výsledek
                 </th>
-                <th style="text-align: left; width: 20%; padding: 10px;">
+                <th style="text-align: center; width: 20%; padding: 10px;">
                     <a hx-get="/stats/matches?q={{ q }}&sort_by=player_b&order={{ 'desc' if sort_by == 'player_b' and order == 'asc' else 'asc' }}"
                        hx-target="#matches-table-container"
                        hx-swap="innerHTML"

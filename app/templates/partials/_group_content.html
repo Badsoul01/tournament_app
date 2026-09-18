@@ -57,7 +57,7 @@
                                       style="display: inline; margin-left: 8px;">
                                     <input type="hidden" name="match_id" value="{{ match.match_id }}">
                                     <input type="hidden" name="group_name" value="{{ group_name }}">
-                                    <button type="submit" name="action" value="edit_match" title="Upravit zápas" style="background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0; box-shadow: none;">⚙️</button>
+                                    <button type="submit" name="action" value="edit_match" title="Upravit zápas" style="background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0; box-shadow: none;">🪶</button>
                                 </form>
                             {% endif %}
                         </td>
@@ -88,13 +88,12 @@
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <strong style="color: var(--text-main);">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
                                 {% if editable %}
-                                    <span style="color: var(--text-muted); font-size: 0.85em;">otevřít ⚙️</span>
+                                    <span style="font-size: 1.1em;" title="Otevřít zápas">📜</span>
                                 {% endif %}
                             </div>
                         </div>
                     {% else %}
                         <!-- STAV 2: Zápas probíhá (otevřený formulář) -->
-                        <!-- Přidána třída active-match pro stříbrné zvýraznění -->
                         <div class="match-card active-match" style="padding: 12px; margin-bottom: 12px;">
 
                             <!-- Klikací hlavička pro zavření -->
@@ -111,23 +110,24 @@
                                  style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);"
                                  {% endif %}>
 
-                                <!-- OPRAVA: Neutrální barva pro jména, text (Probíhá) je teď jemnější -->
                                 <div>
                                     <strong style="color: var(--text-main);">{{ match.player_a_name }} vs {{ match.player_b_name }}</strong>
                                     <span style="color: var(--text-muted); font-size: 0.9em; font-weight: normal;"> (Probíhá)</span>
                                 </div>
 
                                 {% if editable %}
-                                    <span style="color: var(--danger-color); font-size: 0.85em;">zavřít ✕</span>
+                                    <span style="color: var(--danger-color); font-size: 0.85em;">✕</span>
                                 {% endif %}
                             </div>
 
-                            <!-- Formulář se sety a tlačítkem Uložit zůstává netknutý dole -->
+                            <!-- Formulář se sety a tlačítkem Uložit -->
                             {% if editable %}
                                 <form hx-post="{{ request.path }}"
                                       hx-target="#group-{{ group_name }}"
                                       hx-swap="innerHTML"
-                                      class="match-form-column">
+                                      class="match-form-column"
+                                      hx-on::before-request="if (!validatePlayoffMatch(this)) event.preventDefault();"
+                                      hx-on::after-request="if(event.detail.successful) showScrollToast('Vysledek zápasu byl pridan do kroniky!');">
                                     <input type="hidden" name="match_id" value="{{ match.match_id }}">
                                     <input type="hidden" name="group_name" value="{{ group_name }}">
                                     <div class="match-sets-wrapper">
