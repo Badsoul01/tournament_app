@@ -3,7 +3,7 @@ import requests
 from config import GROUPS_RULES, PLAYOFF_RULES
 import math
 import random
-from services.utils.queries import get_players_ranking_map
+from app.services.utils.queries import get_players_ranking_map
 
 
 class SetupWizard:

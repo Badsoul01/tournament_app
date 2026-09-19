@@ -1,10 +1,10 @@
-from services.tournament.setupwizard import SetupWizard
+from app.services.tournament.setupwizard import SetupWizard
 from app.models.models import db, Tournament as TournamentModel, Group as GroupModel, Player as PlayerModel, \
     Match as MatchModel, Bracket as BracketModel,GlobalPlayer as GlobalPlayerModel, PlayoffStats as PlayoffStatsModel, \
     ConsolationStats as ConsolationStatsModel
-from services.tournament.groupmanager import GroupManager
-from services.tournament.seedingengine import SeedingEngine
-from services.tournament.playoff import Playoff
+from app.services.tournament.groupmanager import GroupManager
+from app.services.tournament.seedingengine import SeedingEngine
+from app.services.tournament.playoff import Playoff
 from flask import session
 
 class Tournament:

@@ -1,5 +1,5 @@
 from app.models.models import db, Match as MatchModel,GroupStats as GroupStatsModel,ConsolationStats as ConsolationStatsModel,PlayoffStats as PlayoffStatsModel, \
-    GlobalPlayer as GlobalPlayerModel, Player as PlayerModel, Bracket as BracketModel
+    Player as PlayerModel, Bracket as BracketModel
 from sqlalchemy import or_
 
 class PlayerHelper:

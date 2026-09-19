@@ -1,5 +1,5 @@
 from app.models.models import db, Match as MatchModel, Player as PlayerModel, Bracket as BracketModel, Tournament as TournamentModel
-from services.utils.player import PlayerHelper
+from app.services.utils.player import PlayerHelper
 import math
 
 class Playoff:
