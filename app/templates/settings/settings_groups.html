@@ -1,0 +1,221 @@
+{% extends "settings/base_settings.html" %}
+
+{% block content %}
+<div class="scroll-parchment">
+    <div class="parchment-side parchment-left"></div>
+    <div class="parchment-side parchment-right"></div>
+
+    <h1>Správa základních skupin</h1>
+
+    <!-- HORNI ČÁST: Sjednocené sloupce pomocí Gridu pro správné zarovnání výšky -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; align-items: stretch;">
+
+        <!-- LEVÝ SLOUPEC: Manuální přidávání + Seeding -->
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <fieldset style="text-align: left; margin-bottom: 0;">
+                <legend>Skupiny a hráči</legend>
+
+                <!-- Položka 1: Správa skupin v jednom řádku -->
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                    <label style="margin-bottom: 0; font-weight: bold;">Přidat nebo odebrat skupinu:</label>
+                    <div id="group-buttons-wrapper" style="display: flex; gap: 6px;">
+                        <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="margin: 0;">
+                            <button type="submit" name="action" value="decrease_groups" {% if not wizard.has_empty_group %}disabled{% endif %}>-</button>
+                        </form>
+                        <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="margin: 0;">
+                            <button type="submit" name="action" value="increase_groups" {% if wizard.total_groups >= wizard.max_groups %}disabled{% endif %}>+</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Položka 2: Přidání hráče -->
+                <div style="margin-bottom: 15px;">
+                    <form hx-post="/settings_groups"
+                          hx-target="#wizard-container"
+                          hx-swap="innerHTML"
+                          hx-on::after-request="this.reset()"
+                          style="margin: 0;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Přidání hráče:</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input name="players_text"
+                                   list="global-players-list"
+                                   placeholder="Jména hráčů (oddělená čárkou)"
+                                   autocomplete="off" style="flex: 1; box-sizing: border-box; margin-bottom: 0;">
+                            <button type="submit" name="action" value="add_players">Přidat</button>
+                        </div>
+                        <datalist id="global-players-list">
+                            {% for name in all_global_players %}
+                                <option value="{{ name }}">
+                            {% endfor %}
+                        </datalist>
+                    </form>
+                </div>
+
+                <!-- Položka 3: Import z odkazu -->
+                <div style="margin-bottom: 5px;">
+                    <form hx-post="/settings_groups"
+                          hx-target="#wizard-container"
+                          hx-swap="innerHTML"
+                          hx-on::after-request="this.reset()"
+                          style="margin: 0;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Přidání hráče z odkazu:</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="url" name="scrap_url" placeholder="Událost Vaší ligy" style="flex: 1; box-sizing: border-box; margin-bottom: 0;">
+                            <button type="submit" name="action" value="scrap_players">Importovat</button>
+                        </div>
+                    </form>
+                </div>
+            </fieldset>
+
+
+            <fieldset style="text-align: left; margin-bottom: 0; flex: 1; display: flex; flex-direction: column;">
+                <legend>Automatické nasazení (Seeding)</legend>
+                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display: flex; flex-direction: column; height: 100%; justify-content: space-between;">
+
+                    <div>
+                        <!-- 1. Kritérium -->
+                        <div style="margin-bottom: 12px;">
+                            <span style="color: var(--text-main); font-weight: bold; display: block; margin-bottom: 5px;">Nasazovat podle:</span>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <div>
+                                    <input type="radio" id="seed_last" name="seed_criterion" value="last_tournament" checked>
+                                    <label for="seed_last" style="display: inline; margin-bottom: 0;">Posledního turnaje</label>
+                                </div>
+                                <div>
+                                    <input type="radio" id="seed_global" name="seed_criterion" value="global_rank">
+                                    <label for="seed_global" style="display: inline; margin-bottom: 0;">Celkového žebříčku</label>
+                                </div>
+                                <div>
+                                    <input type="radio" id="seed_random" name="seed_criterion" value="random">
+                                    <label for="seed_random" style="display: inline; margin-bottom: 0;">Zcela náhodně</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Rozsah nasazení -->
+                        <div style="margin-bottom: 12px;">
+                            <span style="color: var(--text-main); font-weight: bold; display: block; margin-bottom: 5px;">Rozsah nasazení:</span>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <div>
+                                    <input type="radio" id="scope_unassigned" name="seed_scope" value="reset_all" checked>
+                                    <label for="scope_unassigned" style="display: inline; margin-bottom: 0;">Resetovat skupiny a rozlosovat znovu</label>
+                                </div>
+                                <div>
+                                    <input type="radio" id="scope_reset" name="seed_scope" value="unassigned_only">
+                                    <label for="scope_reset" style="display: inline; margin-bottom: 0;">Doplnit jen nezařazené hráče</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Režim skupin -->
+                        <div style="margin-bottom: 15px;">
+                            <span style="color: var(--text-main); font-weight: bold; display: block; margin-bottom: 5px;">Správa skupin při losování:</span>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <div>
+                                    <input type="radio" id="mode_auto" name="group_mode" value="auto_create" checked>
+                                    <label for="mode_auto" style="display: inline; margin-bottom: 0;">Vytvořit/dopočítat skupiny (po 3 hráče)</label>
+                                </div>
+                                <div>
+                                    <input type="radio" id="mode_fixed" name="group_mode" value="use_existing">
+                                    <label for="mode_fixed" style="display: inline; margin-bottom: 0;">Použít pouze vytvořené skupiny</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" name="action" value="seed_players" style="width: 100%; margin-top: 10px;">
+                        🎲 Rozlosovat a nasadit hráče
+                    </button>
+                </form>
+            </fieldset>
+        </div>
+
+
+        <!-- PRAVÝ SLOUPEC: Minulé turnaje a jejich hráči -->
+        <div style="display: flex; flex-direction: column;">
+            <fieldset style="height: 100%; text-align: left; margin-bottom: 0; display: flex; flex-direction: column; box-sizing: border-box;">
+                <legend>Minulé turnaje</legend>
+
+                <!-- Flexibilní kontejner přes celou výšku sloupce bez pevného limitu -->
+                <div style="display: flex; width: 100%; border: 1px solid var(--border-color); flex: 1; min-height: 420px; border-radius: 4px; overflow: hidden; box-sizing: border-box;">
+
+                    <!-- Pod-sloupec 1: Seznam a vyhledávání -->
+                    <div style="width: 50%; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 8px; overflow: hidden;">
+
+                        <div style="margin-bottom: 8px;">
+                            <input type="text"
+                                   name="q"
+                                   placeholder="🔍 Hledat turnaj..."
+                                   style="width: 100%; box-sizing: border-box; padding: 4px 6px; font-size: 0.9em;"
+                                   hx-get="/wizard/search-tournaments"
+                                   hx-trigger="keyup changed delay:300ms, search"
+                                   hx-target="#past-tournaments-list"
+                                   autocomplete="off">
+                        </div>
+
+                        <strong style="display:block; border-bottom:1px solid var(--border-color); padding-bottom:3px; margin-bottom:5px; color: var(--text-muted); white-space: nowrap;">Turnaj / Datum</strong>
+
+                        <!-- Seznam turnajů s vlastním scrollem -->
+                        <div id="past-tournaments-list" style="white-space: nowrap; overflow-y: auto; flex: 1;">
+                            {% include "settings/partials/_past_tournaments_list.html" %}
+                        </div>
+                    </div>
+
+                    <!-- Pod-sloupec 2: Hráči vybraného turnaje s vlastním scrollem -->
+                    <div id="past-players-container" style="width: 50%; display: flex; flex-direction: column; padding: 8px; overflow-y: auto; white-space: nowrap;">
+                        {% include "settings/partials/_past_tournament_players.html" %}
+                    </div>
+
+                </div>
+            </fieldset>
+        </div>
+
+    </div>
+
+    <!-- Ostatní části stránky zabalené v #wizard-container pro HTMX update -->
+    <div id="wizard-container" style="margin-top: 20px;">
+        {% include "settings/partials/_wizard_content.html" %}
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+    <!-- DOLNÍ ČÁST: Nastavení pravidel sjednocená na 1 položka = 1 řádek -->
+    <form action="/settings_groups" method="POST" id="wizard_form">
+        <fieldset style="text-align: left;">
+            <legend>Nastavení pravidel</legend>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 15px;">
+                <label style="margin-bottom: 0; font-weight: bold; flex: 1;">Název turnaje:</label>
+                <input type="text" name="name" value="{{ wizard.name }}" placeholder="Název turnaje" style="flex: 2; box-sizing: border-box; margin-bottom: 0;">
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 15px;">
+                <label style="margin-bottom: 0; font-weight: bold; flex: 1;">Formát zápasu:</label>
+                <select name="group_match_format" style="flex: 2; margin-bottom: 0;">
+                    {% for val, name in GROUPS_RULES.group_match_format.items() %}
+                        <option value="{{val}}" {% if wizard.group_match_format|string == val|string %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 15px;">
+                <label style="margin-bottom: 0; font-weight: bold; flex: 1;">Počet postupujících ze skupiny:</label>
+                <select name="advance_per_group" style="flex: 2; margin-bottom: 0;">
+                    {% for val in GROUPS_RULES.advance_per_group %}
+                        <option value="{{ val }}" {% if wizard.advance_per_group|string == val|string %}selected{% endif %}>{{ val }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; gap: 15px;">
+                <label style="margin-bottom: 0; font-weight: bold; flex: 1;">Nepostupující ze skupiny:</label>
+                <select name="group_elimination_action" style="flex: 2; margin-bottom: 0;">
+                    {% for key, name in GROUPS_RULES.elimination_actions.items() %}
+                        <option value="{{ key }}" {% if wizard.group_elimination_action == key %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </fieldset>
+    </form>
+</div>
+{% endblock %}

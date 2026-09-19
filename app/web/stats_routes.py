@@ -8,7 +8,7 @@ from app.models.models import (
     PlayoffStats as PlayoffStatsModel
 )
 from app.web.webmanager import WebManager
-from app.services.match_stats import MatchStatsService
+from services.stats.match_stats import MatchStatsService
 from datetime import datetime
 
 
@@ -53,7 +53,6 @@ def stats_tournament_view():
                 d_iso = t.date.strftime('%Y-%m-%d').lower() if hasattr(t.date, 'strftime') else ""
                 date_str = f"{d_dot} {d_iso}"
 
-            # Pokud řetězec 'q' odpovídá názvu, vítězi, datu nebo počtu hráčů, ponecháme turnaj
             if q in t_name or q in winner_name or q in date_str or q in players_str:
                 filtered_tournaments.append(t)
         tournaments = filtered_tournaments
@@ -95,7 +94,7 @@ def stats_tournament_groups(tournament_id):
     back_url, back_label = _get_back_navigation()
 
     return render_template(
-        "groups.html",
+        "tournament/groups.html",
         tournament=web_manager.tournament,
         group_data=group_data,
         editable=False,
@@ -113,7 +112,7 @@ def stats_tournament_playoff(tournament_id):
     back_url, back_label = _get_back_navigation()
 
     return render_template(
-        "playoff.html",
+        "tournament/playoff.html",
         tournament=web_manager.tournament,
         p_data=p_data,
         editable=False,
@@ -131,7 +130,7 @@ def stats_tournament_consolation_minigroup(tournament_id):
     back_url, back_label = _get_back_navigation()
 
     return render_template(
-        "groups.html",
+        "tournament/groups.html",
         tournament=web_manager.tournament,
         group_data=group_data,
         editable=False,
@@ -149,12 +148,12 @@ def stats_tournament_consolation_playoff(tournament_id):
     back_url, back_label = _get_back_navigation()
 
     return render_template(
-        "consolation_playoff.html",
+        "tournament/consolation_playoff.html",
         tournament=web_manager.tournament,
         p_data=p_data,
         editable=False,
-        prefix=f"/stats/tournament/{tournament_id}",
         base_template="stats/base_stats.html",
+        prefix=f"/stats/tournament/{tournament_id}",
         back_url=back_url,
         back_label=back_label
     )
@@ -167,7 +166,7 @@ def stats_tournament_results(tournament_id):
     back_url, back_label = _get_back_navigation()
 
     return render_template(
-        "results.html",
+        "tournament/results.html",
         tournament=web_manager.tournament,
         results=results_data,
         prefix=f"/stats/tournament/{tournament_id}",
@@ -214,12 +213,12 @@ def stats_players_view():
 
     if "HX-Request" in request.headers:
         return render_template(
-            "/stats/partials/_players_table.html",
+            "stats/partials/_players_table.html",
             players=players, ranks_map=ranks_map, q=q, sort_by=sort_by, order=order
         )
 
     return render_template(
-        "/stats/stats_players.html",
+        "stats/stats_players.html",
         players=players, ranks_map=ranks_map, q=q, sort_by=sort_by, order=order
     )
 
@@ -231,16 +230,13 @@ def stats_matches_view():
     order = request.args.get("order", "desc")
     reverse_sort = (order == "desc")
 
-    # 1. Základní výběr dokončených zápasů s propojením na turnaje
     query = MatchModel.query.join(TournamentModel, MatchModel.tournament_id == TournamentModel.id) \
         .filter(MatchModel.is_finished == True) \
         .filter(or_(MatchModel.player_a_id.isnot(None), MatchModel.player_b_id.isnot(None)))
 
-    # Výchozí databázové řazení od nejnovějších
     query = query.order_by(TournamentModel.date.desc(), MatchModel.id.desc())
     matches = query.all()
 
-    # 2. Textové filtrování (pokud je zadáno 'q')
     if q:
         filtered_matches = []
         for m in matches:
@@ -253,7 +249,6 @@ def stats_matches_view():
                 filtered_matches.append(m)
         matches = filtered_matches
 
-    # 3. Spolehlivé řazení přímo v Pythonu podle zvoleného sloupce
     if sort_by == "tournament":
         matches.sort(key=lambda x: (x.tournament.name if x.tournament else "", x.tournament.date if x.tournament else datetime.min.date()), reverse=reverse_sort)
     elif sort_by == "phase":
@@ -263,10 +258,8 @@ def stats_matches_view():
     elif sort_by == "player_b":
         matches.sort(key=lambda x: x.player_b.name if x.player_b else "", reverse=reverse_sort)
     else:
-        # Výchozí podle data turnaje
         matches.sort(key=lambda x: (x.tournament.date if x.tournament else datetime.min.date(), x.id), reverse=reverse_sort)
 
-    # 4. Vrácení výsledku (HTMX partial nebo celá stránka)
     if "HX-Request" in request.headers:
         return render_template(
             "stats/partials/_matches_table.html",
@@ -277,6 +270,8 @@ def stats_matches_view():
         "stats/stats_matches.html",
         matches=matches, q=q, sort_by=sort_by, order=order
     )
+
+
 @main_bp.route("/stats/match/<int:match_id>")
 def stats_match_detail_view(match_id):
     context = MatchStatsService.get_match_detail_context(match_id)
@@ -285,7 +280,7 @@ def stats_match_detail_view(match_id):
 
 @main_bp.route("/stats/player/<int:player_id>")
 def stats_player_detail(player_id):
-    from app.services.stats_player_detail import PlayerStatsService
+    from services.stats.stats_player_detail import PlayerStatsService
     context = PlayerStatsService.get_player_profile_data(player_id, request.args)
     active_tab = context.get("active_tab", "obecne")
 

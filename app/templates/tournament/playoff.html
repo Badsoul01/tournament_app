@@ -1,13 +1,13 @@
-{% extends base_template | default('base_tournament.html') %}
+{% extends base_template | default('tournament/base_tournament.html') %}
 {% block content %}
 {% block stats_content %}
     <div class="scroll-parchment">
-        {% include "partials/_tournament_nav.html" %}
+        {% include "tournament/partials/_tournament_nav.html" %}
 
         <h2 style="text-align: center; color: var(--accent-silver); margin-top: 10px; margin-bottom: 20px;">PLAYOFF</h2>
 
         <div id="playoff-container">
-            {% include "partials/_playoff_content.html" %}
+            {% include "tournament/partials/_playoff_content.html" %}
         </div>
     </div>
 {% endblock %}
