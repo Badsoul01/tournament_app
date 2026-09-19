@@ -55,50 +55,60 @@
         </thead>
         <tbody>
             {% for m in matches %}
+                {# Určení vítěze přímo podle ID z databáze #}
+                {% set is_a_winner = m.winner_id and m.player_a_id and (m.winner_id == m.player_a_id) %}
+                {% set is_b_winner = m.winner_id and m.player_b_id and (m.winner_id == m.player_b_id) %}
+
                 <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;"
                     onmouseover="this.style.backgroundColor='#1a2333'"
                     onmouseout="this.style.backgroundColor='transparent'">
 
+                    <!-- Odkaz na turnaj (aktivní vs. ukončený) -->
                     <td style="padding: 10px;">
-                        <a href="/tournament/{{ m.tournament.id }}/results">{{ m.tournament.name }}</a>
+                        {% if m.tournament.is_finished %}
+                            <a href="/stats/tournament/{{ m.tournament.id }}/results">{{ m.tournament.name }}</a>
+                        {% else %}
+                            <a href="/tournament/{{ m.tournament.id }}/groups">{{ m.tournament.name }}</a>
+                        {% endif %}
                     </td>
+
                     <td style="text-align: center; padding: 10px; color: var(--text-muted);">{{ m.phase_display_name }}</td>
+
+                    <!-- Hráč A (vždy klikací odkaz) -->
                     <td style="text-align: right; padding: 10px;">
-                    {% if m.player_a and m.player_a.global_player_id %}
-                        <a href="/stats/player/{{ m.player_a.global_player_id }}"
-                           style="font-weight: bold; color: {{ 'var(--winner-color)' if m.winner_id and m.winner_id == m.player_a_id else 'var(--accent-silver)' }};">
-                            {{ m.player_a.name }}
-                        </a>
-                    {% elif m.player_a %}
-                        <span style="font-weight: bold; color: {{ 'var(--winner-color)' if m.winner_id and m.winner_id == m.player_a_id else 'var(--text-main)' }};">
-                            {{ m.player_a.name }}
-                        </span>
-                    {% else %}
-                        BYE
-                    {% endif %}
-                </td>
-                <td style="text-align: center; padding: 10px;">
-                    <button onclick="toggleMatchDetails(this, {{ m.id }})"
-                            style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 4px 10px; cursor: pointer; color: var(--accent-silver); font-weight: bold; border-radius: 4px;">
-                        {{ m.overall_score }} ▼
-                    </button>
-                </td>
-                <td style="text-align: left; padding: 10px;">
-                    {% if m.player_b and m.player_b.global_player_id %}
-                        <a href="/stats/player/{{ m.player_b.global_player_id }}"
-                           style="font-weight: bold; color: {{ 'var(--winner-color)' if m.winner_id and m.winner_id == m.player_b_id else 'var(--accent-silver)' }};">
-                            {{ m.player_b.name }}
-                        </a>
-                    {% elif m.player_b %}
-                        <span style="font-weight: bold; color: {{ 'var(--winner-color)' if m.winner_id and m.winner_id == m.player_b_id else 'var(--text-main)' }};">
-                            {{ m.player_b.name }}
-                        </span>
-                    {% else %}
-                        BYE
-                    {% endif %}
-                </td>
+                        {% if m.player_a %}
+                            <a href="/stats/player/{{ m.player_a.global_player_id if m.player_a.global_player_id else m.player_a.id }}"
+                               class="{% if is_a_winner %}match-winner{% endif %}"
+                               style="font-weight: bold;">
+                                {{ m.player_a.name }}
+                            </a>
+                        {% else %}
+                            BYE
+                        {% endif %}
+                    </td>
+
+                    <!-- Detail zápasu -->
+                    <td style="text-align: center; padding: 10px;">
+                        <button onclick="toggleMatchDetails(this, {{ m.id }})"
+                                style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 4px 10px; cursor: pointer; color: var(--accent-silver); font-weight: bold; border-radius: 4px;">
+                            {{ m.overall_score }} ▼
+                        </button>
+                    </td>
+
+                    <!-- Hráč B (vždy klikací odkaz) -->
+                    <td style="text-align: left; padding: 10px;">
+                        {% if m.player_b %}
+                            <a href="/stats/player/{{ m.player_b.global_player_id if m.player_b.global_player_id else m.player_b.id }}"
+                               class="{% if is_b_winner %}match-winner{% endif %}"
+                               style="font-weight: bold;">
+                                {{ m.player_b.name }}
+                            </a>
+                        {% else %}
+                            BYE
+                        {% endif %}
+                    </td>
                 </tr>
-            <tr id="match-detail-{{ m.id }}" style="display: none;"></tr>
+                <tr id="match-detail-{{ m.id }}" style="display: none;"></tr>
             {% else %}
                 <tr>
                     <td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">Nebyly nalezeny žádné zápasy.</td>

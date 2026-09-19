@@ -1,0 +1,34 @@
+{% extends "settings/base_settings.html" %}
+
+{% block content %}
+<div class="scroll-parchment">
+    <div class="parchment-side parchment-left"></div>
+    <div class="parchment-side parchment-right"></div>
+
+    <h1>Správa Playoff</h1>
+
+    <form action="/settings_playoff" method="POST" id="wizard_form">
+        <fieldset style="text-align: left;">
+            <legend>Nastavení Playoff</legend>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 15px;">
+                <label style="margin-bottom: 0; font-weight: bold; flex: 1;">Formát zápasu:</label>
+                <select name="playoff_match_format" style="flex: 2; margin-bottom: 0;">
+                    {% for val, name in PLAYOFF_RULES.playoff_match_format.items() %}
+                        <option value="{{ val }}" {% if wizard.playoff_match_format == val %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; gap: 15px;">
+                <label style="margin-bottom: 0; font-weight: bold; flex: 1;">Nepostupující:</label>
+                <select name="elimination_actions" style="flex: 2; margin-bottom: 0;">
+                    {% for key, name in PLAYOFF_RULES.elimination_actions.items() %}
+                        <option value="{{ key }}" {% if wizard.playoff_elimination_actions == key %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </fieldset>
+    </form>
+</div>
+{% endblock %}

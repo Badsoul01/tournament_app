@@ -6,7 +6,7 @@ from app.models.models import (
     Match as MatchModel, Tournament as TournamentModel,
     PlayoffStats as PlayoffStatsModel, ConsolationStats as ConsolationStatsModel
 )
-from app.services.match_stats import MatchStatsService
+from services.stats.match_stats import MatchStatsService
 
 
 class PlayerStatsService:
@@ -149,7 +149,7 @@ class PlayerStatsService:
             chart_ranks.append(rank)
             chart_points.append(points)
 
-            # --- VÝPOČET CELKOVÉHO RANKU K DATU TÉTOHO TURNAJE ---
+            # --- VÝPOČET CELKOVÉHO RANKU K DATU TOHOTO TURNAJE ---
             t_date = lp.tournament.date
             if hasattr(t_date, 'date'):
                 t_date = t_date.date()

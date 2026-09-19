@@ -1,10 +1,10 @@
 from flask import render_template, request, redirect, session
 from .blueprint import main_bp
 from config import GROUPS_RULES, PLAYOFF_RULES
-from app.services.setupwizard import SetupWizard
+from services.tournament.setupwizard import SetupWizard
 from app.models.models import Tournament as TournamentModel, GlobalPlayer as GlobalPlayerModel
-from app.services.tournament import Tournament as TournamentOrchestrator
-from app.services.queries import get_available_players_from_tournament, get_recent_finished_tournaments
+from services.tournament.tournament import Tournament as TournamentOrchestrator
+from services.utils.queries import get_available_players_from_tournament, get_recent_finished_tournaments
 
 @main_bp.route("/settings_groups", methods=["GET", "POST"])
 def settings_groups():
@@ -33,9 +33,9 @@ def settings_groups():
         if "HX-Request" in request.headers:
             active_tournament_id = request.form.get("active_tournament_id")
 
-            # 1. Vyrenderujeme hlavní část wizardu
+            # 1. Vyrenderujeme hlavní část wizardu (aktualizovaná cesta k partials ve složce settings)
             main_html = render_template(
-                "partials/_wizard_content.html",
+                "settings/partials/_wizard_content.html",
                 wizard=wizard,
                 GROUPS_RULES=GROUPS_RULES
             )
@@ -47,7 +47,7 @@ def settings_groups():
                 selected_tournament = TournamentModel.query.get(t_id)
 
                 oob_html = f'<div id="past-players-container" hx-swap-oob="true">' \
-                           f'{render_template("partials/_past_tournament_players.html", available_players=available_players, selected_tournament=selected_tournament)}' \
+                           f'{render_template("settings/partials/_past_tournament_players.html", available_players=available_players, selected_tournament=selected_tournament)}' \
                            f'</div>'
 
                 return main_html + oob_html
@@ -60,7 +60,7 @@ def settings_groups():
     all_global_players = [g.name for g in GlobalPlayerModel.query.order_by(GlobalPlayerModel.name.asc()).all()]
 
     return render_template(
-        "settings_groups.html",
+        "settings/settings_groups.html",
         wizard=wizard,
         GROUPS_RULES=GROUPS_RULES,
         recent_tournaments=recent_tournaments,
@@ -79,7 +79,7 @@ def search_tournaments():
             TournamentModel.name.ilike(f"%{query}%")
         ).order_by(TournamentModel.date.desc()).limit(10).all()
 
-    return render_template("partials/_past_tournaments_list.html", recent_tournaments=tournaments)
+    return render_template("settings/partials/_past_tournaments_list.html", recent_tournaments=tournaments)
 
 @main_bp.route("/wizard/past-tournament/<int:tournament_id>/players")
 def get_past_tournament_players(tournament_id):
@@ -95,7 +95,7 @@ def get_past_tournament_players(tournament_id):
     selected_tournament = TournamentModel.query.get(tournament_id)
 
     return render_template(
-        "partials/_past_tournament_players.html",
+        "settings/partials/_past_tournament_players.html",
         available_players=available_players,
         selected_tournament=selected_tournament
     )
@@ -119,7 +119,7 @@ def settings_playoff():
 
             if not wizard.check_readiness():
                 return render_template(
-                    "settings_playoff.html",
+                    "settings/settings_playoff.html",
                     wizard=wizard,
                     PLAYOFF_RULES=PLAYOFF_RULES,
                     error="Turnaj není připraven"
@@ -135,7 +135,7 @@ def settings_playoff():
             return redirect(f"/tournament/{new_tournament.id}/groups")
 
     return render_template(
-        "settings_playoff.html",
+        "settings/settings_playoff.html",
         wizard=wizard,
         PLAYOFF_RULES=PLAYOFF_RULES
     )
