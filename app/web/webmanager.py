@@ -1,10 +1,10 @@
 from app.models.models import Tournament as TournamentModel, Group as GroupModel, Match as MatchModel, Bracket as BracketModel, \
     Player as PlayerModel, ConsolationStats as ConsolationStatsModel, \
     GroupStats as GroupStatsModel, PlayoffStats as PlayoffStatsModel
-from services.utils.player import PlayerHelper
-from services.tournament.groupmanager import GroupManager
-from services.tournament.playoff import Playoff
-from services.utils.match import evaluate,toggle_match_progress, unlock_match
+from app.services.utils.player import PlayerHelper
+from app.services.tournament.groupmanager import GroupManager
+from app.services.tournament.playoff import Playoff
+from app.services.utils.match import evaluate,toggle_match_progress, unlock_match
 
 
 class WebManager:
