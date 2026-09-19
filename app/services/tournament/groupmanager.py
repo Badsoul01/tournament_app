@@ -1,7 +1,7 @@
 import itertools
 from app.models.models import db, Group as GroupModel,Player as PlayerModel, Match as MatchModel, Bracket as BracketModel
-from services.utils.player import PlayerHelper
-from services.tournament.playoff import Playoff
+from app.services.utils.player import PlayerHelper
+from app.services.tournament.playoff import Playoff
 
 class GroupManager:
     """

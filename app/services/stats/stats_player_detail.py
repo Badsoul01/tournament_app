@@ -6,7 +6,7 @@ from app.models.models import (
     Match as MatchModel, Tournament as TournamentModel,
     PlayoffStats as PlayoffStatsModel, ConsolationStats as ConsolationStatsModel
 )
-from services.stats.match_stats import MatchStatsService
+from app.services.stats.match_stats import MatchStatsService
 
 
 class PlayerStatsService:
