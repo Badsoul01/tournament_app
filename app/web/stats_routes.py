@@ -8,7 +8,7 @@ from app.models.models import (
     PlayoffStats as PlayoffStatsModel
 )
 from app.web.webmanager import WebManager
-from services.stats.match_stats import MatchStatsService
+from app.services.stats.match_stats import MatchStatsService
 from datetime import datetime
 
 

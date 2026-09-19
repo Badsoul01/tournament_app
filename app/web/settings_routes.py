@@ -1,10 +1,10 @@
 from flask import render_template, request, redirect, session
 from .blueprint import main_bp
 from config import GROUPS_RULES, PLAYOFF_RULES
-from services.tournament.setupwizard import SetupWizard
+from app.services.tournament.setupwizard import SetupWizard
 from app.models.models import Tournament as TournamentModel, GlobalPlayer as GlobalPlayerModel
-from services.tournament.tournament import Tournament as TournamentOrchestrator
-from services.utils.queries import get_available_players_from_tournament, get_recent_finished_tournaments
+from app.services.tournament.tournament import Tournament as TournamentOrchestrator
+from app.services.utils.queries import get_available_players_from_tournament, get_recent_finished_tournaments
 
 @main_bp.route("/settings_groups", methods=["GET", "POST"])
 def settings_groups():

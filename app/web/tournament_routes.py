@@ -1,10 +1,10 @@
 from urllib.parse import quote
 from flask import render_template, request, redirect, send_file, make_response
-from services.tournament.tournament import Tournament as TournamentOrchestrator
+from app.services.tournament.tournament import Tournament as TournamentOrchestrator
 from app.web.webmanager import WebManager
 from . import main_bp
-from services.utils.permission import can_edit_tournament
-from services.utils.export import TournamentExportService
+from app.services.utils.permission import can_edit_tournament
+from app.services.utils.export import TournamentExportService
 
 
 @main_bp.route("/tournament/<int:tournament_id>/groups", methods=["GET", "POST"])
