@@ -5,9 +5,9 @@
             <button type="submit" name="action" value="next" form="wizard_form">Generovat turnaj</button>
             {% else %}
                 <button type="button" disabled>Turnaj není připraven</button>
-                <div class="text-danger font-md" style="margin-top: 15px;">
+                <div class="font-md" style="margin-top: 15px; color: var(--danger-color);">
                     <strong>Před vygenerováním turnaje je nutné:</strong>
-                    <ul style="list-style-position: inside; padding-left: 0; margin-top: 5px;">
+                    <ul style="list-style-position: inside; padding-left: 0; margin-top: 5px; color: var(--danger-color);">
                         {% for error in wizard.get_readiness_errors() %}
                             <li>{{ error }}</li>
                         {% endfor %}
