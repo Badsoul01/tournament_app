@@ -1,10 +1,10 @@
-<tr id="match-detail-{{ match.id }}" style="background-color: #0d121c; border-bottom: 2px solid var(--border-color);">
-    <td colspan="5" style="padding: 15px;">
-        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
+<tr id="match-detail-{{ match.id }}" class="match-detail-row">
+    <td colspan="5" class="match-detail-cell">
+        <div class="match-detail-grid">
 
             <!-- Sety -->
-            <div style="flex: 1; min-width: 220px;">
-                <h4 style="margin-top: 0; color: var(--accent-silver);">Průběh setů</h4>
+            <div class="match-detail-column">
+                <h4>Průběh setů</h4>
                 {% if sets %}
                     <ul style="margin: 0; padding-left: 20px; line-height: 1.5; color: var(--text-muted);">
                         {% for s in sets %}
@@ -17,8 +17,8 @@
             </div>
 
             <!-- Úspěšnost hráčů -->
-            <div style="flex: 1; min-width: 220px;">
-                <h4 style="margin-top: 0; color: var(--accent-silver);">Celková úspěšnost (Win Rate)</h4>
+            <div class="match-detail-column">
+                <h4>Celková úspěšnost (Win Rate)</h4>
                 <p style="margin: 4px 0; color: var(--text-main);">
                     <strong>{{ match.player_a.name if match.player_a else 'BYE' }}:</strong>
                     {{ stats_a.win_rate }}% <small style="color: var(--text-muted);">({{ stats_a.wins }}V / {{ stats_a.losses }}P)</small>
@@ -30,8 +30,8 @@
             </div>
 
             <!-- Vzájemná bilance (H2H) -->
-            <div style="flex: 1; min-width: 200px;">
-                <h4 style="margin-top: 0; color: var(--accent-silver);">Vzájemná bilance (H2H)</h4>
+            <div class="match-detail-column">
+                <h4>Vzájemná bilance (H2H)</h4>
                 <p style="margin: 4px 0; color: var(--text-main);">Celkem zápasů: <strong>{{ h2h_data.total }}</strong></p>
                 <p style="margin: 4px 0; color: var(--text-main);">
                     Bilance: <span style="color: var(--winner-color); font-weight: bold;">{{ h2h_data.wins_a }}V</span> /

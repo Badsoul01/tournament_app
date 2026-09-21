@@ -1,32 +1,30 @@
-<strong style="display: block; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-bottom: 8px; color: var(--accent-silver);">
+<strong class="section-header-small">
     Dostupní hráči {% if selected_tournament %}({{ available_players|length }}){% endif %}
 </strong>
 
 {% if available_players %}
-    <!-- Tlačítko: Přidat všechny dostupné -->
-    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="margin-bottom: 10px;">
+    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-10">
         <input type="hidden" name="players_text" value="{{ available_players|join(', ') }}">
         <input type="hidden" name="active_tournament_id" value="{{ selected_tournament.id }}">
-        <button type="submit" name="action" value="add_players" style="width: 100%; cursor: pointer; background: var(--bg-card); color: var(--accent-silver); border: 1px solid var(--border-color); padding: 6px; border-radius: 4px; font-weight: bold;">
+        <button type="submit" name="action" value="add_players" class="btn-full-width">
             + Přidat všechny
         </button>
     </form>
 
-    <!-- Seznam jednotlivých hráčů -->
-    <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.9em;">
+    <ul class="clean-list-sm">
         {% for player_name in available_players %}
-        <li style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; color: var(--text-main);">
+        <li class="player-list-item">
             <span>{{ player_name }}</span>
-            <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="margin: 0;">
+            <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-0">
                 <input type="hidden" name="players_text" value="{{ player_name }}">
                 <input type="hidden" name="active_tournament_id" value="{{ selected_tournament.id }}">
-                <button type="submit" name="action" value="add_players" title="Přidat hráče" style="background: var(--bg-card); color: var(--accent-silver); border: 1px solid var(--border-color); width: 24px; height: 24px; border-radius: 4px; cursor: pointer; font-weight: bold; line-height: 1;">+</button>
+                <button type="submit" name="action" value="add_players" title="Přidat hráče" class="btn-icon-small">+</button>
             </form>
         </li>
         {% endfor %}
     </ul>
 {% elif selected_tournament %}
-    <span style="color: var(--text-muted); font-size: 0.85em; font-style: italic;">Všichni hráči z tohoto turnaje již byli přidáni.</span>
+    <span class="text-muted font-sm" style="font-style: italic;">Všichni hráči z tohoto turnaje již byli přidáni.</span>
 {% else %}
-    <span style="color: var(--text-muted); font-size: 0.85em; font-style: italic;">Vyberte turnaj vlevo.</span>
+    <span class="text-muted font-sm" style="font-style: italic;">Vyberte turnaj vlevo.</span>
 {% endif %}

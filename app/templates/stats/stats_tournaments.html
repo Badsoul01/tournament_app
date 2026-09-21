@@ -1,30 +1,25 @@
 {% extends "stats/base_stats.html" %}
 
 {% block stats_content %}
+    <h2 class="stats-section-title">Statistiky turnajů</h2>
 
-    <!-- Obalili jsme obsah do efektu roztaženého svitku -->
-    <div class="scroll-parchment">
-        <h2 style="margin-top: 0; color: var(--accent-silver); text-align: center;">Statistiky turnajů</h2>
+    <form method="GET" action="/stats/tournaments" class="stats-search-form">
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <input type="hidden" name="order" value="{{ order }}">
 
-        <!-- Formulář je venku -> fokus v inputu zůstane zachován při psaní -->
-        <form method="GET" action="/stats/tournaments" style="margin-bottom: 20px; text-align: center;">
-            <input type="hidden" name="sort_by" value="{{ sort_by }}">
-            <input type="hidden" name="order" value="{{ order }}">
+        <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat turnaj, vítěze, datum nebo počet hráčů..."
+               hx-get="/stats/tournaments"
+               hx-target="#tournaments-table-container"
+               hx-swap="innerHTML"
+               hx-trigger="keyup changed delay:300ms, search"
+               hx-include="[name='sort_by'], [name='order']"
+               class="stats-search-input">
+    </form>
 
-            <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat turnaj, vítěze, datum nebo počet hráčů..."
-                   hx-get="/stats/tournaments"
-                   hx-target="#tournaments-table-container"
-                   hx-swap="innerHTML"
-                   hx-trigger="keyup changed delay:300ms, search"
-                   hx-include="[name='sort_by'], [name='order']"
-                   style="padding: 8px 12px; width: 350px;">
-        </form>
-
-        <!-- Kontejner pro tabulku, kam se dynamicky nahraje i tlačítko zrušení filtru -->
-        <div id="tournaments-table-container">
-            {% include "stats/partials/_tournaments_table.html" %}
-        </div>
+    <div id="tournaments-table-container">
+        {% include "stats/partials/_tournaments_table.html" %}
     </div>
+
 
     <script src="{{ url_for('static', filename='js/rows_details.js') }}?v=1"></script>
 {% endblock %}

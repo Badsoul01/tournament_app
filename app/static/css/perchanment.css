@@ -1,0 +1,83 @@
+/* =========================================
+   PERGAMEN (Vylepšená textura šumu a stínování)
+   ========================================= */
+.scroll-parchment {
+    position: relative;
+    width: min(900px, 92vw);
+    min-height: 500px;
+    padding: 75px 80px 80px;
+
+    margin: auto;
+
+    background:
+        /* Jemný SVG šum (textura starého papíru/plátna) */
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E"),
+        /* Vnitřní světelný střed */
+        radial-gradient(ellipse at 50% 15%, rgba(40, 56, 80, 0.35) 0%, transparent 65%),
+        /* Hlavní hluboký přechod pergamenu */
+        radial-gradient(ellipse at center, #172130 0%, #101824 55%, #080d14 100%);
+
+    border-left: 1px solid #23354d;
+    border-right: 1px solid #23354d;
+
+    box-shadow:
+        inset 0 30px 30px -12px rgba(0, 0, 0, 0.75),
+        inset 0 -30px 30px -12px rgba(0, 0, 0, 0.75),
+        inset 25px 0 35px rgba(0, 0, 0, 0.5),
+        inset -25px 0 35px rgba(0, 0, 0, 0.5),
+        0 25px 50px rgba(0, 0, 0, 0.85),
+        0 0 25px rgba(3, 5, 8, 0.95);
+}
+
+/* HORNÍ A SPODNÍ VÁLEC */
+.scroll-parchment::before,
+.scroll-parchment::after {
+    content: "";
+    position: absolute;
+    left: -28px;
+    right: -28px;
+    height: 32px;
+    background: linear-gradient(to bottom, #020407 0%, #070c14 15%, #101927 35%, #1b283b 50%, #111925 65%, #070c14 85%, #020407 100%);
+    border: 1px solid #23354d;
+    border-radius: 16px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.9), inset 0 2px 3px rgba(130, 160, 200, 0.15), inset 0 -4px 6px rgba(0, 0, 0, 0.85);
+    z-index: 5;
+}
+.scroll-parchment::before { top: -16px; }
+.scroll-parchment::after { bottom: -16px; }
+
+/* DETAILNĚJŠÍ OKRAJE SVITKU */
+.parchment-side {
+    position: absolute;
+    top: 17px;
+    bottom: 17px;
+    width: 38px;
+    z-index: 3;
+    pointer-events: none;
+    background: linear-gradient(to right, #03060a 0%, #080e18 25%, #172436 48%, #0e1622 70%, transparent 100%);
+    filter: drop-shadow(2px 0 3px rgba(0, 0, 0, 0.5));
+}
+
+/* LEVÝ OKRAJ */
+.parchment-left {
+    left: -3px;
+    clip-path: polygon(0 0%, 70% 1%, 55% 4%, 75% 7%, 50% 10%, 72% 13%, 53% 16%, 76% 19%, 52% 22%, 70% 25%, 50% 28%, 73% 31%, 51% 34%, 75% 37%, 50% 40%, 72% 43%, 52% 46%, 76% 49%, 50% 52%, 73% 55%, 51% 58%, 75% 61%, 50% 64%, 72% 67%, 52% 70%, 76% 73%, 50% 76%, 73% 79%, 51% 82%, 75% 85%, 50% 88%, 72% 91%, 52% 94%, 70% 97%, 55% 99%, 70% 100%, 0 100%);
+    box-shadow: inset 6px 0 10px rgba(0, 0, 0, 0.85), inset -3px 0 6px rgba(50, 70, 100, 0.1), 4px 0 8px rgba(0, 0, 0, 0.4);
+}
+
+/* PRAVÝ OKRAJ */
+.parchment-right {
+    right: -3px;
+    background: linear-gradient(to left, #03060a 0%, #080e18 25%, #172436 48%, #0e1622 70%, transparent 100%);
+    clip-path: polygon(30% 1%, 100% 0%, 100% 100%, 30% 100%, 45% 99%, 25% 97%, 48% 94%, 28% 91%, 50% 88%, 25% 85%, 49% 82%, 27% 79%, 50% 76%, 24% 73%, 48% 70%, 28% 67%, 50% 64%, 25% 61%, 49% 58%, 27% 55%, 50% 52%, 24% 49%, 48% 46%, 28% 43%, 50% 40%, 25% 37%, 49% 34%, 27% 31%, 50% 28%, 30% 25%, 48% 22%, 24% 19%, 47% 16%, 28% 13%, 50% 10%, 25% 7%, 45% 4%, 30% 1%);
+    box-shadow: inset -6px 0 10px rgba(0, 0, 0, 0.85), inset 3px 0 6px rgba(50, 70, 100, 0.1), -4px 0 8px rgba(0, 0, 0, 0.4);
+}
+
+/* RESPONSIVE POUZE PRO PERGAMEN */
+@media (max-width: 700px) {
+    .scroll-parchment { width: 96vw; min-height: 500px; padding: 65px 35px 70px; }
+    .parchment-side { width: 22px; }
+}
+@media (max-width: 450px) {
+    .scroll-parchment { width: 98vw; padding: 60px 22px 65px; }
+}

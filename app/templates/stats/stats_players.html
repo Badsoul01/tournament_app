@@ -1,26 +1,23 @@
 {% extends "stats/base_stats.html" %}
 
 {% block stats_content %}
-    <div class="scroll-parchment">
-        <h2 style="margin-top: 0; color: var(--accent-silver); text-align: center;">Globální žebříček hráčů</h2>
+    <h2 class="stats-section-title">Globální žebříček hráčů</h2>
 
-        <!-- Formulář venku pro zachování fokusu v inputu -->
-        <form method="GET" action="/stats/players" style="margin-bottom: 20px; text-align: center;">
-            <input type="hidden" name="sort_by" value="{{ sort_by }}">
-            <input type="hidden" name="order" value="{{ order }}">
+    <form method="GET" action="/stats/players" class="stats-search-form">
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <input type="hidden" name="order" value="{{ order }}">
 
-            <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat hráče..."
-                   hx-get="/stats/players"
-                   hx-target="#players-table-container"
-                   hx-swap="innerHTML"
-                   hx-trigger="keyup changed delay:300ms, search"
-                   hx-include="[name='sort_by'], [name='order']"
-                   style="padding: 8px 12px; width: 300px;">
-        </form>
+        <input type="text" name="q" value="{{ q }}" placeholder="🔍 Hledat hráče..."
+               hx-get="/stats/players"
+               hx-target="#players-table-container"
+               hx-swap="innerHTML"
+               hx-trigger="keyup changed delay:300ms, search"
+               hx-include="[name='sort_by'], [name='order']"
+               class="stats-search-input" style="width: 300px;">
+    </form>
 
-        <!-- Kontejner pro tabulku a tlačítko zrušení filtru -->
-        <div id="players-table-container">
-            {% include "stats/partials/_players_table.html" %}
-        </div>
+    <div id="players-table-container">
+        {% include "stats/partials/_players_table.html" %}
     </div>
+
 {% endblock %}

@@ -1,13 +1,14 @@
 <!-- ZÁLOŽKA: OBECNÉ INFORMACE -->
-<div style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 900px; margin: 0 auto;">
 
     <!-- Horní řádek: Dva sloupce (Výkonnost a Rivalita) -->
-    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+    <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
 
         <!-- Levý sloupec: Výkonnost -->
-        <div style="flex: 1; min-width: 300px; border: 1px solid var(--border-color); background-color: transparent; padding: 15px; border-radius: 6px; text-align: center;">
-            <h3 style="color: var(--accent-silver); margin-top: 0; text-align: center;">Výkonnost</h3>
+        <div style="flex: 1; min-width: 300px; max-width: 430px; border: 1px solid var(--border-color); background-color: transparent; padding: 15px; border-radius: 6px; text-align: center;">
+            <h3 class="stats-section-title" style="font-size: 1.35rem;">Výkonnost</h3>
 
+            <!-- FORMA -->
             <div style="margin-bottom: 15px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;">
                 <strong style="color: var(--text-main);">Forma (posledních 5 zápasů): </strong>
                 {% if recent_form %}
@@ -26,57 +27,90 @@
                     <span style="color: var(--text-muted);">Nedostatek dat</span>
                 {% endif %}
             </div>
-
-            <p style="color: var(--text-main); text-align: center;"><strong>Win Rate:</strong> {{ win_rate }} %</p>
-            <p style="color: var(--text-main); text-align: center;"><strong>Celkové skóre (V/P/R):</strong> {{ player.matches_won }} / {{ player.matches_lost }} / {{ player.matches_drawn }}</p>
-            <p style="color: var(--text-main); text-align: center;"><strong>Body za poslední turnaj:</strong>
+            <!-- Body za poslední turnaj -->
+            <p style="color: var(--text-main); text-align: center;"><strong style="color: var(--text-main);">Body za poslední turnaj:</strong>
                 {% if player.last_points_gained and player.last_points_gained > 0 %}
-                    <span style="color: var(--winner-color); font-weight: bold;">+ {{ player.last_points_gained }} b.</span>
+                    <span class="match-winner">+ {{ player.last_points_gained }} b.</span>
                 {% else %}
                 <span style="color: var(--text-muted);">0 b.</span>
                 {% endif %}
             </p>
+
+            <!-- Celkové skóre -->
+            <p style="color: var(--text-main); text-align: center;">
+                <strong style="color: var(--text-main);">Celkové skóre (V/P/R):</strong>
+                <strong style="color: var(--winner-color);">{{ player.matches_won }}</strong> /
+                <strong style="color: var(--danger-color);">{{ player.matches_lost }}</strong> /
+                <span class="text-muted">{{ player.matches_drawn }}</span>
+            </p>
+
+            <!-- Úspěšnost výher -->
+            <p style="color: var(--text-main); text-align: center;">
+                <strong style="color: var(--text-main);">Úspěšnost výher:</strong>
+                <strong style="color: var(--winner-color);">{{ win_rate }} %</strong>
+            </p>
+
+            <!-- Nejlepší umístění -->
+            <p style="color: var(--text-main); text-align: center;"><strong style="color: var(--text-main);">Nejlepší umístění v turnaji:</strong>
+                {% if best_rank %}
+                    <span style="color: var(--winner-color); font-weight: bold;">{{ best_rank }}. místo</span>
+                {% else %}
+                    <span style="color: var(--text-muted);">-</span>
+                {% endif %}
+            </p>
+
         </div>
 
         <!-- Pravý sloupec: Rivalita na stole -->
-        <div style="flex: 1; min-width: 300px; border: 1px solid var(--border-color); background-color: transparent; padding: 15px; border-radius: 6px; text-align: center;">
-            <h3 style="color: var(--accent-silver); margin-top: 0; text-align: center;">Rivalita na stole</h3>
+        <div style="flex: 1; min-width: 300px; max-width: 430px; border: 1px solid var(--border-color); background-color: transparent; padding: 15px; border-radius: 6px; text-align: center;">
+            <h3 class="stats-section-title" style="font-size: 1.35rem;">Rivalita na stole</h3>
 
-            <h4 style="color: var(--winner-color); margin-bottom: 5px; text-align: center;">Nejvíce výher proti:</h4>
+            <h4 style="color: var(--accent-silver); margin-bottom: 3px; text-align: center; font-size: 0.95rem;">Nejvíce výher proti:</h4>
             {% if favorite_opponent %}
-                <p style="margin-top: 0; color: var(--text-main); text-align: center;">
-                    <strong><a href="/stats/player/{{ favorite_opponent.id }}" style="font-weight: bold;">{{ favorite_opponent.name }}</a></strong><br>
-                    Bilance: <span style="color: var(--winner-color);">{{ favorite_opponent.wins_against }} výher</span> / <span style="color: var(--danger-color);">{{ favorite_opponent.losses_against }} proher</span>
+                <p style="margin-top: 0; margin-bottom: 12px; color: var(--text-main); text-align: center;">
+                    <strong><a href="/stats/player/{{ favorite_opponent.id }}" class="match-winner">{{ favorite_opponent.name }}</a></strong><br>
+                    Bilance: <span class="match-winner">{{ favorite_opponent.wins_against }} výher</span> / <span style="color: var(--danger-color);">{{ favorite_opponent.losses_against }} proher</span>
                 </p>
             {% else %}
-                <p style="margin-top: 0; color: var(--text-muted); text-align: center;">Zatím nemá žádného oblíbeného soupeře.</p>
+                <p style="margin-top: 0; margin-bottom: 12px; color: var(--text-muted); text-align: center;">Zatím nemá oblíbeného soupeře.</p>
             {% endif %}
 
-            <h4 style="color: var(--danger-color); margin-bottom: 5px; margin-top: 20px; text-align: center;">Nejvíce proher proti:</h4>
+            <h4 style="color: var(--accent-silver); margin-bottom: 3px; text-align: center; font-size: 0.95rem;">Nejvíce proher proti:</h4>
             {% if nemesis %}
-                <p style="margin-top: 0; color: var(--text-main); text-align: center;">
-                    <strong><a href="/stats/player/{{ nemesis.id }}" style="font-weight: bold;">{{ nemesis.name }}</a></strong><br>
-                    Bilance: <span style="color: var(--winner-color);">{{ nemesis.wins_against }} výher</span> / <span style="color: var(--danger-color);">{{ nemesis.losses_against }} proher</span>
+                <p style="margin-top: 0; margin-bottom: 0; color: var(--text-main); text-align: center;">
+                    <strong ><a href="/stats/player/{{ nemesis.id }}" style="color: var(--danger-color) !important; font-weight: bold;">{{ nemesis.name }}</a></strong><br>
+                    Bilance: <span class="match-winner">{{ nemesis.wins_against }} výher</span> / <span style="color: var(--danger-color);">{{ nemesis.losses_against }} proher</span>
                 </p>
             {% else %}
-                <p style="margin-top: 0; color: var(--text-muted); text-align: center;">Zatím nenašel přemožitele.</p>
+                <p style="margin-top: 0; margin-bottom: 0; color: var(--text-muted); text-align: center;">Zatím nenašel přemožitele.</p>
             {% endif %}
+
+             <h4 style="color: var(--accent-silver); margin-bottom: 3px; text-align: center; font-size: 0.95rem;">Nejčastější soupeř:</h4>
+            {% if most_frequent_opponent %}
+                <p style="margin-top: 0; margin-bottom: 12px; text-align: center;">
+                    <strong><a href="/stats/player/{{ most_frequent_opponent.id }}">{{ most_frequent_opponent.name }}</a></strong><br>
+                    Bilance: <span class="match-winner">{{ most_frequent_opponent.wins_against }} výher</span> / <span style="color: var(--danger-color);">{{ most_frequent_opponent.losses_against }} proher</span>
+                </p>
+            {% else %}
+                <p style="margin-top: 0; margin-bottom: 12px; color: var(--text-muted); text-align: center;">Zatím žádný soupeř.</p>
+            {% endif %}
+
         </div>
 
     </div>
 
     <!-- Spodní sekce: Graf 1 (Vývoj umístění) samostatně na řádku -->
-    <div style="border: 1px solid var(--border-color); background-color: transparent; padding: 15px; border-radius: 6px; text-align: center;">
+    <div style="border: 1px solid var(--border-color); background-color: transparent; padding: 15px; border-radius: 6px; text-align: center; width: 100%;">
         <h4 style="color: var(--accent-silver); margin-top: 0; text-align: center;">Vývoj umístění</h4>
-        <div style="position: relative; height: 250px;">
+        <div style="position: relative; height: 250px; width: 100%;">
             <canvas id="rankChart"></canvas>
         </div>
     </div>
 
     <!-- Spodní sekce: Graf 2 (Bodový vývoj) samostatně na řádku -->
-    <div style="border: 1px solid var(--border-color); background-color: transparent; padding: 15px; border-radius: 6px; text-align: center;">
+    <div style="border: 1px solid var(--border-color); background-color: transparent; padding: 15px; border-radius: 6px; text-align: center; width: 100%;">
         <h4 style="color: var(--accent-silver); margin-top: 0; text-align: center;">Bodový vývoj</h4>
-        <div style="position: relative; height: 250px;">
+        <div style="position: relative; height: 250px; width: 100%;">
             <canvas id="pointsChart"></canvas>
         </div>
     </div>

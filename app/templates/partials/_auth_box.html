@@ -1,3 +1,4 @@
+
 <!-- PŘIHLAŠOVACÍ TLAČÍTKO / MENU -->
 <div class="auth-wrapper">
     {% if session.get('organizer_id') %}
@@ -13,12 +14,12 @@
 
         <!-- Vyskakovací okno pro přihlášeného -->
         <div id="logout-form-popup" class="auth-popup auth-popup-logout">
-            <div style="margin-bottom: 12px; font-size: 0.9em; color: var(--text-muted);">
+            <div class="mb-12 font-md text-muted">
                 Přihlášen jako:<br>
-                <strong style="color: var(--text-main); font-size: 1.05em;">{{ session.get('organizer_name') }}</strong>
+                <strong class="text-main" style="font-size: 1.05em;">{{ session.get('organizer_name') }}</strong>
             </div>
-            <form action="/logout" method="POST" style="margin: 0;">
-                <button type="submit" class="auth-logout-btn">
+            <form action="/logout" method="POST" class="mb-0">
+                <button type="submit" class="auth-logout-btn w-100">
                     Odhlásit se
                 </button>
             </form>
@@ -36,24 +37,24 @@
 
         <!-- Skrytý formulář pro přihlášení -->
         <div id="login-form-popup" class="auth-popup auth-popup-login">
-            <form hx-post="/auth" hx-target="#auth-message" hx-swap="innerHTML" style="margin: 0;">
+            <form hx-post="/auth" hx-target="#auth-message" hx-swap="innerHTML" class="mb-0">
 
                 {% if tournament %}
                     <input type="hidden" name="tournament_id" value="{{ tournament.id }}">
                 {% endif %}
 
-                <div class="auth-form-stack">
-                    <input type="text" name="username" placeholder="Jméno (např. daniel)" required class="auth-input-field">
-                    <input type="password" name="password" placeholder="Heslo" required class="auth-input-field">
+                <div class="auth-form-stack flex-col flex-gap8">
+                    <input type="text" name="username" placeholder="Jméno (např. daniel)" required class="auth-input-field w-100">
+                    <input type="password" name="password" placeholder="Heslo" required class="auth-input-field w-100">
 
-                    <button type="submit" class="auth-submit-btn">
+                    <button type="submit" class="auth-submit-btn w-100">
                         Vstoupit
                     </button>
                 </div>
 
-                <div id="auth-message" style="color: var(--danger-color); margin-top: 8px; font-weight: bold; font-size: 0.85em;"></div>
+                <div id="auth-message" class="text-danger fw-bold font-sm" style="margin-top: 8px;"></div>
 
-                <small style="color: var(--text-muted); display: block; margin-top: 8px; font-size: 0.8em;">
+                <small class="text-muted font-sm" style="display: block; margin-top: 8px;">
                     Nezadané jméno vytvoří nový účet automaticky.
                 </small>
             </form>

@@ -1,5 +1,5 @@
 <div id="players-table-container">
-    <div style="margin-bottom: 15px; min-height: 20px;">
+    <div class="match-cancel-filter-wrapper">
         {% if q %}
             <a href="/stats/players"
                hx-get="/stats/players"
@@ -9,25 +9,22 @@
         {% endif %}
     </div>
 
-    <table style="width: 100%; max-width: 650px; margin: 0 auto; border-collapse: collapse; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
+    <table class="stats-table" style="max-width: 650px; margin: 0 auto;">
         <thead>
-            <tr style="background-color: var(--border-color); border-bottom: 2px solid var(--border-color);">
-                <th style="text-align: center; width: 15%; padding: 10px;">Rank</th>
-                <th style="text-align: center; width: 55%; padding: 10px;">
+            <tr>
+                <th style="width: 15%;">Rank</th>
+                <th style="width: 55%;">
                     <a hx-get="/stats/players?q={{ q }}&sort_by=name&order={{ 'desc' if sort_by == 'name' and order == 'asc' else 'asc' }}"
                        hx-target="#players-table-container"
-                       hx-swap="innerHTML"
-                       style="cursor: pointer;">
+                       hx-swap="innerHTML">
                         Jméno
                     </a>
                     {% if sort_by == 'name' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: center; width: 30%; padding: 10px;">
+                <th style="width: 30%;">
                     <a hx-get="/stats/players?q={{ q }}&sort_by=total_points&order={{ 'asc' if sort_by == 'total_points' and order == 'desc' else 'desc' }}"
-                       hx-target="#stats/players"
                        hx-target="#players-table-container"
-                       hx-swap="innerHTML"
-                       style="cursor: pointer;">
+                       hx-swap="innerHTML">
                         Celkové body
                     </a>
                     {% if sort_by == 'total_points' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
@@ -36,18 +33,16 @@
         </thead>
         <tbody>
             {% for p in players %}
-            <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;"
-                onmouseover="this.style.backgroundColor='#1a2333'"
-                onmouseout="this.style.backgroundColor='transparent'">
-                <td style="text-align: center; font-weight: bold; color: var(--text-muted); padding: 10px;">
+            <tr>
+                <td style="font-weight: bold; color: var(--text-muted);">
                     {{ ranks_map.get(p.id, '-') }}.
                 </td>
-                <td style="padding: 10px;">
-                    <a href="/stats/player/{{ p.id }}" style="font-weight: bold;">
+                <td>
+                    <a href="/stats/player/{{ p.id }}">
                         {{ p.name }}
                     </a>
                 </td>
-                <td style="text-align: right; font-weight: bold; color: var(--winner-color); padding: 10px;">
+                <td style="font-weight: bold; color: var(--winner-color);">
                     {{ p.total_points }} b.
                 </td>
             </tr>

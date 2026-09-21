@@ -1,0 +1,238 @@
+/* ========================================================
+   JEDNOTNÉ STYLY PRO STATISTIKY (stats.css)
+   ======================================================== */
+
+/* Hlavní nadpisy sekcí ve statistikách */
+.stats-section-title {
+    margin-top: 0;
+    color: var(--accent-silver);
+    text-align: center !important;
+}
+
+/* Vyhledávací formuláře ve statistikách */
+.stats-search-form {
+    margin-bottom: 20px;
+    text-align: center !important;
+    display: flex;
+    justify-content: center;
+}
+
+.stats-search-input {
+    padding: 8px 14px;
+    width: 350px !important;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+/* Kontejnery pro tabulky a obsah záložek */
+#tournaments-table-container,
+#players-table-container,
+#matches-table-container,
+#tab-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+/* Univerzální vycentrování všech tabulek a jejich buněk */
+.scroll-parchment table,
+.stats-container table {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    text-align: center !important;
+    width: 100%;
+}
+
+.scroll-parchment th,
+.scroll-parchment td,
+.stats-container th,
+.stats-container td {
+    text-align: center !important;
+}
+
+/* Hlavička detailu hráče */
+.player-profile-header {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    background-color: transparent;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.player-profile-title {
+    margin-top: 0;
+    color: var(--accent-silver);
+}
+
+.player-profile-info {
+    margin: 5px 0;
+    color: var(--text-main);
+}
+
+.player-profile-back {
+    font-size: 0.9em;
+    display: inline-block;
+    margin-top: 5px;
+}
+
+/* Záložky v profilu hráče (Tabs) */
+.player-tabs-container {
+    color: var(--text-muted) !important;
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.player-tab-link {
+    padding: 10px 15px;
+    text-decoration: none;
+    border: 1px solid var(--border-color);
+    font-weight: bold;
+    border-radius: 5px 5px 0 0;
+    background-color: transparent;
+    color: var(--text-muted) !important;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+/* Vzhled aktivního tabu (tmavé pozadí + stříbrný text) */
+.player-tab-link.active-tab {
+    background-color: var(--bg-card) !important;
+    color: var(--accent-silver) !important;
+    border-bottom-color: var(--bg-card) !important;
+}
+
+.player-tab-link:hover {
+    color: var(--accent-silver-glow) !important;
+}
+
+/* ========================================================
+   STYLY PRO TABULKY A ZÁPASY
+   ======================================================== */
+
+.stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.stats-table thead tr {
+    background-color: var(--border-color);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.stats-table th {
+    text-align: center;
+    padding: 10px;
+    color: var(--accent-silver);
+}
+
+.stats-table th a {
+    cursor: pointer;
+}
+
+.stats-table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s;
+}
+
+/* Vypnutí podsvícení řádku při najetí myší */
+.stats-table tbody tr:hover {
+    background-color: transparent !important;
+}
+
+.stats-table td {
+    padding: 10px;
+}
+
+/* Zvýraznění vítěze zápasu zlatou barvou */
+a.match-winner,
+.match-winner {
+    color: var(--winner-color) !important;
+    font-weight: bold !important;
+}
+
+/* Tlačítko pro rozbalení detailu zápasu */
+.match-detail-toggle-btn {
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    padding: 4px 10px;
+    cursor: pointer;
+    color: var(--accent-silver);
+    font-weight: bold;
+    border-radius: 4px;
+}
+
+.match-detail-toggle-btn:hover {
+    border-color: var(--accent-silver);
+}
+
+/* Řádek s detailem zápasu po rozkliknutí */
+.match-detail-row {
+    background-color: #0d121c;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.match-detail-cell {
+    padding: 15px;
+}
+
+.match-detail-grid {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.match-detail-column {
+    flex: 1;
+    min-width: 220px;
+}
+
+.match-detail-column h4 {
+    margin-top: 0;
+    color: var(--accent-silver);
+}
+
+.match-cancel-filter-wrapper {
+    margin-bottom: 15px;
+    min-height: 20px;
+    text-align: center;
+}
+
+/* Styly pro detail řádku turnaje */
+.tournament-detail-row {
+    background-color: #0d121c;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.tournament-detail-cell {
+    padding: 15px;
+}
+
+.tournament-detail-grid {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.tournament-detail-column {
+    flex: 1;
+    min-width: 200px;
+}
+
+.tournament-detail-column h4 {
+    margin-top: 0;
+    color: var(--accent-silver);
+}

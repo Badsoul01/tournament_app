@@ -2,21 +2,19 @@
 
 {% block content %}
 {% block stats_content %}
-    <div class="scroll-parchment">
-        {% include "tournament/partials/_tournament_nav.html" %}
+    {% include "tournament/partials/_tournament_nav.html" %}
 
-        <h2 style="text-align: center; color: var(--accent-silver); margin-top: 10px; margin-bottom: 20px;">ÚTĚCHA - SKUPINY</h2>
+        <h2 class="tournament-section-title">ÚTĚCHA - SKUPINY</h2>
 
         {% for group_name, data in group_data.items() %}
-            <details open style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-                <summary style="cursor: pointer; color: var(--accent-silver); font-size: 1.1em; margin-bottom: 10px; padding: 5px 0;"><strong>Skupina {{ group_name }}</strong></summary>
+            <details open class="group-details-box">
+                <summary class="group-summary-title"><strong>Skupina {{ group_name }}</strong></summary>
 
-                <!-- Cílový kontejner pro HTMX, který využije náš shared partial -->
-                <div id="group-{{ group_name }}" style="margin-top: 10px;">
+                <div id="group-{{ group_name }}" class="group-container-mt">
                     {% include "tournament/partials/_group_content.html" %}
-                </div>
-            </details>
-        {% endfor %}
-    </div>
+            </div>
+        </details>
+    {% endfor %}
+
 {% endblock %}
 {% endblock %}

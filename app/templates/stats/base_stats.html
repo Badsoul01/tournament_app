@@ -5,27 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Statistiky</title>
 
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/perchanment.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tournament.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 <body>
-    <div class="stats-container">
-        <h1>Statistiky</h1>
+    <!-- Navigační menu je nyní venku nad pergamenem -->
+    <h1>Statistiky</h1>
 
-        <!-- Sjednocené navigační menu pro statistiky -->
-        <nav class="unified-nav">
-            <div class="unified-nav-left">
-                <a href="/">Domů</a>
-            </div>
-            <div class="unified-nav-center">
-                <a href="/stats/tournaments" class="{% if '/stats/tournaments' in request.path %}active-nav-link{% endif %}">Turnaje</a>
-                <a href="/stats/players" class="{% if '/stats/players' in request.path %}active-nav-link{% endif %}">Hráči</a>
-                <a href="/stats/matches" class="{% if '/stats/matches' in request.path %}active-nav-link{% endif %}">Zápasy</a>
-            </div>
-            <div class="unified-nav-right">
-                <!-- Prázdný div pro zachování symetrie mřížky 1fr auto 1fr -->
-            </div>
-        </nav>
+    <nav class="unified-nav">
+        <div class="unified-nav-left">
+            <a href="/">Domů</a>
+        </div>
+        <div class="unified-nav-center">
+            <a href="/stats/tournaments" class="{% if '/stats/tournaments' in request.path %}active-nav-link{% endif %}">Turnaje</a>
+            <a href="/stats/players" class="{% if '/stats/players' in request.path %}active-nav-link{% endif %}">Hráči</a>
+            <a href="/stats/matches" class="{% if '/stats/matches' in request.path %}active-nav-link{% endif %}">Zápasy</a>
+        </div>
+        <div class="unified-nav-right">
+            <!-- Prázdný div pro zachování symetrie mřížky 1fr auto 1fr -->
+        </div>
+    </nav>
+
+    <!-- Hlavní pergamen obalující už jen samotný obsah statistik -->
+    <div class="scroll-parchment">
+
+        <!-- Roztřepené boční okraje pergamenu -->
+        <div class="parchment-side parchment-left"></div>
+        <div class="parchment-side parchment-right"></div>
+
 
         <main id="stats-content">
             {% block stats_content %}

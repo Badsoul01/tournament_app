@@ -1,0 +1,365 @@
+/* ========================================================
+   SPOLEČNÉ STYLY PRO ZÁPASY (Skupiny i Playoff)
+   ======================================================== */
+
+/* Obecná karta zápasu */
+.match-card {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 12px 15px !important;
+    margin-bottom: 12px !important;
+    border-radius: 6px !important;
+    position: relative;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Klikací karta (čekající zápas) */
+.match-card.clickable {
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.match-card.clickable:hover {
+    border-color: var(--accent-silver) !important;
+    background-color: #1a2333 !important;
+}
+
+.match-card.active-match {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--accent-silver) !important; /* Stříbrné ohraničení aktivního tlačítka */
+    box-shadow: 0 0 10px rgba(203, 213, 225, 0.15) !important;
+}
+/* Hlavička otevřeného (probíhajícího) zápasu */
+.active-match-header {
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+.active-match-header.clickable {
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+.active-match-header.clickable:hover {
+    opacity: 0.8;
+}
+
+/* Rozvržení uvnitř karet */
+.match-flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.match-center-layout {
+    text-align: center;
+}
+
+/* Tlačítka a ikony (ozubené kolo, pírko) */
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: none;
+}
+.icon-btn:hover {
+    opacity: 0.8;
+}
+.action-absolute-right {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+}
+
+/* Typografie a barvy */
+.text-main { color: var(--text-main); }
+.text-muted { color: var(--text-muted); }
+.text-winner { color: var(--winner-color); font-weight: bold; }
+.text-danger { color: var(--danger-color); }
+.text-accent { color: var(--accent-silver); }
+
+.fw-bold { font-weight: bold; }
+.fw-normal { font-weight: normal; }
+
+.font-sm { font-size: 0.85em; }
+.font-md { font-size: 0.9em; }
+.font-lg { font-size: 1.1em; }
+.font-xl { font-size: 1.2em; }
+
+/* ========================================================
+   SPECIFICKÉ STYLY PRO SKUPINY (_group_content.html)
+   ======================================================== */
+.group-layout-table td {
+    vertical-align: top !important; /* Zajišťuje, že zápasy začínají na stejném řádku jako tabulka */
+}
+
+.group-hint-text {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+.matches-table-player-col {
+    width: 68%;
+    white-space: nowrap;
+}
+.matches-table-score-col {
+    width: 32%;
+    text-align: right;
+    color: var(--accent-silver);
+    white-space: nowrap;
+}
+.match-edit-form-inline {
+    display: inline;
+    margin-left: 8px;
+}
+
+/* ========================================================
+   JEDNOTNÉ BAREVNÉ STYLY PRO INPUTY ZÁPASŮ (Sjednoceno se style.css)
+   ======================================================== */
+.match-input {
+    width: 70px !important;
+    background-color: var(--bg-main) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+    padding: 4px !important;
+    text-align: center;
+    font-size: 0.95em;
+    font-family: inherit;
+}
+
+.match-input:focus {
+    background-color: var(--bg-main) !important;
+    color: var(--text-main) !important;
+    border-color: var(--accent-silver) !important;
+    outline: none !important;
+    box-shadow: 0 0 5px rgba(203, 213, 225, 0.2);
+}
+
+.match-input::placeholder {
+    color: var(--text-muted) !important;
+}
+
+/* ========================================================
+   SPECIFICKÉ STYLY PRO PLAYOFF A VÝSLEDKY
+   ======================================================== */
+.winner-alert {
+    background: var(--bg-card);
+    border: 1px solid var(--winner-color);
+    padding: 15px;
+    border-radius: 6px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+.winner-alert h3 {
+    color: var(--winner-color);
+    margin-top: 0;
+}
+.btn-final-results {
+    background: var(--bg-main);
+    color: var(--accent-silver);
+    border: 1px solid var(--border-color);
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    text-decoration: none;
+}
+.placement-section {
+    margin-top: 40px;
+}
+.placement-header {
+    color: var(--accent-silver);
+    text-align: center;
+    margin-bottom: 15px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 25px;
+}
+.vs-divider {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin: 4px 0;
+}
+.vs-divider-active {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin: 6px 0;
+}
+
+/* ========================================================
+   NOVĚ PŘIDANÉ KLASICKÉ ELEMENTY (Skupiny, Výsledky, Nadpisy)
+   ======================================================== */
+.tournament-section-title {
+    text-align: center;
+    color: var(--accent-silver);
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+/* Opravený vzhled boxů skupin (details element) */
+.group-details-box {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 20px !important;
+    border-radius: 8px !important;
+    margin-bottom: 20px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Nadpis uvnitř details (summary) */
+.group-summary-title {
+    cursor: pointer;
+    color: var(--text-main) !important;
+    font-size: 1.15em !important;
+    font-weight: bold;
+    margin-bottom: 15px !important;
+    padding-bottom: 10px !important;
+    border-bottom: 1px solid rgba(51, 69, 99, 0.5) !important;
+}
+
+.group-container-mt {
+    margin-top: 10px;
+}
+
+.results-table {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto 20px auto;
+    text-align: left;
+    border-collapse: collapse;
+    background-color: transparent !important; /* Zruší temnou výplň tabulky */
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.results-header-row {
+    background-color: var(--border-color);
+    border-bottom: 2px solid var(--border-color);
+}
+.results-row {
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s;
+}
+.results-row:hover {
+    background-color: #1a2333;
+}
+.results-actions-wrapper {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 25px;
+    flex-wrap: wrap;
+}
+.btn-action-base {
+    background-color: var(--bg-card);
+    color: var(--accent-silver);
+    border: 1px solid var(--border-color);
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-action-danger {
+    background-color: var(--danger-color);
+    color: white;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.tournament-locked-badge {
+    background-color: var(--bg-main);
+    color: var(--accent-silver);
+    border: 1px solid var(--border-color);
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-weight: bold;
+}
+.results-empty-box {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+/* ========================================================
+   OHRANIČENÍ A VZHLED TABULKY VE SKUPINÁCH (_group_content.html)
+   ======================================================== */
+
+.group-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    background-color: #1c2638 !important;
+    border: 1px solid #334563 !important;
+    border-radius: 6px !important;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+.group-table th,
+.group-table td {
+    border: 1px solid #334563 !important;
+    padding: 10px 12px;
+    text-align: left;
+    color: var(--text-main);
+}
+
+.group-table thead tr {
+    background-color: #2a3a54 !important;
+    border-bottom: 2px solid #334563 !important;
+}
+
+.group-table th {
+    color: var(--accent-silver);
+    font-weight: bold;
+}
+
+/* Zvýraznění postupových řádků ve skupině */
+table.group-table tbody tr.qualifying-row td {
+    background-color: #081f16 !important;
+    color: var(--text-main) !important;
+}
+
+/* ========================================================
+   ZOBRAZENÍ A ROZVRŽENÍ PAVOUKA (Playoff)
+   ======================================================== */
+.bracket {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 20px;
+    overflow-x: auto;
+    padding: 10px 5px 20px 5px;
+    justify-content: flex-start;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.round {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    min-width: 240px; /
+    flex: 0 0 auto;
+}
+
+.round h4 {
+    color: var(--accent-silver);
+    text-align: center;
+    margin-bottom: 5px;
+    font-size: 1.1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 8px;
+    white-space: nowrap;
+}

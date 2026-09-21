@@ -2,15 +2,12 @@
 
 {% block content %}
 {% block stats_content %}
-    <div class="scroll-parchment">
-        {% include "tournament/partials/_tournament_nav.html" %}
+    {% include "tournament/partials/_tournament_nav.html" %}
 
-        <h2 style="text-align: center; color: var(--accent-silver); margin-top: 10px; margin-bottom: 20px;">PLAYOFF ÚTĚCHY</h2>
+    <h2 class="tournament-section-title">PLAYOFF ÚTĚCHY</h2>
 
-        <!-- Cílový kontejner, který recykluje stejný partial pro pavouka -->
-        <div id="playoff-container">
-            {% include "tournament/partials/_playoff_content.html" %}
-        </div>
+    <div id="playoff-container">
+        {% include "tournament/partials/_playoff_content.html" %}
     </div>
 {% endblock %}
 {% endblock %}

@@ -1,0 +1,69 @@
+/* ==========================================
+   AUTH BOX (PŘIHLÁŠENÍ)
+   ========================================== */
+.auth-wrapper {
+    position: relative;
+    display: inline-block;
+    text-align: left;
+}
+.auth-trigger-btn {
+    background-color: var(--bg-card);
+    color: var(--accent-silver);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    cursor: pointer;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+.auth-trigger-btn:hover {
+    border-color: var(--accent-silver);
+    background-color: var(--border-color);
+}
+.auth-popup {
+    display: none;
+    position: absolute;
+    top: calc(100% +8px);
+    right: 0;
+    left: auto;
+    transform: none;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    padding: 15px;
+    border-radius: 6px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+    z-index: 99999;
+}
+.auth-popup-logout { width: 200px; text-align: center; }
+.auth-popup-login { width: 250px; }
+.auth-form-stack { display: flex; flex-direction: column; gap: 10px; }
+.auth-input-field {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 6px;
+    border-radius: 4px;
+}
+.auth-submit-btn {
+    width: 100%;
+    background-color: var(--accent-silver);
+    color: var(--bg-main);
+    font-weight: bold;
+    border: none;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.auth-logout-btn {
+    width: 100%;
+    background-color: var(--bg-card);
+    color: var(--accent-silver);
+    border: 1px solid var(--border-color);
+    font-weight: bold;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
