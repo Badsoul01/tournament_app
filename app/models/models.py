@@ -84,6 +84,16 @@ class Player(db.Model):
 
     global_player_id = db.Column(db.Integer, db.ForeignKey("global_players.id"), nullable=True)
 
+    @property
+    def safe_global_id(self):
+        """Vrátí global_player_id, nebo ho zkusí dohledat podle jména v global_players."""
+        if self.global_player_id:
+            return self.global_player_id
+
+        # Fallback pro rozehrané turnaje, kde vazba ještě není uložena
+        gp = GlobalPlayer.query.filter_by(name=self.name).first()
+        return gp.id if gp else None
+
 class GlobalPlayer(db.Model):
     __tablename__ = "global_players"
 

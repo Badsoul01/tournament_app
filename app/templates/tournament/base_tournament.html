@@ -5,24 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Turnaj: {{ tournament.name }}</title>
 
-    <!-- Připojení našeho jednotného externího CSS a specifických stylů turnaje -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/perchanment.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tournament.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css') }}">
 
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     {% block extra_style %}{% endblock %}
 </head>
 <body>
 
-    <main>
-        {% block content %}
-        {% endblock %}
-    </main>
+    <!-- Hlavní pergamen v layoutu -->
+    <div class="scroll-parchment">
+        <!-- Roztřepené boční okraje pergamenu -->
+        <div class="parchment-side parchment-left"></div>
+        <div class="parchment-side parchment-right"></div>
 
-<!-- Kontejner pro svitkové notifikace v pravém dolním rohu -->
+        <main>
+            {% block content %}
+            {% endblock %}
+        </main>
+    </div>
+
 <div id="scroll-toast-container" style="position: fixed; bottom: 25px; right: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
 
-<!-- Načtení vašeho JavaScriptu -->
 <script src="{{ url_for('static', filename='js/showScroll.js') }}"></script>
 <script src="{{ url_for('static', filename='js/authBox.js') }}"></script>
 </body>

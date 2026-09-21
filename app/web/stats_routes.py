@@ -1,5 +1,7 @@
+import sqlalchemy
 from flask import render_template, request, redirect
 from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
 from . import main_bp
 from app.models.models import (
@@ -230,9 +232,14 @@ def stats_matches_view():
     order = request.args.get("order", "desc")
     reverse_sort = (order == "desc")
 
-    query = MatchModel.query.join(TournamentModel, MatchModel.tournament_id == TournamentModel.id) \
-        .filter(MatchModel.is_finished == True) \
-        .filter(or_(MatchModel.player_a_id.isnot(None), MatchModel.player_b_id.isnot(None)))
+    # Přidáme joinedload, aby se hráči A, B i turnaj načetli rovnou i s globálními ID
+    query = MatchModel.query.options(
+        joinedload(MatchModel.player_a),
+        joinedload(MatchModel.player_b),
+        joinedload(MatchModel.tournament)
+    ).join(TournamentModel, MatchModel.tournament_id == TournamentModel.id) \
+     .filter(MatchModel.is_finished == True) \
+     .filter(or_(MatchModel.player_a_id.isnot(None), MatchModel.player_b_id.isnot(None)))
 
     query = query.order_by(TournamentModel.date.desc(), MatchModel.id.desc())
     matches = query.all()
@@ -270,12 +277,6 @@ def stats_matches_view():
         "stats/stats_matches.html",
         matches=matches, q=q, sort_by=sort_by, order=order
     )
-
-
-@main_bp.route("/stats/match/<int:match_id>")
-def stats_match_detail_view(match_id):
-    context = MatchStatsService.get_match_detail_context(match_id)
-    return render_template("stats/partials/_match_details_row.html", **context)
 
 
 @main_bp.route("/stats/player/<int:player_id>")

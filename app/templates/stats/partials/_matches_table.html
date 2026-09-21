@@ -1,5 +1,5 @@
 <div id="matches-table-container">
-    <div style="margin-bottom: 15px; min-height: 20px;">
+    <div class="match-cancel-filter-wrapper">
         {% if q %}
             <a href="/stats/matches"
                hx-get="/stats/matches"
@@ -9,44 +9,40 @@
         {% endif %}
     </div>
 
-    <table style="width: 100%; border-collapse: collapse; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
+    <table class="stats-table">
         <thead>
-            <tr style="background-color: var(--border-color); border-bottom: 2px solid var(--border-color);">
-                <th style="text-align: center; width: 20%; padding: 10px;">
+            <tr>
+                <th style="width: 20%;">
                     <a hx-get="/stats/matches?q={{ q }}&sort_by=tournament&order={{ 'desc' if sort_by == 'tournament' and order == 'asc' else 'asc' }}"
                        hx-target="#matches-table-container"
-                       hx-swap="innerHTML"
-                       style="cursor: pointer;">
+                       hx-swap="innerHTML">
                         Turnaj
                     </a>
                     {% if sort_by == 'tournament' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: center; width: 10%; padding: 10px;">
+                <th style="width: 10%;">
                     <a hx-get="/stats/matches?q={{ q }}&sort_by=phase&order={{ 'desc' if sort_by == 'phase' and order == 'asc' else 'asc' }}"
                        hx-target="#matches-table-container"
-                       hx-swap="innerHTML"
-                       style="cursor: pointer;">
+                       hx-swap="innerHTML">
                         Fáze
                     </a>
                     {% if sort_by == 'phase' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: center; width: 20%; padding: 10px;">
+                <th style="width: 20%;">
                     <a hx-get="/stats/matches?q={{ q }}&sort_by=player_a&order={{ 'desc' if sort_by == 'player_a' and order == 'asc' else 'asc' }}"
                        hx-target="#matches-table-container"
-                       hx-swap="innerHTML"
-                       style="cursor: pointer;">
+                       hx-swap="innerHTML">
                         Hráč A
                     </a>
                     {% if sort_by == 'player_a' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="text-align: center; width: 30%; padding: 10px;">
+                <th style="width: 30%;">
                     Výsledek
                 </th>
-                <th style="text-align: center; width: 20%; padding: 10px;">
+                <th style="width: 20%;">
                     <a hx-get="/stats/matches?q={{ q }}&sort_by=player_b&order={{ 'desc' if sort_by == 'player_b' and order == 'asc' else 'asc' }}"
                        hx-target="#matches-table-container"
-                       hx-swap="innerHTML"
-                       style="cursor: pointer;">
+                       hx-swap="innerHTML">
                         Hráč B
                     </a>
                     {% if sort_by == 'player_b' %}{{ '▲' if order == 'asc' else '▼' }}{% endif %}
@@ -55,16 +51,13 @@
         </thead>
         <tbody>
             {% for m in matches %}
-                {# Určení vítěze přímo podle ID #}
+                {# Určení vítěze podle ID #}
                 {% set is_a_winner = m.winner_id and m.player_a_id and (m.winner_id == m.player_a_id) %}
                 {% set is_b_winner = m.winner_id and m.player_b_id and (m.winner_id == m.player_b_id) %}
 
-                <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;"
-                    onmouseover="this.style.backgroundColor='#1a2333'"
-                    onmouseout="this.style.backgroundColor='transparent'">
-
+                <tr>
                     <!-- Turnaj -->
-                    <td style="padding: 10px;">
+                    <td>
                         {% if m.tournament.is_finished %}
                             <a href="/stats/tournament/{{ m.tournament.id }}/results">{{ m.tournament.name }}</a>
                         {% else %}
@@ -72,40 +65,49 @@
                         {% endif %}
                     </td>
 
-                    <td style="text-align: center; padding: 10px; color: var(--text-muted);">{{ m.phase_display_name }}</td>
+                    <td style="color: var(--text-muted);">{{ m.phase_display_name }}</td>
 
-                    <!-- Hráč A: Vždy odkaz na profil + zlatý vítěz -->
-                    <td style="text-align: right; padding: 10px;">
-                        {% if m.player_a %}
-                            <a href="/stats/player/{{ m.player_a.global_player_id if m.player_a.global_player_id else m.player_a.id }}"
+                    <!-- Hráč A -->
+                    <td style="text-align: right;">
+                        {% if m.player_a and m.player_a.safe_global_id %}
+                            <a href="/stats/player/{{ m.player_a.safe_global_id }}"
                                class="{% if is_a_winner %}match-winner{% endif %}"
                                style="font-weight: bold;">
                                 {{ m.player_a.name }}
                             </a>
+                        {% elif m.player_a %}
+                            <span class="{% if is_a_winner %}match-winner{% endif %}" style="font-weight: bold;">
+                                {{ m.player_a.name }}
+                            </span>
                         {% else %}
                             BYE
                         {% endif %}
                     </td>
 
                     <!-- Výsledek -->
-                    <td style="text-align: center; padding: 10px;">
-                        <button onclick="toggleMatchDetails(this, {{ m.id }})"
-                                style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 4px 10px; cursor: pointer; color: var(--accent-silver); font-weight: bold; border-radius: 4px;">
+                    <td style="text-align: center;">
+                        <button onclick="toggleMatchDetails(this, {{ m.id }})" class="match-detail-toggle-btn">
                             {{ m.overall_score }} ▼
                         </button>
                     </td>
 
-                    <!-- Hráč B: Vždy odkaz na profil + zlatý vítěz -->
-                    <td style="text-align: left; padding: 10px;">
-                        {% if m.player_b %}
-                            <a href="/stats/player/{{ m.player_b.global_player_id if m.player_b.global_player_id else m.player_b.id }}"
+                    <!-- Hráč B -->
+                    <td style="text-align: left;">
+                        {% if m.player_b and m.player_b.safe_global_id %}
+                            <a href="/stats/player/{{ m.player_b.safe_global_id }}"
                                class="{% if is_b_winner %}match-winner{% endif %}"
                                style="font-weight: bold;">
                                 {{ m.player_b.name }}
                             </a>
+                        {% elif m.player_b %}
+                            <span class="{% if is_b_winner %}match-winner{% endif %}" style="font-weight: bold;">
+                                {{ m.player_b.name }}
+                            </span>
                         {% else %}
                             BYE
                         {% endif %}
+                    </td>
+                </tr>
                     </td>
                 </tr>
                 <tr id="match-detail-{{ m.id }}" style="display: none;"></tr>

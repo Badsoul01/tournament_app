@@ -2,21 +2,21 @@
     {% if match.is_real_match %}
         {% if match.is_finished %}
             <!-- STAV 0: Dohráno -->
-            <div class="match-card" style="padding: 12px; margin-bottom: 12px; position: relative; text-align: center;">
+            <div class="match-card match-center-layout">
 
                 <!-- Hráč A -->
-                <strong style="color: {% if match.winner_name and match.player_a_name == match.winner_name %}var(--winner-color){% else %}var(--text-main){% endif %};">
+                <strong class="{% if match.winner_name and match.player_a_name == match.winner_name %}text-winner{% else %}text-main{% endif %}">
                     {{ match.player_a_name }}
                 </strong>
-                <small style="color: var(--text-muted);">({{ match.player_a_seed }})</small>
+                <small class="text-muted">({{ match.player_a_seed }})</small>
 
-                <div style="font-size: 0.85em; color: var(--text-muted); margin: 4px 0;">vs</div>
+                <div class="vs-divider">vs</div>
 
                 <!-- Hráč B -->
-                <strong style="color: {% if match.winner_name and match.player_b_name == match.winner_name %}var(--winner-color){% else %}var(--text-main){% endif %};">
+                <strong class="{% if match.winner_name and match.player_b_name == match.winner_name %}text-winner{% else %}text-main{% endif %}">
                     {{ match.player_b_name }}
                 </strong>
-                <small style="color: var(--text-muted);">({{ match.player_b_seed }})</small>
+                <small class="text-muted">({{ match.player_b_seed }})</small>
 
                 {% if match.player_a_name != "BYE" and match.player_b_name != "BYE" %}
                     <!-- Formulář pro úpravu zápasu (malé ozubené kolečko vpravo) -->
@@ -24,9 +24,9 @@
                         <form hx-post="{{ action_url }}"
                               hx-target="#playoff-container"
                               hx-swap="innerHTML"
-                              style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); margin: 0;">
+                              class="action-absolute-right">
                             <input type="hidden" name="match_id" value="{{ match.match_id }}">
-                            <button type="submit" name="action" value="edit_match" title="Upravit zápas" style="background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0; box-shadow: none;">⚙️</button>
+                            <button type="submit" name="action" value="edit_match" title="Upravit zápas" class="icon-btn font-lg">⚙️</button>
                         </form>
                     {% endif %}
                 {% endif %}
@@ -34,66 +34,53 @@
 
         {% elif not match.is_in_progress %}
             <!-- STAV 1: Zavřeno (Čeká se) - CELÁ KARTA JE KLIKACÍ -->
-            <div class="match-card"
+            <div class="match-card match-center-layout {% if editable %}clickable{% endif %}"
                  {% if editable %}
                  hx-post="{{ action_url }}"
                  hx-vals='{"action": "toggle_progress", "match_id": "{{ match.match_id }}"}'
                  hx-target="#playoff-container"
                  hx-swap="innerHTML"
-                 style="padding: 12px; margin-bottom: 12px; cursor: pointer; transition: border-color 0.2s; text-align: center; position: relative;"
-                 onmouseover="this.style.borderColor='var(--accent-silver)'"
-                 onmouseout="this.style.borderColor=''"
                  title="Kliknutím otevřeš zápas"
-                 {% else %}
-                 style="padding: 12px; margin-bottom: 12px; text-align: center;"
                  {% endif %}>
 
-                <strong style="color: var(--text-main);">{{ match.player_a_name }}</strong>
-                <small style="color: var(--text-muted);">({{ match.player_a_seed }})</small>
+                <strong class="text-main">{{ match.player_a_name }}</strong>
+                <small class="text-muted">({{ match.player_a_seed }})</small>
 
-                <div style="font-size: 0.85em; color: var(--text-muted); margin: 4px 0;">vs</div>
+                <div class="vs-divider">vs</div>
 
-                <strong style="color: var(--text-main);">{{ match.player_b_name }}</strong>
-                <small style="color: var(--text-muted);">({{ match.player_b_seed }})</small>
+                <strong class="text-main">{{ match.player_b_name }}</strong>
+                <small class="text-muted">({{ match.player_b_seed }})</small>
 
                 {% if editable %}
-                    <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85em;">📜</span>
+                    <span class="action-absolute-right text-muted font-sm">📜</span>
                 {% endif %}
             </div>
 
         {% else %}
             <!-- STAV 2: Rozkliknuto (Probíhá) -->
-            <div class="match-card active-match" style="padding: 12px; margin-bottom: 12px; text-align: center;">
+            <div class="match-card active-match match-center-layout">
 
                 <!-- Klikací hlavička pro zavření -->
-                <div {% if editable %}
+                <div class="{% if editable %}active-match-header clickable{% endif %}"
+                     {% if editable %}
                      hx-post="{{ action_url }}"
                      hx-vals='{"action": "toggle_progress", "match_id": "{{ match.match_id }}"}'
                      hx-target="#playoff-container"
                      hx-swap="innerHTML"
-                     style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); cursor: pointer; position: relative;"
-                     onmouseover="this.style.opacity='0.8'"
-                     onmouseout="this.style.opacity='1'"
                      title="Kliknutím zavřeš zápas"
-                     {% else %}
-                     style="position: relative;" <!-- Pro diváky zrušen zbytečný spodní okraj a mezera -->
-                     {% endif %}
+                     {% endif %}>
 
-                    <strong style="color: var(--text-main);">{{ match.player_a_name }}</strong>
-                    <small style="color: var(--text-muted);">({{ match.player_a_seed }})</small>
+                    <strong class="text-main">{{ match.player_a_name }}</strong>
+                    <small class="text-muted">({{ match.player_a_seed }})</small>
 
-                    <div style="font-size: 0.85em; color: var(--text-muted); margin: 6px 0;">
+                    <div class="vs-divider-active">
                         vs <br>
-                        <!-- PŘIDÁNO: Jasná informace, že se hraje -->
-                        <span style="font-size: 0.95em;">(Probíhá)</span>
+                        <!-- Jasná informace, že se hraje -->
+                        <span class="font-md">(Probíhá)</span>
                     </div>
 
-                    <strong style="color: var(--text-main);">{{ match.player_b_name }}</strong>
-                    <small style="color: var(--text-muted);">({{ match.player_b_seed }})</small>
-
-                    {% if editable %}
-                        <span style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); color: var(--danger-color); font-size: 0.85em;">zavřít ✕</span>
-                    {% endif %}
+                    <strong class="text-main">{{ match.player_b_name }}</strong>
+                    <small class="text-muted">({{ match.player_b_seed }})</small>
                 </div>
 
                 {% if editable %}
@@ -102,12 +89,12 @@
                           hx-swap="innerHTML"
                           class="match-form-column"
                           hx-on::before-request="if (!validatePlayoffMatch(this)) event.preventDefault();"
-                          hx-on::after-request="if(event.detail.successful) showScrollToast('Vysledek byl pridan do kroniky!');">
+                          hx-on::after-request="if(event.detail.successful) showScrollToast('Výsledek byl přidán do kroniky!');">
                         <input type="hidden" name="match_id" value="{{ match.match_id }}">
 
                         <div class="match-sets-wrapper">
                             {% for i in range(1, match.match_format + 1) %}
-                                <div class="set-container" style="color: var(--text-muted); font-size: 0.9em; justify-content: center;">
+                                <div class="set-container text-muted font-md" style="justify-content: center;">
                                     <strong>{{ i }}. set:</strong>
                                     <input type="number" class="match-input" name="game_a[]" min="0"> :
                                     <input type="number" class="match-input" name="game_b[]" min="0">
@@ -115,17 +102,17 @@
                             {% endfor %}
                         </div>
 
-                        <button type="submit" name="action" value="submit_result" style="width: 100%; font-weight: bold; margin-top: 5px;">Uložit výsledek</button>
+                        <button type="submit" name="action" value="submit_result" class="fw-bold w-100" style="margin-top: 5px;">Uložit výsledek</button>
                     </form>
                 {% endif %}
             </div>
         {% endif %}
     {% else %}
         <!-- SLOTOVÁ N-TICE -->
-        <div class="match-card" style="padding: 12px; margin-bottom: 12px; text-align: center;">
-            <strong style="color: var(--text-main);">{{ match.slot_a }}</strong>
-            <div style="font-size: 0.85em; color: var(--text-muted); margin: 4px 0;">vs</div>
-            <strong style="color: var(--text-main);">{{ match.slot_b }}</strong>
+        <div class="match-card match-center-layout">
+            <strong class="text-main">{{ match.slot_a }}</strong>
+            <div class="vs-divider">vs</div>
+            <strong class="text-main">{{ match.slot_b }}</strong>
         </div>
     {% endif %}
 {% endmacro %}
@@ -136,10 +123,10 @@
 <!-- ========================================== -->
 
 {% if p_data and p_data.winner %}
-    <div class="winner-alert" style="background: var(--bg-card); border: 1px solid var(--winner-color); padding: 15px; border-radius: 6px; text-align: center; margin-bottom: 20px;">
-        <h3 style="color: var(--winner-color); margin-top: 0;">Vítěz turnaje: {{ p_data.winner }}</h3>
+    <div class="winner-alert">
+        <h3>Vítěz turnaje: {{ p_data.winner }}</h3>
         <a href="/tournament/{{ tournament.id }}/results" style="text-decoration: none;">
-            <button type="button" style="background: var(--bg-main); color: var(--accent-silver); border: 1px solid var(--border-color); padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">Konečné výsledky</button>
+            <button type="button" class="btn-final-results">Konečné výsledky</button>
         </a>
     </div>
 {% endif %}
@@ -151,7 +138,6 @@
             <div class="round">
                 <h4>{{ round_name }}</h4>
                 {% for match in matches %}
-                    <!-- Všimni si: makro teď rovnou generuje celý obalový .match-card -->
                     {{ render_match(match, request.path) }}
                 {% endfor %}
             </div>
@@ -161,8 +147,8 @@
 
 <!-- 2. ZÁPASY O KONEČNÉ UMÍSTĚNÍ (Samostatná sekce) -->
 {% if p_data and p_data.placement_rounds %}
-    <div class="placement-section" style="margin-top: 40px;">
-        <h2 style="color: var(--accent-silver); text-align: center; margin-bottom: 15px; border-top: 1px solid var(--border-color); padding-top: 25px;">Zápasy o konečné umístění</h2>
+    <div class="placement-section">
+        <h2 class="placement-header">Zápasy o konečné umístění</h2>
 
         <div class="bracket">
             {% for placement in p_data.placement_rounds %}

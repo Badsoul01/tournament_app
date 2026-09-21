@@ -1,7 +1,7 @@
 <!-- ZÁLOŽKA: ZÁPASY -->
-<h3 style="color: var(--accent-silver);">Historie odehraných zápasů</h3>
+<h3 class="stats-section-title">Historie odehraných zápasů</h3>
 
-<form style="margin-bottom: 15px;">
+<form class="stats-search-form" style="margin-bottom: 15px;">
     <input type="hidden" name="tab" value="zapasy">
     <input type="hidden" name="sort_by" value="{{ tab_sort_by }}">
     <input type="hidden" name="order" value="{{ tab_order }}">
@@ -10,7 +10,7 @@
            name="q"
            value="{{ tab_q }}"
            placeholder="🔍 Hledat turnaj, fázi nebo soupeře..."
-           style="padding: 6px 10px; width: 300px;"
+           class="stats-search-input"
            hx-get="/stats/player/{{ player.id }}"
            hx-trigger="keyup changed delay:300ms, search"
            hx-target="#tab-content"
@@ -27,67 +27,65 @@
 </form>
 
 {% if matches_data %}
-    <table style="width: 100%; border-collapse: collapse; background-color: transparent; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
+    <table class="stats-table">
         <thead>
-            <tr style="background-color: var(--border-color); border-bottom: 2px solid var(--border-color);">
-                <th style="padding: 10px; text-align: center;">
+            <tr>
+                <th>
                     <a href="?tab=zapasy&q={{ tab_q }}&sort_by=tournament&order={{ 'desc' if tab_sort_by == 'tournament' and tab_order == 'asc' else 'asc' }}"
                        hx-get="?tab=zapasy&q={{ tab_q }}&sort_by=tournament&order={{ 'desc' if tab_sort_by == 'tournament' and tab_order == 'asc' else 'asc' }}"
-                       hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Turnaj</a>
+                       hx-target="#tab-content" hx-push-url="true">Turnaj</a>
                     {% if tab_sort_by == 'tournament' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="padding: 10px; text-align: center;">
+                <th>
                     <a href="?tab=zapasy&q={{ tab_q }}&sort_by=phase&order={{ 'desc' if tab_sort_by == 'phase' and tab_order == 'asc' else 'asc' }}"
                        hx-get="?tab=zapasy&q={{ tab_q }}&sort_by=phase&order={{ 'desc' if tab_sort_by == 'phase' and tab_order == 'asc' else 'asc' }}"
-                       hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Fáze</a>
+                       hx-target="#tab-content" hx-push-url="true">Fáze</a>
                     {% if tab_sort_by == 'phase' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="padding: 10px; text-align: center;">
+                <th>
                     <a href="?tab=zapasy&q={{ tab_q }}&sort_by=opponent&order={{ 'desc' if tab_sort_by == 'opponent' and tab_order == 'asc' else 'asc' }}"
                        hx-get="?tab=zapasy&q={{ tab_q }}&sort_by=opponent&order={{ 'desc' if tab_sort_by == 'opponent' and tab_order == 'asc' else 'asc' }}"
-                       hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Soupeř</a>
+                       hx-target="#tab-content" hx-push-url="true">Soupeř</a>
                     {% if tab_sort_by == 'opponent' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="padding: 10px; text-align: center;">
+                <th>
                     <a href="?tab=zapasy&q={{ tab_q }}&sort_by=score&order={{ 'desc' if tab_sort_by == 'score' and tab_order == 'asc' else 'asc' }}"
                        hx-get="?tab=zapasy&q={{ tab_q }}&sort_by=score&order={{ 'desc' if tab_sort_by == 'score' and tab_order == 'asc' else 'asc' }}"
-                       hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Skóre</a>
+                       hx-target="#tab-content" hx-push-url="true">Skóre</a>
                     {% if tab_sort_by == 'score' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                 </th>
-                <th style="padding: 10px; text-align: center;">
+                <th>
                     <a href="?tab=zapasy&q={{ tab_q }}&sort_by=result&order={{ 'desc' if tab_sort_by == 'result' and tab_order == 'asc' else 'asc' }}"
                        hx-get="?tab=zapasy&q={{ tab_q }}&sort_by=result&order={{ 'desc' if tab_sort_by == 'result' and tab_order == 'asc' else 'asc' }}"
-                       hx-target="#tab-content" hx-push-url="true" style="cursor: pointer;">Výsledek</a>
+                       hx-target="#tab-content" hx-push-url="true">Výsledek</a>
                     {% if tab_sort_by == 'result' %}{{ '▲' if tab_order == 'asc' else '▼' }}{% endif %}
                 </th>
             </tr>
         </thead>
         <tbody>
             {% for m in matches_data %}
-                <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;"
-                    onmouseover="this.style.backgroundColor='#1a2333'"
-                    onmouseout="this.style.backgroundColor='transparent'">
-                    <td style="padding: 10px;">
+                <tr>
+                    <td>
                         {% if m.tournament_id %}
                             <a href="/stats/tournament/{{ m.tournament_id }}/results?from=player&player_id={{ player.id }}">{{ m.tournament_name }}</a>
                         {% else %}
                             {{ m.tournament_name }}
                         {% endif %}
                     </td>
-                    <td style="padding: 10px; text-align: center; color: var(--text-muted);">{{ m.phase }}</td>
-                    <td style="padding: 10px;">
+                    <td style="color: var(--text-muted);">{{ m.phase }}</td>
+                    <td>
                         {% if m.opponent_id %}
-                            <a href="/stats/player/{{ m.opponent_id }}" style="font-weight: bold;">{{ m.opponent_name }}</a>
+                            <a href="/stats/player/{{ m.opponent_id }}" class="match-winner">{{ m.opponent_name }}</a>
                         {% else %}
                             {{ m.opponent_name }}
                         {% endif %}
                     </td>
-                    <td style="padding: 10px; text-align: center; font-weight: bold; color: var(--text-main);">{{ m.score }}</td>
-                    <td style="padding: 10px; text-align: center;">
+                    <td style="font-weight: bold; color: var(--text-main);">{{ m.score }}</td>
+                    <td>
                         {% if m.result == 'V' %}
-                            <span style="color: var(--winner-color); font-weight: bold;">Výhra (V)</span>
+                            <span class="match-winner">Výhra (V)</span>
                         {% elif m.result == 'P' %}
-                            <span style="color: #ef4444; font-weight: bold;">Prohra (P)</span>
+                            <span style="color: var(--danger-color); font-weight: bold;">Prohra (P)</span>
                         {% else %}
                             <span style="color: var(--text-muted); font-weight: bold;">Remíza (R)</span>
                         {% endif %}

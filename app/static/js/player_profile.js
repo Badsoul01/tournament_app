@@ -21,8 +21,8 @@ function initPlayerCharts() {
                     {
                         label: 'Umístění v turnaji',
                         data: data.ranks,
-                        borderColor: '#1976d2',
-                        backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                        borderColor: '#fbbf24',
+                        backgroundColor: 'rgba(251, 191, 36, 0.15)',
                         borderWidth: 2,
                         pointRadius: 4,
                         fill: 'start',
@@ -31,7 +31,7 @@ function initPlayerCharts() {
                     {
                         label: 'Celkové umístění v žebříčku',
                         data: data.globalRanks,
-                        borderColor: '#e91e63',
+                        borderColor: '#cbd5e1',
                         borderWidth: 2,
                         borderDash: [5, 5],
                         pointRadius: 3,
@@ -86,8 +86,8 @@ function initPlayerCharts() {
                     {
                         label: 'Celkový počet bodů',
                         data: cumulativePoints,
-                        borderColor: '#2e7d32',
-                        backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                        borderColor: '#f8fafc',
+                        backgroundColor: 'rgba(248, 250, 252, 0.15)',
                         borderWidth: 2,
                         pointRadius: 4,
                         fill: 'start',
@@ -97,7 +97,7 @@ function initPlayerCharts() {
                     {
                         label: 'Průměr bodů na turnaj',
                         data: averagePoints,
-                        borderColor: '#f57c00',
+                        borderColor: '#f97316',
                         borderDash: [5, 5],
                         borderWidth: 2,
                         pointRadius: 3,
@@ -156,7 +156,7 @@ function initPlayerCharts() {
                     {
                         label: h2hData.playerName + ' (Globální umístění)',
                         data: h2hData.playerGlobalRanks,
-                        borderColor: '#64b5f6', // Světle modrá
+                        borderColor: '#64b5f6',
                         borderWidth: 2,
                         borderDash: [5, 5],
                         pointRadius: 3,
@@ -174,7 +174,7 @@ function initPlayerCharts() {
                     {
                         label: h2hData.opponentName + ' (Globální umístění)',
                         data: h2hData.oppGlobalRanks,
-                        borderColor: '#ef9a9a', // Světle červená
+                        borderColor: '#ef9a9a',
                         borderWidth: 2,
                         borderDash: [5, 5],
                         pointRadius: 3,
@@ -203,8 +203,29 @@ function initPlayerCharts() {
     }
 }
 
-// Spustit při klasickém načtení stránky
-document.addEventListener("DOMContentLoaded", initPlayerCharts);
+// Funkce pro správu aktivní třídy záložek
+function initPlayerTabs() {
+    const tabs = document.querySelectorAll(".player-tab-link");
+    tabs.forEach(tab => {
+        // Zamezení vícenásobného navázání posluchače
+        tab.removeEventListener("click", handleTabClick);
+        tab.addEventListener("click", handleTabClick);
+    });
+}
 
-// Spustit pokaždé, když HTMX vymění část obsahu (např. po přepnutí záložky nebo výběru soupeře v H2H)
-document.addEventListener("htmx:afterSettle", initPlayerCharts);
+function handleTabClick(event) {
+    document.querySelectorAll(".player-tab-link").forEach(t => t.classList.remove("active-tab"));
+    this.classList.add("active-tab");
+}
+
+// Spustit při klasickém načtení stránky
+document.addEventListener("DOMContentLoaded", () => {
+    initPlayerCharts();
+    initPlayerTabs();
+});
+
+// Spustit pokaždé, když HTMX vymění část obsahu
+document.addEventListener("htmx:afterSettle", () => {
+    initPlayerCharts();
+    initPlayerTabs();
+});

@@ -18,14 +18,29 @@ class PlayerStatsService:
         local_player_ids = [p.id for p in PlayerModel.query.filter_by(global_player_id=player.id).all()]
         active_tab = request_args.get("tab", "obecne")
 
+        tournaments_data = PlayerStatsService._get_tournaments_data(local_player_ids)
+
+        # Výpočet nejlepšího umístění (nejnižší číslo ranku, např. 1. místo)
+        best_rank = None
+        for t in tournaments_data:
+            rank_str = str(t['rank'])
+            # Extrahujeme číslo z řetězce typu "1. místo" nebo "2. místo (Útěcha)"
+            import re
+            match = re.search(r'\d+', rank_str)
+            if match:
+                r_val = int(match.group())
+                if best_rank is None or r_val < best_rank:
+                    best_rank = r_val
+
         # 2. Skládání kontextu přes specializované metody
         context = {
             "player": player,
             "current_rank": PlayerStatsService._calculate_current_rank(player),
             "win_rate": PlayerStatsService._calculate_win_rate(player),
+            "best_rank": best_rank,
+            "tournaments_data": tournaments_data,
             **PlayerStatsService._get_rivalry_and_form(local_player_ids),
             **PlayerStatsService._get_chart_data(player),
-            "tournaments_data": PlayerStatsService._get_tournaments_data(local_player_ids),
             "matches_data": PlayerStatsService._get_matches_data(local_player_ids),
             "h2h_data": PlayerStatsService._get_h2h_data(player, local_player_ids, request_args),
             "active_tab": active_tab,
@@ -82,12 +97,20 @@ class PlayerStatsService:
             else:
                 opponents_stats[opp_global_id]["losses_against"] += 1
 
-        favorite_opponent, nemesis = None, None
+        most_frequent_opponent, favorite_opponent, nemesis = None, None, None
         if opponents_stats:
+            # Nejčastější soupeř (součet výher a proher)
+            freq_id = max(opponents_stats,
+                          key=lambda k: opponents_stats[k]["wins_against"] + opponents_stats[k]["losses_against"])
+            if (opponents_stats[freq_id]["wins_against"] + opponents_stats[freq_id]["losses_against"]) > 0:
+                most_frequent_opponent = opponents_stats[freq_id]
+
+            # Nejvíce výher proti
             fav_id = max(opponents_stats, key=lambda k: opponents_stats[k]["wins_against"])
             if opponents_stats[fav_id]["wins_against"] > 0:
                 favorite_opponent = opponents_stats[fav_id]
 
+            # Nejvíce proher proti (Nemesis)
             nem_id = max(opponents_stats, key=lambda k: opponents_stats[k]["losses_against"])
             if opponents_stats[nem_id]["losses_against"] > 0:
                 nemesis = opponents_stats[nem_id]
@@ -110,6 +133,7 @@ class PlayerStatsService:
         recent_form.reverse()
 
         return {
+            "most_frequent_opponent": most_frequent_opponent,
             "favorite_opponent": favorite_opponent,
             "nemesis": nemesis,
             "recent_form": recent_form,

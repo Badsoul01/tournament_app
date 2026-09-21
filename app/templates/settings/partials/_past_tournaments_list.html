@@ -1,16 +1,14 @@
-<ul style="list-style: none; padding: 0; margin: 0;">
+<ul class="clean-list">
     {% for t in recent_tournaments %}
-    <li style="margin-bottom: 4px;">
+    <li class="mb-4">
         <a href="#"
            hx-get="/wizard/past-tournament/{{ t.id }}/players"
            hx-target="#past-players-container"
-           style="text-decoration: none; color: var(--accent-silver); display: block; padding: 5px 8px; border-radius: 4px; transition: background-color 0.2s;"
-           onmouseover="this.style.backgroundColor='#1a2333'"
-           onmouseout="this.style.backgroundColor='transparent'">
-            {{ t.name }} <small style="color: var(--text-muted);">({{ t.date.strftime('%d.%m.') }})</small>
+           class="tournament-list-link">
+            {{ t.name }} <small class="text-muted">({{ t.date.strftime('%d.%m.') }})</small>
         </a>
     </li>
     {% else %}
-    <li style="color: var(--text-muted); font-size: 0.85em; font-style: italic; padding: 5px;">Žádný turnaj nenalezen</li>
+    <li class="text-muted font-sm" style="font-style: italic; padding: 5px;">Žádný turnaj nenalezen</li>
     {% endfor %}
 </ul>
