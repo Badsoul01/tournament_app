@@ -35,8 +35,8 @@
 
         {% if active_tournaments %}
             {% for t in active_tournaments %}
-                <div class="tournament-box">
-                    <a href="/tournament/{{ t.id }}/groups" style="font-size: 1.2em;">{{ t.name }}</a>
+                <a href="/tournament/{{ t.id }}/groups" class="tournament-box tournament-box-link">
+                    <span style="font-size: 1.2em; font-weight: bold;">{{ t.name }}</span>
                     <div class="tournament-info" style="margin-top: 10px;">
                         📅 <span style="color: var(--text-main);">{{ t.formatted_date }}</span> &nbsp;|&nbsp;
                         👥 Hráčů: <strong style="color: var(--text-main);">{{ t.total_players }}</strong> &nbsp;|&nbsp;
@@ -46,7 +46,7 @@
                             &nbsp;|&nbsp; 🛡️ Útěcha: <strong style="color: var(--text-main);">{{ t.consolation_display_name }}</strong>
                         {% endif %}
                     </div>
-                </div>
+                </a>
             {% endfor %}
         {% else %}
             <!-- Zpráva využívá tlumenou stříbrnou z našeho tématu -->
