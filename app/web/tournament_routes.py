@@ -5,7 +5,7 @@ from app.web.webmanager import WebManager
 from . import main_bp
 from app.services.utils.permission import can_edit_tournament
 from app.services.utils.export import TournamentExportService
-
+from app.models.models import  Match as MatchModel
 
 @main_bp.route("/tournament/<int:tournament_id>/groups", methods=["GET", "POST"])
 def groups_view(tournament_id):
@@ -189,14 +189,22 @@ def results_view(tournament_id):
 
         elif action == "finish_tournament" and editable:
             TournamentOrchestrator.finish_existing_tournament(tournament_id)
-            return redirect(f"/tournament/{tournament_id}/results")
+            return redirect(
+                f"/tournament/<int:tournament_id>/results".replace("<int:tournament_id>", str(tournament_id)))
 
     results_data = web_manager.get_results_data()
+
+    unfinished_matches = MatchModel.query.filter_by(tournament_id=tournament_id, is_finished=False).all()
+    has_real_unfinished = any(m.player_a_id is not None and m.player_b_id is not None for m in unfinished_matches)
+    can_finish = not has_real_unfinished and not web_manager.tournament.is_finished
 
     return render_template(
         "tournament/results.html",
         tournament=web_manager.tournament,
         results=results_data,
+        can_finish=can_finish,
+        editable=editable,
+        is_management=True,
         prefix=f"/tournament/{tournament_id}",
         base_template="tournament/base_tournament.html"
     )

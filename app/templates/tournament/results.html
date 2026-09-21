@@ -28,22 +28,29 @@
         </table>
 
         <div class="results-actions-wrapper">
-
-            <!-- Tlačítko pro Excel v temném stříbrném stylu -->
-            <form method="POST" action="{{ url_for('main.results_view', tournament_id=tournament.id) }}" style="margin: 0;">
-                <button type="submit" name="action" value="download" class="btn-action-base">
-                    📥 Stáhnout Excel
-                </button>
-            </form>
-
-           {% if not tournament.is_finished and results %}
-                <!-- Tlačítko pro zamčení turnaje (POST) -->
-                <form method="POST" action="{{ url_for('main.results_view', tournament_id=tournament.id) }}" style="margin: 0;" onsubmit="return confirm('Opravdu chceš turnaj zamknout a odeslat výsledky do globálních statistik?');">
-                    <button type="submit" name="action" value="finish_tournament" class="btn-action-danger">
-                        🔒 Zamknout turnaj
+            <!-- 1. Stažení Excelu jako první, pokud je k dispozici -->
+            {% if results and (can_finish or tournament.is_finished) %}
+                <form method="POST" action="{{ url_for('main.results_view', tournament_id=tournament.id) }}" style="margin: 0;">
+                    <input type="hidden" name="action" value="download">
+                    <button type="submit" class="btn-action-base">
+                        📥 Stáhnout Excel
                     </button>
                 </form>
-            {% elif tournament.is_finished and not '/stats' in request.path %}
+            {% endif %}
+
+            <!-- 2. Zamykání / Badge jako druhé -->
+            {% if not tournament.is_finished %}
+                {% if can_finish and editable %}
+                    <form method="POST" action="{{ url_for('main.results_view', tournament_id=tournament.id) }}" style="margin: 0;">
+                        <input type="hidden" name="action" value="finish_tournament">
+                        <button type="submit" class="btn-action-danger">
+                            🔒 Zamknout turnaj
+                        </button>
+                    </form>
+                {% else %}
+                    <span class="text-danger font-sm">Před zamčením turnaje je nutné dohrát všechny zápasy.</span>
+                {% endif %}
+            {% elif tournament.is_finished and is_management %}
                 <span class="tournament-locked-badge">
                     🔒 Turnaj je zamčen
                 </span>

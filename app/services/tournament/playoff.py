@@ -258,6 +258,20 @@ class Playoff:
         """
         tournament = TournamentModel.query.get(self.tournament_id)
         total_advancers = tournament.total_players_in_playoff if tournament else 0
+        # Kontrola prázdných zápasů. (BYE vs BYE)
+        empty_matches = MatchModel.query.filter_by(
+            tournament_id=self.tournament_id,
+            is_finished=False,
+            player_a_id=None,
+            player_b_id=None
+        ).all()
+
+        for em in empty_matches:
+            em.is_finished = True
+            em.winner_id = None
+        if empty_matches:
+            db.session.commit()
+
 
         main_rounds = sorted([r for r in self.rounds.keys() if isinstance(r, int)])
 

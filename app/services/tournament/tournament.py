@@ -212,16 +212,27 @@ class Tournament:
         db.session.commit()
 
     def is_tournament_fully_finished(self):
-        """Zkontroluje, zda jsou všechny zápasy v turnaji (skupiny i playoff) dohrané."""
+        """Zkontroluje, zda jsou všechny reálné zápasy v turnaji dohrané (ignoruje BYE vs BYE)."""
 
-        # Pokusíme se najít alespoň jeden zápas tohoto turnaje, který NENÍ dohraný
-        unfinished_match = MatchModel.query.filter_by(
+        # Vytáhneme všechny nedohrané zápasy turnaje
+        unfinished_matches = MatchModel.query.filter_by(
             tournament_id=self.id,
             is_finished=False
-        ).first()
+        ).all()
 
-        # Pokud se žádný nedohraný nenajde (unfinished_match je None), turnaj je hotový
-        return unfinished_match is None
+        # Projdeme je a podíváme se, jestli je mezi nimi nějaký reálný zápas k dohrání
+        for match in unfinished_matches:
+            # Zjistíme, jestli má zápas oba hráče (pokud by se pracovalo s ID, nebo názvy)
+            # Zápas je "reálný" a vyžaduje dohrání, pokud má oba hráče a ani jeden není BYE / prázdný
+            has_player_a = match.player_a_id is not None
+            has_player_b = match.player_b_id is not None
+
+            # Pokud má oba hráče, je to platný zápas, který se musí dohrát
+            if has_player_a and has_player_b:
+                return False
+
+        # Pokud zbývají jen prázdné/BYE zápasy, turnaj se považuje za dohraný
+        return True
 
     @staticmethod
     def finish_existing_tournament(tournament_id: int) -> bool:

@@ -4,7 +4,65 @@
             {% if wizard.check_readiness() %}
             <button type="submit" name="action" value="next" form="wizard_form">Generovat turnaj</button>
             {% else %}
-                <button type="button" disabled>Turnaj není připraven</button>
+                <button <!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turnajový organizátor</title>
+
+
+
+    <!-- Tady připojujeme externí CSS soubor -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Tady začíná náš luxusní temný pergamen -->
+    <div class="scroll-parchment">
+
+        <!-- Roztřepené boční okraje pergamenu -->
+        <div class="parchment-side parchment-left"></div>
+        <div class="parchment-side parchment-right"></div>
+
+        <h1 style="margin-top: 0; color: var(--accent-silver); font-size: 2.2em;">Turnajový organizátor</h1>
+
+        <!-- Hlavní rychlé odkazy (Menu) -->
+        <div class="home-menu">
+            <a href="/settings_groups" class="home-menu-link">Připravit nový turnaj</a>
+            <a href="/stats/tournaments" class="home-menu-link">Statistiky turnajů</a>
+        </div>
+
+        <!-- Jemná oddělovací linka ladící s pergamenem -->
+        <hr style="border: 0; border-top: 1px solid rgba(51, 69, 99, 0.5); margin-bottom: 25px;">
+
+        <h3 style="color: var(--text-main);">Rozehrané turnaje</h3>
+
+        {% if active_tournaments %}
+            {% for t in active_tournaments %}
+                <div class="tournament-box">
+                    <a href="/tournament/{{ t.id }}/groups" style="font-size: 1.2em;">{{ t.name }}</a>
+                    <div class="tournament-info" style="margin-top: 10px;">
+                        📅 <span style="color: var(--text-main);">{{ t.formatted_date }}</span> &nbsp;|&nbsp;
+                        👥 Hráčů: <strong style="color: var(--text-main);">{{ t.total_players }}</strong> &nbsp;|&nbsp;
+                        ⚗️ Skupin: <strong style="color: var(--text-main);">{{ t.groups.count() }}</strong> &nbsp;|&nbsp;
+                        🏆 Postup: <strong style="color: var(--text-main);">{{ t.advance_per_group }}</strong>
+                        {% if t.group_elimination_action %}
+                            &nbsp;|&nbsp; 🛡️ Útěcha: <strong style="color: var(--text-main);">{{ t.consolation_display_name }}</strong>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <!-- Zpráva využívá tlumenou stříbrnou z našeho tématu -->
+            <p style="color: var(--text-muted); font-style: italic;">Zatím se nehraje žádný aktivní turnaj.</p>
+        {% endif %}
+
+    </div>
+    <!-- Konec pergamenu -->
+
+</body>
+</html>type="button" disabled>Turnaj není připraven</button>
                 <div class="font-md" style="margin-top: 15px; color: var(--danger-color);">
                     <strong>Před vygenerováním turnaje je nutné:</strong>
                     <ul style="list-style-position: inside; padding-left: 0; margin-top: 5px; color: var(--danger-color);">
