@@ -241,15 +241,14 @@
     border-bottom: 1px solid var(--border-color);
     transition: background-color 0.2s;
 }
-.results-row:hover {
-    background-color: #1a2333;
-}
 .results-actions-wrapper {
     display: flex;
     gap: 10px;
     align-items: center;
     justify-content: center;
-    margin-top: 25px;
+    margin: 25px auto 0 auto;
+    max-width: 500px;
+    width: 100%;
     flex-wrap: wrap;
 }
 .btn-action-base {
@@ -277,7 +276,7 @@
     gap: 6px;
 }
 .tournament-locked-badge {
-    background-color: var(--bg-main);
+
     color: var(--accent-silver);
     border: 1px solid var(--border-color);
     padding: 10px 16px;

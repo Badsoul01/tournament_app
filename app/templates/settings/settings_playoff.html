@@ -2,7 +2,7 @@
 
 {% block content %}
 <div style="width: 100%; max-width: 800px;">
-    <h1>Správa Playoff</h1>
+    <h2 style="margin-top: 0; margin-bottom: 80px; text-align: center;">Nastavení playoff</h2>
 
     <form action="/settings_playoff" method="POST" id="wizard_form">
         <fieldset style="text-align: left;">
@@ -27,5 +27,6 @@
             </div>
         </fieldset>
     </form>
+    {% include "settings/partials/_wizard_button.html" %}
 </div>
 {% endblock %}

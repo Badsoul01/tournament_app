@@ -21,17 +21,23 @@
         {% endif %}
     </div>
 
-    <!-- Střed: Záložky turnaje -->
+    <!-- Střed: Záložky turnaje s rozdělovači -->
     <div class="unified-nav-center">
         <a href="{{ prefix }}/groups{{ query_suffix }}" class="{% if 'groups' in request.path and 'minigroup' not in request.path %}active-nav-link{% endif %}">Základní skupiny</a>
+
+        <span class="nav-separator">|</span>
         <a href="{{ prefix }}/playoff{{ query_suffix }}" class="{% if 'playoff' in request.path and 'consolation' not in request.path %}active-nav-link{% endif %}">Playoff</a>
+
         {% if tournament.has_consolation %}
+            <span class="nav-separator">|</span>
             {% if tournament.group_elimination_action == 'minigroup' %}
                 <a href="{{ prefix }}/consolation_minigroup{{ query_suffix }}" class="{% if 'consolation' in request.path %}active-nav-link{% endif %}">Útěcha</a>
             {% else %}
                 <a href="{{ prefix }}/consolation_playoff{{ query_suffix }}" class="{% if 'consolation' in request.path %}active-nav-link{% endif %}">Útěcha</a>
             {% endif %}
         {% endif %}
+
+        <span class="nav-separator">|</span>
         <a href="{{ prefix }}/results{{ query_suffix }}" class="{% if 'results' in request.path %}active-nav-link{% endif %}">Výsledky</a>
     </div>
 

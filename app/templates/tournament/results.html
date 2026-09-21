@@ -36,14 +36,14 @@
                 </button>
             </form>
 
-            {% if not tournament.is_finished and results %}
+           {% if not tournament.is_finished and results %}
                 <!-- Tlačítko pro zamčení turnaje (POST) -->
                 <form method="POST" action="{{ url_for('main.results_view', tournament_id=tournament.id) }}" style="margin: 0;" onsubmit="return confirm('Opravdu chceš turnaj zamknout a odeslat výsledky do globálních statistik?');">
                     <button type="submit" name="action" value="finish_tournament" class="btn-action-danger">
                         🔒 Zamknout turnaj
                     </button>
                 </form>
-            {% elif tournament.is_finished %}
+            {% elif tournament.is_finished and not '/stats' in request.path %}
                 <span class="tournament-locked-badge">
                     🔒 Turnaj je zamčen
                 </span>
