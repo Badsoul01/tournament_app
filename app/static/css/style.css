@@ -544,3 +544,27 @@ hr {
     .unified-nav { grid-template-columns: 1fr; row-gap: 15px; justify-items: center; }
     .unified-nav-left, .unified-nav-right { justify-self: center; }
 }
+
+/* Interaktivní box rozehraného turnaje */
+.tournament-box-link {
+    display: block;
+    text-decoration: none !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.tournament-box-link:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-silver);
+    background: rgba(26, 35, 51, 0.95) !important;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3), 0 6px 15px rgba(0, 0, 0, 0.5), 0 0 12px rgba(80, 130, 190, 0.25);
+    text-decoration: none !important; /* Pojistka proti podtržení */
+}
+
+.tournament-box-link:hover span,
+.tournament-box-link:hover div {
+    text-decoration: none !important; /* Vypne případné podtržení uvnitř */
+}
+
+.tournament-box-link:hover span:first-child {
+    color: #ffffff !important; /* Zvýrazní pouze název turnaje bílou barvou bez podtržení */
+}
