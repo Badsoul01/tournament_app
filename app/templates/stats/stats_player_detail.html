@@ -15,23 +15,23 @@
          hx-push-url="true">
 
         <!-- Záložka 1 -->
-        <a href="?tab=obecne"
-           hx-get="?tab=obecne"
-           class="player-tab-link {% if active_tab == 'obecne' %}active-tab{% endif %}">
+        <a href="?tab=overall"
+           hx-get="?tab=overall"
+           class="player-tab-link {% if active_tab == 'overall' %}active-tab{% endif %}">
             Obecné informace
         </a>
 
         <!-- Záložka 2 -->
-        <a href="?tab=turnaje"
-           hx-get="?tab=turnaje"
-           class="player-tab-link {% if active_tab == 'turnaje' %}active-tab{% endif %}">
+        <a href="?tab=tournaments"
+           hx-get="?tab=tournaments"
+           class="player-tab-link {% if active_tab == 'tournaments' %}active-tab{% endif %}">
             Přehled turnajů ({{ player.tournaments_played }})
         </a>
 
         <!-- Záložka 3 -->
-        <a href="?tab=zapasy"
-           hx-get="?tab=zapasy"
-           class="player-tab-link {% if active_tab == 'zapasy' %}active-tab{% endif %}">
+        <a href="?tab=matches"
+           hx-get="?tab=matches"
+           class="player-tab-link {% if active_tab == 'matches' %}active-tab{% endif %}">
             Přehled zápasů ({{ player.matches_played }})
         </a>
 
@@ -45,11 +45,11 @@
 
     <!-- KONTEJNER PRO OBSAH ZÁLOŽEK -->
     <div id="tab-content">
-        {% if active_tab == 'obecne' %}
+        {% if active_tab == 'overall' %}
             {% include "stats/partials/_tab_player_overall.html" %}
-        {% elif active_tab == 'turnaje' %}
+        {% elif active_tab == 'tournaments' %}
             {% include "stats/partials/_tab_player_tournaments.html" %}
-        {% elif active_tab == 'zapasy' %}
+        {% elif active_tab == 'matches' %}
             {% include "stats/partials/_tab_player_matches.html" %}
         {% elif active_tab == 'h2h' %}
             {% include "stats/partials/_tab_player_h2h.html" %}

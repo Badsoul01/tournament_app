@@ -1,38 +1,40 @@
-# app/services/stats_player_detail.py
+# app/services/player_stats.py
 from datetime import datetime, timedelta
-from sqlalchemy import or_
+import sqlalchemy.orm
+from sqlalchemy import or_, and_
 from app.models.models import (
     db, Player as PlayerModel, GlobalPlayer as GlobalPlayerModel,
     Match as MatchModel, Tournament as TournamentModel,
     PlayoffStats as PlayoffStatsModel, ConsolationStats as ConsolationStatsModel
 )
 from app.services.stats.match_stats import MatchStatsService
+import re
 
 
 class PlayerStatsService:
 
     @staticmethod
     def get_player_profile_data(player_id, request_args):
-        # 1. Základní entity
         player = GlobalPlayerModel.query.get_or_404(player_id)
         local_player_ids = [p.id for p in PlayerModel.query.filter_by(global_player_id=player.id).all()]
-        active_tab = request_args.get("tab", "obecne")
+        active_tab = request_args.get("tab", "overall")
 
-        tournaments_data = PlayerStatsService._get_tournaments_data(local_player_ids)
+        # Přednačtení dat přesunuto sem nahoru
+        stats_map = PlayerStatsService._preload_player_stats()
+        all_global_players = GlobalPlayerModel.query.all()
 
-        # Výpočet nejlepšího umístění (nejnižší číslo ranku, např. 1. místo)
+        # Nyní předáváme player_id a stats_map do metody
+        tournaments_data = PlayerStatsService._get_tournaments_data(local_player_ids, player.id, stats_map)
+
         best_rank = None
         for t in tournaments_data:
             rank_str = str(t['rank'])
-            # Extrahujeme číslo z řetězce typu "1. místo" nebo "2. místo (Útěcha)"
-            import re
             match = re.search(r'\d+', rank_str)
             if match:
                 r_val = int(match.group())
                 if best_rank is None or r_val < best_rank:
                     best_rank = r_val
 
-        # 2. Skládání kontextu přes specializované metody
         context = {
             "player": player,
             "current_rank": PlayerStatsService._calculate_current_rank(player),
@@ -40,16 +42,64 @@ class PlayerStatsService:
             "best_rank": best_rank,
             "tournaments_data": tournaments_data,
             **PlayerStatsService._get_rivalry_and_form(local_player_ids),
-            **PlayerStatsService._get_chart_data(player),
+            **PlayerStatsService._get_chart_data(player, stats_map, all_global_players),
             "matches_data": PlayerStatsService._get_matches_data(local_player_ids),
-            "h2h_data": PlayerStatsService._get_h2h_data(player, local_player_ids, request_args),
+            "h2h_data": PlayerStatsService._get_h2h_data(player, request_args, stats_map,
+                                                         all_global_players),
             "active_tab": active_tab,
         }
 
-        # 3. Filtrování a řazení pro aktivní tabulku
         PlayerStatsService._apply_tab_filtering(context, request_args)
 
         return context
+
+    @staticmethod
+    def _preload_player_stats():
+        """
+        Přednačte body a umístění všech hráčů ze všech turnajů do slovníku.
+        Struktura: {global_player_id: {tournament_id: {'date': date, 'points': int, 'rank': int, 'is_consolation': bool}}}
+        """
+        stats_map = {}
+
+        query = db.session.query(
+            PlayerModel.global_player_id,
+            TournamentModel.id.label('tournament_id'),
+            TournamentModel.date,
+            PlayoffStatsModel.points_gained.label('playoff_points'),
+            PlayoffStatsModel.final_rank.label('playoff_rank'),
+            ConsolationStatsModel.final_rank.label('consolation_rank')
+        ).join(TournamentModel, PlayerModel.tournament_id == TournamentModel.id) \
+            .outerjoin(PlayoffStatsModel, PlayerModel.id == PlayoffStatsModel.player_id) \
+            .outerjoin(ConsolationStatsModel, PlayerModel.id == ConsolationStatsModel.player_id) \
+            .filter(TournamentModel.is_finished == True).all()
+
+        for gp_id, t_id, t_date, p_pts, p_rank, c_rank in query:
+            if not gp_id or not t_date:
+                continue
+
+            date_val = t_date.date() if hasattr(t_date, 'date') else t_date
+
+            # Body má pouze playoff, útěcha dává 0 bodů
+            pts = p_pts if p_pts is not None else 0
+
+            # Určení finálního ranku a toho, zda pochází z útěchy
+            final_rank = p_rank
+            is_consolation = False
+
+            if p_rank is None and c_rank is not None:
+                final_rank = c_rank
+                is_consolation = True
+
+            if gp_id not in stats_map:
+                stats_map[gp_id] = {}
+            stats_map[gp_id][t_id] = {
+                'date': date_val,
+                'points': pts,
+                'rank': final_rank,
+                'is_consolation': is_consolation
+            }
+
+        return stats_map
 
     @staticmethod
     def _calculate_current_rank(player):
@@ -68,7 +118,11 @@ class PlayerStatsService:
 
     @staticmethod
     def _get_rivalry_and_form(local_player_ids):
-        matches = MatchModel.query.filter(
+        # Pridáme joinedload pro rychlejší přístup k datům protivníka bez N+1
+        matches = MatchModel.query.options(
+            sqlalchemy.orm.joinedload(MatchModel.player_a),
+            sqlalchemy.orm.joinedload(MatchModel.player_b)
+        ).filter(
             or_(MatchModel.player_a_id.in_(local_player_ids), MatchModel.player_b_id.in_(local_player_ids)),
             MatchModel.is_finished == True,
             MatchModel.winner_id.isnot(None)
@@ -99,23 +153,19 @@ class PlayerStatsService:
 
         most_frequent_opponent, favorite_opponent, nemesis = None, None, None
         if opponents_stats:
-            # Nejčastější soupeř (součet výher a proher)
             freq_id = max(opponents_stats,
                           key=lambda k: opponents_stats[k]["wins_against"] + opponents_stats[k]["losses_against"])
             if (opponents_stats[freq_id]["wins_against"] + opponents_stats[freq_id]["losses_against"]) > 0:
                 most_frequent_opponent = opponents_stats[freq_id]
 
-            # Nejvíce výher proti
             fav_id = max(opponents_stats, key=lambda k: opponents_stats[k]["wins_against"])
             if opponents_stats[fav_id]["wins_against"] > 0:
                 favorite_opponent = opponents_stats[fav_id]
 
-            # Nejvíce proher proti (Nemesis)
             nem_id = max(opponents_stats, key=lambda k: opponents_stats[k]["losses_against"])
             if opponents_stats[nem_id]["losses_against"] > 0:
                 nemesis = opponents_stats[nem_id]
 
-        # Posledních 5 zápasů (forma)
         recent_matches = MatchModel.query.join(TournamentModel).filter(
             or_(MatchModel.player_a_id.in_(local_player_ids), MatchModel.player_b_id.in_(local_player_ids)),
             MatchModel.is_finished == True
@@ -141,7 +191,7 @@ class PlayerStatsService:
         }
 
     @staticmethod
-    def _get_chart_data(player):
+    def _get_chart_data(player, stats_map, all_global_players):
         local_players_chronological = PlayerModel.query.filter_by(global_player_id=player.id) \
             .join(TournamentModel, PlayerModel.tournament_id == TournamentModel.id) \
             .filter(TournamentModel.is_finished == True) \
@@ -153,56 +203,22 @@ class PlayerStatsService:
         chart_points = []
         chart_global_ranks = []
 
-        all_global_players = GlobalPlayerModel.query.all()
+        player_stats = stats_map.get(player.id, {})
 
         for lp in local_players_chronological:
+            t_id = lp.tournament.id
             chart_labels.append(lp.tournament.name)
 
-            p_stats = PlayoffStatsModel.query.filter_by(player_id=lp.id).first()
-            c_stats = ConsolationStatsModel.query.filter_by(player_id=lp.id).first()
+            # Čtení přednačtených hodnot ze stats_map
+            t_stats = player_stats.get(t_id, {})
+            chart_ranks.append(t_stats.get('rank'))
+            chart_points.append(t_stats.get('points', 0))
 
-            rank = None
-            points = 0
-
-            if p_stats and p_stats.final_rank is not None:
-                rank = p_stats.final_rank
-                points = p_stats.points_gained or 0
-            elif c_stats and c_stats.final_rank is not None:
-                rank = c_stats.final_rank
-
-            chart_ranks.append(rank)
-            chart_points.append(points)
-
-            # --- VÝPOČET CELKOVÉHO RANKU K DATU TOHOTO TURNAJE ---
             t_date = lp.tournament.date
             if hasattr(t_date, 'date'):
                 t_date = t_date.date()
 
-            one_year_ago = t_date - timedelta(days=365) if t_date else None
-            player_points_list = []
-
-            for gp in all_global_players:
-                gp_total = 0
-                for entry in gp.tournament_entries:
-                    if entry.tournament and entry.tournament.is_finished:
-                        e_date = entry.tournament.date
-                        if hasattr(e_date, 'date'):
-                            e_date = e_date.date()
-                        if e_date and t_date and one_year_ago and one_year_ago <= e_date <= t_date:
-                            ps = PlayoffStatsModel.query.filter_by(player_id=entry.id).first()
-                            cs = ConsolationStatsModel.query.filter_by(player_id=entry.id).first()
-                            if ps and ps.points_gained:
-                                gp_total += ps.points_gained
-                            elif cs and hasattr(cs, 'points_gained') and cs.points_gained:
-                                gp_total += cs.points_gained
-                player_points_list.append((gp.id, gp_total))
-
-            player_points_list.sort(key=lambda x: x[1], reverse=True)
-            g_rank = 1
-            for idx, (gp_id, pts) in enumerate(player_points_list):
-                if gp_id == player.id:
-                    g_rank = idx + 1
-                    break
+            g_rank = PlayerStatsService._calculate_global_rank_at_date(player.id, t_date, all_global_players, stats_map)
             chart_global_ranks.append(g_rank)
 
         return {
@@ -213,47 +229,71 @@ class PlayerStatsService:
         }
 
     @staticmethod
-    def _get_tournaments_data(local_player_ids):
+    def _get_tournaments_data(local_player_ids, global_player_id, stats_map):
         player_tournaments = PlayerModel.query.filter(PlayerModel.id.in_(local_player_ids)) \
             .join(TournamentModel, PlayerModel.tournament_id == TournamentModel.id) \
             .order_by(TournamentModel.date.desc(), TournamentModel.id.desc()) \
             .all()
 
+        player_stats = stats_map.get(global_player_id, {})
+
         tournaments_data = []
         for lp in player_tournaments:
-            p_stats = PlayoffStatsModel.query.filter_by(player_id=lp.id).first()
-            c_stats = ConsolationStatsModel.query.filter_by(player_id=lp.id).first()
+            t_id = lp.tournament.id
+            t_stats = player_stats.get(t_id, {})
 
-            rank, points = "-", 0
-            if p_stats and p_stats.final_rank is not None:
-                rank, points = f"{p_stats.final_rank}. místo", (p_stats.points_gained or 0)
-            elif c_stats and c_stats.final_rank is not None:
-                rank = f"{c_stats.final_rank}. místo (Útěcha)"
+            p_rank = t_stats.get('rank')
+            points = t_stats.get('points', 0)
+            is_consolation = t_stats.get('is_consolation', False)
+
+            rank_str = "-"
+            if p_rank is not None:
+                if is_consolation:
+                    rank_str = f"{p_rank}. místo (Útěcha)"
+                else:
+                    rank_str = f"{p_rank}. místo"
 
             tournaments_data.append({
                 "tournament_name": lp.tournament.name,
                 "tournament_date": lp.tournament.date,
-                "tournament_id": lp.tournament.id,
-                "rank": rank,
+                "tournament_id": t_id,
+                "rank": rank_str,
                 "points": points
             })
         return tournaments_data
 
     @staticmethod
     def _get_matches_data(local_player_ids):
-        all_player_matches = MatchModel.query.filter(
+        PlayerOpponent = sqlalchemy.orm.aliased(PlayerModel)
+
+        # Omezíme načítaná data jen na to, co potřebujeme
+        # a zajistíme joinedload na oponenta a turnaj, abychom zamezili N+1 při iteraci
+        matches = MatchModel.query.options(
+            sqlalchemy.orm.joinedload(MatchModel.tournament)
+        ).join(
+            PlayerOpponent,
+            or_(
+                and_(MatchModel.player_a_id == PlayerOpponent.id, MatchModel.player_a_id.notin_(local_player_ids)),
+                and_(MatchModel.player_b_id == PlayerOpponent.id, MatchModel.player_b_id.notin_(local_player_ids))
+            ),
+            isouter=True  # Použijeme OUTER JOIN, protože protivník (např. BYE) nemusí existovat
+        ).filter(
             or_(MatchModel.player_a_id.in_(local_player_ids), MatchModel.player_b_id.in_(local_player_ids)),
             MatchModel.is_finished == True
         ).all()
 
         matches_data = []
-        for m in all_player_matches:
+        for m in matches:
             is_player_a = m.player_a_id in local_player_ids
             our_local_id = m.player_a_id if is_player_a else m.player_b_id
+
+            # Opponent byl načten přes JOIN, nezpůsobí další dotaz
             opponent_local = m.player_b if is_player_a else m.player_a
 
             result = 'R' if m.winner_id is None else ('V' if m.winner_id == our_local_id else 'P')
 
+            # Většinou je turnaj rovnou na zápase, pokud jsi optimalizoval strukturu.
+            # Jinak se pořád vyplatí používat .tournament z nadřazených objektů
             t_name, t_id = "-", None
             if hasattr(m, 'tournament') and m.tournament:
                 t_name, t_id = m.tournament.name, m.tournament.id
@@ -272,7 +312,7 @@ class PlayerStatsService:
         return matches_data
 
     @staticmethod
-    def _get_h2h_data(player, local_player_ids, request_args):
+    def _get_h2h_data(player, request_args, stats_map, all_global_players):
         selected_opponent_id = request_args.get("opponent_id", type=int)
         if not selected_opponent_id:
             return None
@@ -281,40 +321,18 @@ class PlayerStatsService:
         if not selected_opponent:
             return None
 
-        h2h_matches = MatchStatsService.get_h2h_matches(player.id, selected_opponent_id)
+        base_h2h_stats = MatchStatsService.calculate_h2h_balance(player.id, selected_opponent_id)
 
-        wins, losses, draws = 0, 0, 0
         match_history = []
-        for hm in h2h_matches:
-            is_player_a = hm.player_a_id in local_player_ids
-            our_local_id = hm.player_a_id if is_player_a else hm.player_b_id
-
-            if hm.winner_id is None:
-                draws, res = draws + 1, 'R'
-            elif hm.winner_id == our_local_id:
-                wins, res = wins + 1, 'V'
-            else:
-                losses, res = losses + 1, 'P'
-
-            # Zjištění ID turnaje pro bezpečné řazení
-            t_id = None
-            t_name = "-"
-            if hasattr(hm, 'tournament') and hm.tournament:
-                t_name = hm.tournament.name
-                t_id = hm.tournament.id
-
+        for mh in base_h2h_stats["matches"]:
             match_history.append({
-                "tournament_name": t_name,
-                "tournament_id": t_id,
-                "phase": hm.phase_display_name,
-                "score": hm.formatted_score,
-                "result": res
+                "tournament_name": mh["tournament_name"],
+                "tournament_id": mh["tournament_id"],
+                "phase": mh["phase"],
+                "score": mh["score"],
+                "result": mh["result_for_a"]
             })
 
-        total = wins + losses + draws
-        win_rate_h2h = round((wins / total) * 100, 1) if total > 0 else 0
-
-        # --- SDÍLENÉ TURNAJE PRO H2H GRAFY ---
         shared_tournaments = TournamentModel.query \
             .join(PlayerModel, TournamentModel.id == PlayerModel.tournament_id) \
             .filter(TournamentModel.is_finished == True) \
@@ -331,7 +349,8 @@ class PlayerStatsService:
         h2h_player_global_ranks = []
         h2h_opp_global_ranks = []
 
-        all_global_players = GlobalPlayerModel.query.all()
+        player_stats = stats_map.get(player.id, {})
+        opp_stats = stats_map.get(selected_opponent_id, {})
 
         for st in shared_tournaments:
             h2h_labels.append(st.name)
@@ -339,44 +358,27 @@ class PlayerStatsService:
             if hasattr(t_date, 'date'):
                 t_date = t_date.date()
 
-            # Rank hlavního hráče v turnaji
-            p_entry = PlayerModel.query.filter_by(tournament_id=st.id, global_player_id=player.id).first()
-            p_rank = None
-            if p_entry:
-                ps = PlayoffStatsModel.query.filter_by(player_id=p_entry.id).first()
-                cs = ConsolationStatsModel.query.filter_by(player_id=p_entry.id).first()
-                if ps and ps.final_rank is not None:
-                    p_rank = ps.final_rank
-                elif cs and cs.final_rank is not None:
-                    p_rank = cs.final_rank
+            # Ranky z přednačtených dat (žádné dotazy uvnitř cyklu)
+            p_rank = player_stats.get(st.id, {}).get('rank')
             h2h_player_ranks.append(p_rank)
 
-            # Rank soupeře v turnaji
-            opp_entry = PlayerModel.query.filter_by(tournament_id=st.id, global_player_id=selected_opponent_id).first()
-            opp_rank = None
-            if opp_entry:
-                ops = PlayoffStatsModel.query.filter_by(player_id=opp_entry.id).first()
-                ocs = ConsolationStatsModel.query.filter_by(player_id=opp_entry.id).first()
-                if ops and ops.final_rank is not None:
-                    opp_rank = ops.final_rank
-                elif ocs and ocs.final_rank is not None:
-                    opp_rank = ocs.final_rank
+            opp_rank = opp_stats.get(st.id, {}).get('rank')
             h2h_opp_ranks.append(opp_rank)
 
-            # Globální ranky k datu turnaje
-            p_g_rank = PlayerStatsService._calculate_global_rank_at_date(player.id, t_date, all_global_players)
+            p_g_rank = PlayerStatsService._calculate_global_rank_at_date(player.id, t_date, all_global_players,
+                                                                         stats_map)
             opp_g_rank = PlayerStatsService._calculate_global_rank_at_date(selected_opponent_id, t_date,
-                                                                           all_global_players)
+                                                                           all_global_players, stats_map)
+
             h2h_player_global_ranks.append(p_g_rank)
             h2h_opp_global_ranks.append(opp_g_rank)
-
         return {
             "opponent": selected_opponent,
-            "wins": wins,
-            "losses": losses,
-            "draws": draws,
-            "total": total,
-            "win_rate": win_rate_h2h,
+            "wins": base_h2h_stats["wins_a"],
+            "losses": base_h2h_stats["wins_b"],
+            "draws": base_h2h_stats["draws"],
+            "total": base_h2h_stats["total"],
+            "win_rate": base_h2h_stats["win_rate_a"],
             "history": match_history,
             "chart_labels": h2h_labels,
             "player_ranks": h2h_player_ranks,
@@ -387,6 +389,7 @@ class PlayerStatsService:
 
     @staticmethod
     def _apply_tab_filtering(context, request_args):
+        # Tato metoda zůstává beze změny, stará se jen o filtrování v paměti pro HTMX
         active_tab = context["active_tab"]
 
         tab_q = request_args.get("q", "").strip().lower()
@@ -398,7 +401,7 @@ class PlayerStatsService:
         context["tab_sort_by"] = tab_sort_by
         context["tab_order"] = tab_order
 
-        if active_tab == 'turnaje':
+        if active_tab == 'tournaments':
             if not tab_sort_by:
                 tab_sort_by = "date"
 
@@ -409,7 +412,6 @@ class PlayerStatsService:
                     name = t['tournament_name'].lower()
                     rank = str(t['rank']).lower()
 
-                    # Převedeme datum na řetězce pro možnost vyhledávání (např. "15.06.2026" nebo "2026")
                     date_str = ""
                     if t['tournament_date']:
                         if hasattr(t['tournament_date'], 'strftime'):
@@ -435,7 +437,7 @@ class PlayerStatsService:
 
             context["tournaments_data"] = tournaments
 
-        elif active_tab == 'zapasy':
+        elif active_tab == 'matches':
             if not tab_sort_by:
                 tab_sort_by = "tournament"
 
@@ -481,8 +483,7 @@ class PlayerStatsService:
             h2h['history'] = history
 
     @staticmethod
-    def _calculate_global_rank_at_date(target_global_id, t_date, all_global_players):
-        """Pomocná metoda pro výpočet globálního ranku hráče k danému datu."""
+    def _calculate_global_rank_at_date(target_global_id, t_date, all_global_players, stats_map):
         if not t_date:
             return 1
         one_year_ago = t_date - timedelta(days=365)
@@ -490,18 +491,15 @@ class PlayerStatsService:
 
         for gp in all_global_players:
             gp_total = 0
-            for entry in gp.tournament_entries:
-                if entry.tournament and entry.tournament.is_finished:
-                    e_date = entry.tournament.date
-                    if hasattr(e_date, 'date'):
-                        e_date = e_date.date()
-                    if e_date and one_year_ago <= e_date <= t_date:
-                        ps = PlayoffStatsModel.query.filter_by(player_id=entry.id).first()
-                        cs = ConsolationStatsModel.query.filter_by(player_id=entry.id).first()
-                        if ps and ps.points_gained:
-                            gp_total += ps.points_gained
-                        elif cs and hasattr(cs, 'points_gained') and cs.points_gained:
-                            gp_total += cs.points_gained
+            # player_tournaments je slovník {tournament_id: {...}}
+            player_tournaments = stats_map.get(gp.id, {})
+
+            for t_info in player_tournaments.values():
+                p_date = t_info['date']
+                pts = t_info['points']
+                if one_year_ago <= p_date <= t_date:
+                    gp_total += pts
+
             player_points_list.append((gp.id, gp_total))
 
         player_points_list.sort(key=lambda x: x[1], reverse=True)
