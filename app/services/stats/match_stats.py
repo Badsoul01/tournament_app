@@ -1,17 +1,26 @@
-from app.models.models import Match as MatchModel, Player as PlayerModel, MatchResults as MatchResultsModel
+import sqlalchemy
 from sqlalchemy import or_, and_
+from sqlalchemy.orm import joinedload
+from app.models.models import Match as MatchModel, Player as PlayerModel, MatchResults as MatchResultsModel
 
 class MatchStatsService:
 
     @staticmethod
     def get_match_detail_context(match_id: int) -> dict:
-        """Připraví kompletní kontext pro detail zápasu včetně setů, win-rate a H2H bilance."""
         match = MatchModel.query.get_or_404(match_id)
         sets = match.sets.order_by(MatchResultsModel.set_number).all() if hasattr(match, 'sets') else []
 
         stats_a = MatchStatsService._get_player_stats(match.player_a)
         stats_b = MatchStatsService._get_player_stats(match.player_b)
-        h2h_data = MatchStatsService._calculate_h2h(match)
+
+        if match.player_a and match.player_b and match.player_a.global_player_id and match.player_b.global_player_id:
+            h2h_data = MatchStatsService.calculate_h2h_balance(
+                match.player_a.global_player_id,
+                match.player_b.global_player_id,
+                up_to_match_id=match.id
+            )
+        else:
+            h2h_data = {"wins_a": 0, "wins_b": 0, "draws": 0, "total": 0}
 
         return {
             "match": match,
@@ -32,50 +41,78 @@ class MatchStatsService:
         return {"wins": won, "losses": gp.matches_lost or 0, "win_rate": rate}
 
     @staticmethod
-    def _calculate_h2h(match):
-        h2h_wins_a, h2h_wins_b, h2h_draws = 0, 0, 0
+    def calculate_h2h_balance(global_id_a: int, global_id_b: int, up_to_match_id: int = None):
+        """Univerzální metoda pro výpočet bilance mezi dvěma hráči."""
+        if not global_id_a or not global_id_b:
+            return {"wins_a": 0, "wins_b": 0, "draws": 0, "total": 0, "win_rate_a": 0, "matches": []}
 
-        if match.player_a and match.player_b and match.player_a.global_player_id and match.player_b.global_player_id:
-            past_matches = MatchStatsService.get_h2h_matches(
-                match.player_a.global_player_id,
-                match.player_b.global_player_id,
-                up_to_match_id=match.id
-            )
+        past_matches = MatchStatsService.get_h2h_matches(
+            global_id_a, global_id_b, up_to_match_id=up_to_match_id
+        )
 
-            loc_ids_a = [p.id for p in
-                         PlayerModel.query.filter_by(global_player_id=match.player_a.global_player_id).all()]
+        wins_a, wins_b, draws = 0, 0, 0
+        match_history = []
 
-            for pm in past_matches:
-                is_a_in_a = pm.player_a_id in loc_ids_a
-                our_id = pm.player_a_id if is_a_in_a else pm.player_b_id
+        for hm in past_matches:
+            # Díky joinedload v get_h2h_matches už nepotřebujeme stahovat loc_ids_a
+            # Zjistíme naší pozici rovnou z připojeného modelu
+            is_a_in_a = hm.player_a and hm.player_a.global_player_id == global_id_a
+            our_local_id = hm.player_a_id if is_a_in_a else hm.player_b_id
 
-                if pm.winner_id is None:
-                    h2h_draws += 1
-                elif pm.winner_id == our_id:
-                    h2h_wins_a += 1
-                else:
-                    h2h_wins_b += 1
+            if hm.winner_id is None:
+                draws += 1
+                res_for_a = 'R'
+            elif hm.winner_id == our_local_id:
+                wins_a += 1
+                res_for_a = 'V'
+            else:
+                wins_b += 1
+                res_for_a = 'P'
+
+            t_id, t_name = None, "-"
+            if hasattr(hm, 'tournament') and hm.tournament:
+                t_name = hm.tournament.name
+                t_id = hm.tournament.id
+
+            match_history.append({
+                "tournament_name": t_name,
+                "tournament_id": t_id,
+                "phase": hm.phase_display_name if hasattr(hm, 'phase_display_name') else "-",
+                "score": hm.formatted_score if hasattr(hm, 'formatted_score') else "-",
+                "result_for_a": res_for_a,
+                "raw_match": hm
+            })
+
+        total = wins_a + wins_b + draws
+        win_rate_a = round((wins_a / total) * 100, 1) if total > 0 else 0
 
         return {
-            "wins_a": h2h_wins_a,
-            "wins_b": h2h_wins_b,
-            "draws": h2h_draws,
-            "total": h2h_wins_a + h2h_wins_b + h2h_draws
+            "wins_a": wins_a,
+            "wins_b": wins_b,
+            "draws": draws,
+            "total": total,
+            "win_rate_a": win_rate_a,
+            "matches": match_history
         }
 
     @staticmethod
     def get_h2h_matches(global_id_a: int, global_id_b: int, up_to_match_id: int = None):
-        """Vrátí všechny vzájemné dokončené zápasy mezi dvěma globálními hráči."""
-        loc_ids_a = [p.id for p in PlayerModel.query.filter_by(global_player_id=global_id_a).all()]
-        loc_ids_b = [p.id for p in PlayerModel.query.filter_by(global_player_id=global_id_b).all()]
+        """Vrátí všechny vzájemné dokončené zápasy (plně optimalizováno proti N+1)."""
+        PlayerA = sqlalchemy.orm.aliased(PlayerModel)
+        PlayerB = sqlalchemy.orm.aliased(PlayerModel)
 
-        if not loc_ids_a or not loc_ids_b:
-            return []
-
-        query = MatchModel.query.filter(
+        # joinedload nám stáhne hráče a turnaj v tom samém dotazu,
+        # takže cyklus v calculate_h2h_balance nevytváří zpoždění
+        query = MatchModel.query.options(
+            joinedload(MatchModel.player_a),
+            joinedload(MatchModel.player_b),
+            joinedload(MatchModel.tournament)
+        ).join(PlayerA, MatchModel.player_a_id == PlayerA.id) \
+         .join(PlayerB, MatchModel.player_b_id == PlayerB.id) \
+         .filter(
             or_(
-                and_(MatchModel.player_a_id.in_(loc_ids_a), MatchModel.player_b_id.in_(loc_ids_b)),
-                and_(MatchModel.player_a_id.in_(loc_ids_b), MatchModel.player_b_id.in_(loc_ids_a))
+                and_(PlayerA.global_player_id == global_id_a, PlayerB.global_player_id == global_id_b),
+                and_(PlayerA.global_player_id == global_id_b, PlayerB.global_player_id == global_id_a)
             ),
             MatchModel.is_finished == True
         )
