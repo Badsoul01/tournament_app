@@ -568,3 +568,11 @@ hr {
 .tournament-box-link:hover span:first-child {
     color: #ffffff !important; /* Zvýrazní pouze název turnaje bílou barvou bez podtržení */
 }
+
+/* Zvýraznění aktuálně vybraného turnaje v levém sloupci */
+.active-tournament-link {
+    background-color: #1a2333; /* Tmavší modrá podobná hoveru */
+    border-left: 3px solid var(--accent-silver); /* Zvýraznění proužkem zleva */
+    font-weight: bold;
+    padding-left: 5px; /* Kompenzace za 3px border, aby se text neposunul moc, původně bylo 8px padding */
+}

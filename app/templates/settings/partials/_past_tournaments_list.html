@@ -1,10 +1,11 @@
 <ul class="clean-list">
     {% for t in recent_tournaments %}
     <li class="mb-4">
+        <!-- Přidáno porovnání: pokud je turnaj vybraný, přidá se třída 'active-tournament-link' -->
         <a href="#"
            hx-get="/wizard/past-tournament/{{ t.id }}/players"
            hx-target="#past-players-container"
-           class="tournament-list-link">
+           class="tournament-list-link {% if active_tournament_id and t.id == active_tournament_id %}active-tournament-link{% endif %}">
             {{ t.name }} <small class="text-muted">({{ t.date.strftime('%d.%m.') }})</small>
         </a>
     </li>
