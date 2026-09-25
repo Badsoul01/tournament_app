@@ -25,38 +25,50 @@ Aplikace běží online na: [www.spravaturnaje.cz](https://www.spravaturnaje.cz)
 
 ```text
 tournament_app/
-├── app/
-│   ├── __init__.py           # Application Factory (create_app, inicializace Flasku)
-│   ├── models/               # Databázové ORM modely (SQLAlchemy)
-│   │   ├── __init__.py       # Balíček pro modely (prázdný)
-│   │   └── models.py         # Modely (Tournament, Group, Player, Match, Bracket, Stats)
+├── app/                      # Hlavní aplikační balíček
+│   ├── __init__.py           # Application Factory (create_app, inicializace Flasku a rozšíření)
 │   │
-│   ├── services/             # Herní logika a algoritmy (Game Engine)
-│   │   ├── __init__.py       # Balíček pro služby (prázdný)
-│   │   ├── groupmanager.py   # Správa a výpočty skupin (Round-Robin)
-│   │   ├── playoff.py        # Logika vyřazovacího pavouka a posun hráčů
-│   │   ├── seedingengine.py  # Algoritmus nasazování hráčů & hlídání kolizí skupin
-│   │   ├── player.py         # Pomocné výpočty statistik a řazení hráčů (PlayerHelper)
-│   │   ├── tournament.py     # Orchestrátor vytváření turnaje a jeho dokončení
-│   │   ├── match.py          # Vyhodnocování zápasů a přepínání stavů
-│   │   └── setupwizard.py    # Průvodce nastavením nového turnaje
+│   ├── models/               # 🗄️ Datová vrstva (SQLAlchemy)
+│   │   ├── __init__.py       
+│   │   └── models.py         # ORM modely (Tournament, Player, Group, Match, Bracket, Stats) vč. CheckConstraints
 │   │
-│   ├── web/                  # Prezentace, routy & Web Management
-│   │   ├── __init__.py       # Balíček pro webovou vrstvu (prázdný)
-│   │   ├── routes.py         # Flask HTTP endpointy (původně main.py)
-│   │   └── webmanager.py     # Data pro HTML šablony + generování Excel exportu
+│   ├── services/             # ⚙️ Herní engine a business logika
+│   │   ├── __init__.py       
+│   │   ├── groupmanager.py   # Logika základních skupin (Round-Robin výpočty, řazení)
+│   │   ├── playoff.py        # Generování vyřazovacího pavouka a zpracování postupů (vč. BYE logiky)
+│   │   ├── seedingengine.py  # Algoritmy pro automatické nasazování (seeding) a prevenci kolizí
+│   │   ├── player.py         # Pomocné výpočty a agregace hráčských statistik
+│   │   ├── tournament.py     # Orchestrátor fází turnaje (přechody mezi skupinami a play-off)
+│   │   ├── match.py          # Zpracování výsledků zápasů a validace
+│   │   └── setupwizard.py    # Průvodce založením turnaje (konfigurace skupin a hráčů)
 │   │
-│   └── templates/            # HTML šablony (Jinja2)
-│       └── partials/         # HTML komponenty pro HTMX (_group_content.html, ...)
+│   ├── web/                  # 🌐 Webová prezentační vrstva
+│   │   ├── __init__.py       
+│   │   ├── routes.py         # Flask HTTP endpointy a controller logika
+│   │   └── webmanager.py     # Příprava dat pro šablony a logika exportu (.xlsx)
+│   │
+│   ├── templates/            # 🎨 Jinja2 šablony
+│   │   ├── layout.html       # Hlavní layout aplikace
+│   │   ├── index.html        # Seznam turnajů a dashboard
+│   │   ├── tournament.html   # Detail konkrétního turnaje
+│   │   └── partials/         # Modulární HTML komponenty pro HTMX
+│   │       ├── _group_content.html # Dynamický obsah skupin
+│   │       ├── _bracket.html       # Vykreslení play-off pavouka
+│   │       └── _match_row.html     # Jednotlivý zápas pro úpravy výsledků
+│   │
+│   └── static/               # 📄 Klientské prostředky
+│       ├── css/
+│       │   └── style.css     # Kaskádové styly pro UI
+│       └── js/
+│           └── main.js       # Doplňkový JavaScript (HTMX eventy)
 │
-├── migrations/               # Databázové migrace (Flask-Migrate / Alembic)
-├── .env                      # Lokální proměnné prostředí (ignorováno v Gitu)
-├── .env.example              # Vzorový konfigurační soubor s proměnnými
-├── .gitignore                # Ignorované soubory (.venv, .idea, __pycache__)
-├── config.py                 # Globální pravidla a konfigurace turnajů
-├── README.md                 # Dokumentace projektu
-├── requirements.txt          # Seznam závislostí projektu
-└── run.py                    # Vstupní bod pro spuštění aplikace (from app import create_app)
+├── migrations/               # 🔄 Databázové migrace (Flask-Migrate / Alembic)
+├── .env.example              # Vzorový konfigurační soubor pro lokální vývoj
+├── .gitignore                # Pravidla pro ignorované soubory (.venv, __pycache__, atd.)
+├── config.py                 # Globální nastavení Flasku a konstant
+├── README.md                 # Tato dokumentace
+├── requirements.txt          # Specifikace Python závislostí
+└── run.py                    # 🚀 Vstupní bod pro lokální server i produkční Gunicorn (Render)
 ```
 
 ## 🔧 Instalace a spuštění
