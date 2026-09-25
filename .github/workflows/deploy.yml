@@ -2,7 +2,7 @@ name: Deploy to VPS
 
 on:
   push:
-    branches: [ main ]  # Spustí se to automaticky při pushi do větve main (příp. master)
+    branches: [ main ]
 
 jobs:
   deploy:
@@ -21,3 +21,19 @@ jobs:
             pip install -r requirements.txt
             flask --app run.py db upgrade
             sudo systemctl restart spravaturnaje
+
+      - name: Send Discord Notification (Success)
+        if: success()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: "🚀 Úspěšně nasazena nová verze turnajové apky (`spravaturnaje.cz`)!"
+
+      - name: Send Discord Notification (Failure)
+        if: failure()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: "❌ Pozor! Deploy turnajové apky (`spravaturnaje.cz`) selhal! 😢"
