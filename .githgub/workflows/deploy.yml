@@ -1,0 +1,23 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ main ]  # Spustí se to automaticky při pushi do větve main (příp. master)
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/projects/tournament_app
+            git pull
+            source venv/bin/activate
+            pip install -r requirements.txt
+            flask --app run.py db upgrade
+            sudo systemctl restart spravaturnaje
