@@ -164,11 +164,16 @@ class Match(db.Model):
 
     is_finished = db.Column(db.Boolean,default=False)
     is_in_progress = db.Column(db.Boolean, default=False)
+    seed_a = db.Column(db.String(10),nullable=True)
+    seed_b = db.Column(db.String(10),nullable=True)
+
 
     # Kam zápas patří
     tournament_id = db.Column(db.Integer, db.ForeignKey("tournaments.id"))
     group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), nullable=True)
     bracket_id = db.Column(db.Integer, db.ForeignKey("brackets.id"), nullable=True)
+
+
 
     # hráči v zápase
     player_a_id = db.Column(db.Integer, db.ForeignKey("players.id"), nullable=True)
