@@ -1,7 +1,7 @@
-import sqlalchemy
 from flask import render_template, request, redirect
 from sqlalchemy import or_, func, cast, String
 from sqlalchemy.orm import joinedload
+from app.services.stats.player_stats import PlayerStatsService
 
 from . import main_bp
 from app.models.models import (
@@ -268,7 +268,7 @@ def stats_matches_view():
 
 @main_bp.route("/stats/player/<int:player_id>")
 def stats_player_detail(player_id):
-    from services.stats.player_stats import PlayerStatsService
+
     context = PlayerStatsService.get_player_profile_data(player_id, request.args)
     active_tab = context.get("active_tab", "overall")
 
