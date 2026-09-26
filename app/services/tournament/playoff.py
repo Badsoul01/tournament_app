@@ -185,10 +185,16 @@ class Playoff:
 
     def move_placement_match_result(self, db_match, bracket_name: str, match_index: int) -> None:
         """Posune vítěze i poraženého z dohrávkového zápasu hlouběji do pod-pavouka."""
-        if db_match.winner_id is None:
+        is_bye_vs_bye = (db_match.player_a_id is None and db_match.player_b_id is None)
+
+        # Propustíme buď normální zápas s vítězem, NEBO čistý BYE vs BYE zápas
+        if not is_bye_vs_bye and db_match.winner_id is None:
             return
 
-        loser_id = db_match.player_b_id if db_match.winner_id == db_match.player_a_id else db_match.player_a_id
+        # Určíme, koho posouváme (pokud je to BYE vs BYE, posouváme prostě None)
+        winner_id = None if is_bye_vs_bye else db_match.winner_id
+        loser_id = None if is_bye_vs_bye else (db_match.player_b_id if db_match.winner_id == db_match.player_a_id else db_match.player_a_id)
+
         low, high = self.placement_rounds[bracket_name]["ranks"]
         if low >= high:
             return
@@ -201,7 +207,7 @@ class Playoff:
         upper_name = f"{low}-{mid}"
         if upper_name in self.placement_rounds:
             self._assign_player_to_slot(
-                player_id=db_match.winner_id,
+                player_id=winner_id,
                 match_list=self.placement_rounds[upper_name]["matches"],
                 match_index=target_match_index,
                 slot_position=target_slot_position
@@ -348,36 +354,41 @@ class Playoff:
                                 stage_name=self.stage_name
                             )
 
-        # 3. DOHRÁVKY - kontrola, posun a ZÁPIS KONEČNÝCH UMÍSTĚNÍ
-        for bracket_name, data in self.placement_rounds.items():
-            low, high = data["ranks"]
+                # 3. DOHRÁVKY - kontrola, posun a ZÁPIS KONEČNÝCH UMÍSTĚNÍ
+                for bracket_name, data in self.placement_rounds.items():
+                    low, high = data["ranks"]
 
-            for idx, item in enumerate(data["matches"]):
-                if isinstance(item, int):
-                    db_match = MatchModel.query.get(item)
-                    if db_match and db_match.is_finished and db_match.winner_id is not None:
-                        # Posuneme hráče v pavouku dál (např. z 5-8 do 5-6 nebo 7-8)
-                        self.move_placement_match_result(db_match, bracket_name, idx)
+                    for idx, item in enumerate(data["matches"]):
+                        if isinstance(item, int):
+                            db_match = MatchModel.query.get(item)
 
-                        # Pokud se hraje PŘÍMO o konkrétní dvě místa (např. 3-4, 5-6), zapíšeme to do DB!
-                        if high - low == 1:
-                            loser_id = db_match.player_b_id if db_match.winner_id == db_match.player_a_id else db_match.player_a_id
+                            # Detekce BYE vs BYE zápasu
+                            is_bye_vs_bye = db_match and db_match.player_a_id is None and db_match.player_b_id is None
 
-                            # Vítěz bere nižší číslo (např. 3)
-                            PlayerHelper.set_final_rank(
-                                player_id=db_match.winner_id,
-                                rank=low,
-                                total_advancers=total_advancers,
-                                stage_name=self.stage_name
-                            )
-                            # Poražený bere vyšší číslo (např. 4)
-                            if loser_id:
-                                PlayerHelper.set_final_rank(
-                                    player_id=loser_id,
-                                    rank=high,
-                                    total_advancers=total_advancers,
-                                    stage_name=self.stage_name
-                                )
+                            # Propustíme hotový zápas s vítězem NEBO hotový BYE vs BYE
+                            if db_match and db_match.is_finished and (db_match.winner_id is not None or is_bye_vs_bye):
+                                # Posuneme hráče v pavouku dál (např. z 5-8 do 5-6 nebo 7-8)
+                                self.move_placement_match_result(db_match, bracket_name, idx)
+
+                                # Pokud se hraje PŘÍMO o konkrétní dvě místa (např. 3-4, 5-6), zapíšeme to do DB!
+                                if high - low == 1:
+                                    loser_id = db_match.player_b_id if db_match.winner_id == db_match.player_a_id else db_match.player_a_id
+
+                                    # Zapisujeme finální umístění POUZE pokud tam je reálný hráč (ne BYE)
+                                    if db_match.winner_id:
+                                        PlayerHelper.set_final_rank(
+                                            player_id=db_match.winner_id,
+                                            rank=low,
+                                            total_advancers=total_advancers,
+                                            stage_name=self.stage_name
+                                        )
+                                    if loser_id:
+                                        PlayerHelper.set_final_rank(
+                                            player_id=loser_id,
+                                            rank=high,
+                                            total_advancers=total_advancers,
+                                            stage_name=self.stage_name
+                                        )
 
     def get_sorted_placement_rounds(self):
         return sorted(
