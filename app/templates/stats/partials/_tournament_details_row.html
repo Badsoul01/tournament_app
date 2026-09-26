@@ -1,27 +1,38 @@
 <tr id="detail-row-{{ tournament.id }}" class="tournament-detail-row">
     <td colspan="6" class="tournament-detail-cell">
+        <!-- Tady si šablona sama vytáhne top 3 přímo z modelu Tournament -->
+        {% set top_3 = tournament.top_3_players %}
+
         <div class="tournament-detail-grid">
 
             <!-- TOP 3 s prokliky -->
             <div class="tournament-detail-column" style="min-width: 200px;">
                 <h4>Pódium</h4>
-                {% for r in [1, 2, 3] %}
-                    {% set p_info = top_3.get(r) %}
-                    <p style="margin: 5px 0; color: var(--text-main);">
-                        {% if r == 1 %}🥇{% elif r == 2 %}🥈{% else %}🥉{% endif %} {{ r }}. místo:
-                        {% if p_info %}
-                            {% if p_info.global_id %}
-                                <a href="/stats/player/{{ p_info.global_id }}" class="match-winner">
-                                    {{ p_info.name }}
-                                </a>
+                {% if tournament.is_finished %}
+                    {% for r in [1, 2, 3] %}
+                        {% set p_info = top_3.get(r) %}
+                        <p style="margin: 5px 0; color: var(--text-main);">
+                            {% if r == 1 %}🥇{% elif r == 2 %}🥈{% else %}🥉{% endif %} {{ r }}. místo:
+                            {% if p_info %}
+                                {% if p_info.global_id %}
+                                    <a href="/stats/player/{{ p_info.global_id }}" class="match-winner">
+                                        {{ p_info.name }}
+                                    </a>
+                                {% else %}
+                                    <strong class="match-winner">{{ p_info.name }}</strong>
+                                {% endif %}
                             {% else %}
-                                <strong class="match-winner">{{ p_info.name }}</strong>
+                                <span style="color: var(--text-muted);">-</span>
                             {% endif %}
-                        {% else %}
-                            <span style="color: var(--text-muted);">-</span>
-                        {% endif %}
-                    </p>
-                {% endfor %}
+                        </p>
+                    {% endfor %}
+                {% else %}
+                    {% for r in [1, 2, 3] %}
+                        <p style="margin: 5px 0; color: var(--text-muted);">
+                            {% if r == 1 %}🥇{% elif r == 2 %}🥈{% else %}🥉{% endif %} {{ r }}. místo: -
+                        </p>
+                    {% endfor %}
+                {% endif %}
             </div>
 
             <!-- Formát turnaje -->

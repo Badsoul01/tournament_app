@@ -119,17 +119,6 @@ def get_past_tournament_players(tournament_id):
             rank = p.consolation_stats.final_rank
         rank_map[p.name] = rank
 
-        # available_players je seznam stringů (jmen). Načteme si jejich objekty z DB a zjistíme rank.
-        db_players = PlayerModel.query.filter_by(tournament_id=tournament_id).all()
-        rank_map = {}
-        for p in db_players:
-            rank = float('inf')
-            if p.playoff_stats and p.playoff_stats.final_rank is not None:
-                rank = p.playoff_stats.final_rank
-            elif p.consolation_stats and p.consolation_stats.final_rank is not None:
-                rank = p.consolation_stats.final_rank
-            rank_map[p.name] = rank
-
         # Seřadíme pole stringů
         available_players.sort(key=lambda name: rank_map.get(name, float('inf')))
     # 2. Vyrenderujeme seznam hráčů pro pravý sloupec
