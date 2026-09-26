@@ -99,6 +99,18 @@ class GroupManager:
         db.session.commit()
 
         ranked = self.rank_players(group.id, "Group")
+        main_bracket = BracketModel.query.filter_by(tournament_id=self.tournament_id, name="Hlavní Playoff").first()
+        all_main_groups = GroupModel.query.filter_by(tournament_id=self.tournament_id, is_consolation=False).count()
+
+        if not main_bracket and all_main_groups == 1:
+            # Není playoff a je to jediná skupina turnaje -> rovnou zapíšeme finální pořadí
+            for idx, p in enumerate(ranked):
+                PlayerHelper.set_final_rank(p.id, idx + 1, stage_name="Group")
+            db.session.commit()
+            return
+
+
+
         adv_count = current_tournament.advance_per_group
         advancing, eliminated = ranked[:adv_count], ranked[adv_count:]
 

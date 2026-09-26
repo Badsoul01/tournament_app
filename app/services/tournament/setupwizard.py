@@ -51,6 +51,7 @@ class SetupWizard:
         advance_players = sum(len(group_players[:self.advance_per_group]) for group_players in self.groups.values())
         return advance_players
 
+
     @property
     def has_empty_group(self):
         """Vrací True, pokud existuje alespoň jedna prázdná skupina."""

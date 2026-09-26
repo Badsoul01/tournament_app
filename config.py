@@ -6,13 +6,13 @@ GROUPS_RULES = {
         },
     "min_players_per_group": 3,
 
-    "max_players_per_group": 8,
+    "max_players_per_group": 10,
     "min_group": 1,
-    "max_group": 8,
+    "max_group": 10,
     "group_creation_options":[1,2,3,4,5,6,7,8],
-    "min_advance_per_group": 1,
+    "min_advance_per_group": 0,
     "max_advance_per_group": 4,
-    "advance_per_group":[1,2,3,4],
+    "advance_per_group":[0,1,2,3,4],
     "elimination_actions": {
         "playoff_b": "Playoff B",
         "minigroup": "Mini-skupina o pořadí",
@@ -22,7 +22,7 @@ GROUPS_RULES = {
 }
 
 PLAYOFF_RULES = {
-    "players_allowed_to_playoff" : [2,4,6,7,8,12,13,14,15,16,25,26,27,28,29,30,31,32],
+    "players_allowed_to_playoff" : [0,2,4,6,7,8,12,13,14,15,16,25,26,27,28,29,30,31,32],
     "playoff_match_format":{
         3: "2 vítězné sety",
         5: "3 vítězné sety",

@@ -165,15 +165,28 @@ class WebManager:
         players = PlayerModel.query.filter_by(tournament_id=self.tournament_id).all()
         results_data = []
 
-        for player in players:
-            p_stats = PlayoffStatsModel.query.filter_by(player_id=player.id).first()
-            c_stats = ConsolationStatsModel.query.filter_by(player_id=player.id).first()
+        # Zjistíme, jestli má turnaj hlavní playoff
+        main_bracket = BracketModel.query.filter_by(tournament_id=self.tournament_id, name="Hlavní Playoff").first()
 
+        for player in players:
             rank = None
-            if p_stats and p_stats.final_rank is not None:
-                rank = p_stats.final_rank
-            elif c_stats and c_stats.final_rank is not None:
-                rank = c_stats.final_rank
+
+            # 1. Pokud turnaj NEMÁ playoff a je to turnaj pouze o jedné skupině, vezmeme pořadí přímo ze skupinových statistik/pořadí
+            if not main_bracket:
+                group = GroupModel.query.filter_by(tournament_id=self.tournament_id, is_consolation=False).first()
+                if group:
+                    ranked_in_group = self.group_manager.rank_players(group.id, "Group")
+                    if player in ranked_in_group:
+                        rank = ranked_in_group.index(player) + 1
+            else:
+                # 2. Standardní cesta přes playoff / útěchu
+                p_stats = PlayoffStatsModel.query.filter_by(player_id=player.id).first()
+                c_stats = ConsolationStatsModel.query.filter_by(player_id=player.id).first()
+
+                if p_stats and p_stats.final_rank is not None:
+                    rank = p_stats.final_rank
+                elif c_stats and c_stats.final_rank is not None:
+                    rank = c_stats.final_rank
 
             if rank is not None:
                 results_data.append((player, rank))

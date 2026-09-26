@@ -54,13 +54,18 @@
                 <td><strong>{{ t.name }}</strong></td>
                 <td style="color: var(--text-muted);">{% if t.is_finished %}Ukončeno{% else %}Probíhá{% endif %}</td>
                 <td>
-                    {% if t.winner %}
-                        {% if t.winner.global_player_id %}
-                            <a href="/stats/player/{{ t.winner.global_player_id }}" class="match-winner">
-                                {{ t.winner.name }}
-                            </a>
+                    {% if t.is_finished %}
+                        {% set winner = t.computed_winner %}
+                        {% if winner %}
+                            {% if winner.global_player_id %}
+                                <a href="/stats/player/{{ winner.global_player_id }}" class="match-winner">
+                                    {{ winner.name }}
+                                </a>
+                            {% else %}
+                                <span class="match-winner">{{ winner.name }}</span>
+                            {% endif %}
                         {% else %}
-                            <span class="match-winner">{{ t.winner.name }}</span>
+                            -
                         {% endif %}
                     {% else %}
                         -

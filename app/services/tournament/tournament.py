@@ -13,39 +13,34 @@ class Tournament:
     """
 
     def __init__(self, setup: SetupWizard) -> None:
-        is_consolation = setup.group_elimination_action in ["playoff_b", "minigroup"]
+        has_playoff_flag = int(setup.advance_per_group) > 0
 
         db_tournament = TournamentModel(
-            name = setup.name,
+            name=setup.name,
             advance_per_group=setup.advance_per_group,
             group_elimination_action=setup.group_elimination_action,
-            has_consolation=is_consolation,
+            has_playoff=has_playoff_flag,
+            has_consolation=False,
             playoff_elimination_action=setup.playoff_elimination_action,
-            group_match_format =setup.group_match_format,
-            playoff_match_format = setup.playoff_match_format,
-            total_players = setup.total_tournament_players,
-            total_players_in_playoff = setup.total_players_advance_to_playoff,
-            consolation_format = setup.group_elimination_action
+            group_match_format=setup.group_match_format,
+            playoff_match_format=setup.playoff_match_format,
+            total_players=setup.total_tournament_players,
+            total_players_in_playoff=setup.total_players_advance_to_playoff,
+            consolation_format=setup.group_elimination_action
         )
 
         if 'organizer_id' in session:
-            # Uživatel je přihlášený -> Přiřadíme ID organizátora přímo do DB
             db_tournament.organizer_id = session['organizer_id']
-        else:
-            # Uživatel není přihlášený -> Zatím nikomu nepatří (bude None)
-            pass
 
         db.session.add(db_tournament)
         db.session.commit()
 
         self.id = db_tournament.id
 
-        # --- NOVÉ: Zápis do Guest session (pokud není přihlášený) ---
         if 'organizer_id' not in session:
             if 'guest_tournaments' not in session:
                 session['guest_tournaments'] = []
 
-            # Abychom předešli duplikátům (kdyby někdo divoce klikal na F5)
             if self.id not in session['guest_tournaments']:
                 session['guest_tournaments'].append(self.id)
                 session.modified = True
@@ -55,8 +50,8 @@ class Tournament:
         group_manager.generate_group_matches()
 
         self.branches: dict = {
-            "main": None,  # Hlavní pavouk playoff
-            "consolation": None,  # útěcha
+            "main": None,
+            "consolation": None,
         }
 
         self._build_playoff(setup=setup)
@@ -90,51 +85,53 @@ class Tournament:
         db.session.commit()
 
     def _build_playoff(self, setup) -> None:
-        """Sestaví struktury z databázea uloží nové Brackets v JSON formátu."""
+        """Sestaví struktury z databáze a uloží nové Brackets v JSON formátu."""
 
-        # 1. Vytáhneme skupiny a jejich hráče z databáze pro tento turnaj
         db_groups = GroupModel.query.filter_by(tournament_id=self.id, is_consolation=False).all()
-
-        # 2. Sestavíme slovník { "A": [hráč1, hráč2, ...], "B": [...] }
         groups_dict = {g.name.replace("Skupina ", "").strip(): list(g.players) for g in db_groups}
 
-
-        # 3. Inicializujeme Playoff a necháme ho vygenerovat strukturu v paměti
         engine = SeedingEngine()
+        advancing_count = int(setup.advance_per_group)
 
-        main_playoff = Playoff(
-            tournament_id=self.id,
-            match_format=int(setup.playoff_match_format),
-            stage_name="main",
-            playoff_elimination_action=setup.playoff_elimination_action
-        )
+        # 1. Hlavní Playoff
+        if advancing_count > 0:
+            main_playoff = Playoff(
+                tournament_id=self.id,
+                match_format=int(setup.playoff_match_format),
+                stage_name="main",
+                playoff_elimination_action=setup.playoff_elimination_action
+            )
 
-        main_playoff.generate_full_bracket_structure(
-            groups=groups_dict,
-            seeding_engine=engine,
-            start_rank=1,
-            end_rank=int(setup.advance_per_group)
-        )
+            main_playoff.generate_full_bracket_structure(
+                groups=groups_dict,
+                seeding_engine=engine,
+                start_rank=1,
+                end_rank=advancing_count
+            )
 
-        db_main_bracket = BracketModel(
-            tournament_id=self.id,
-            name="Hlavní Playoff",
-            bracket_type="elimination",
-            is_consolation=False,
-            tree_data={"rounds": main_playoff.rounds, "placement_rounds": getattr(main_playoff, "placement_rounds", {})}
-        )
-        db.session.add(db_main_bracket)
+            db_main_bracket = BracketModel(
+                tournament_id=self.id,
+                name="Hlavní Playoff",
+                bracket_type="elimination",
+                is_consolation=False,
+                tree_data={"rounds": main_playoff.rounds, "placement_rounds": getattr(main_playoff, "placement_rounds", {})}
+            )
+            db.session.add(db_main_bracket)
+            self.branches["main"] = main_playoff
+        else:
+            self.branches["main"] = None
 
-        self.branches["main"] = main_playoff
-
-
+        # 2. Útěcha (Playoff B nebo Minitabulka)
         if setup.group_elimination_action in ["playoff_b", "minigroup"]:
-            has_eliminated_players = any(len(players) > int(setup.advance_per_group) for players in groups_dict.values())
+            # Útěcha má smysl pouze tehdy, pokud je skupin více nebo jsou v nich vyřazení hráči
+            if len(groups_dict) <= 1:
+                has_eliminated_players = False
+            else:
+                has_eliminated_players = any(len(players) > advancing_count for players in groups_dict.values())
 
             if has_eliminated_players:
-                # Pro playoff_b vytvoříme in-memory strukturu pavouka útěchy
                 if setup.group_elimination_action == "playoff_b":
-                    advancing_total = int(setup.advance_per_group) * len(groups_dict)
+                    advancing_total = advancing_count * len(groups_dict)
                     cons_playoff = Playoff(
                         tournament_id=self.id,
                         match_format=int(setup.playoff_match_format),
@@ -142,11 +139,10 @@ class Tournament:
                         playoff_elimination_action=setup.playoff_elimination_action,
                         rank_offset=advancing_total
                     )
-                    # Zde se pak struktura naplní z pozic od advance_per_group + 1 dál
                     cons_playoff.generate_full_bracket_structure(
                         groups=groups_dict,
                         seeding_engine=engine,
-                        start_rank=int(setup.advance_per_group) + 1,
+                        start_rank=advancing_count + 1,
                         end_rank=max(len(p) for p in groups_dict.values())
                     )
 
@@ -158,20 +154,15 @@ class Tournament:
                         tree_data={"rounds": cons_playoff.rounds, "placement_rounds": getattr(cons_playoff, "placement_rounds", {})}
                     )
                     db.session.add(db_cons_bracket)
-
                     self.branches["consolation"] = cons_playoff
 
-                # Pro minitabulku (minigroup) si připravíme dynamické sloty
                 elif setup.group_elimination_action == "minigroup":
-                    # 1. Vypočítáme budoucí značky (seedy) vyřazených hráčů (např. "3A", "3B", "4B")
                     eliminated_seeds = []
-                    advancing = int(setup.advance_per_group)
                     for group_name, players in groups_dict.items():
-                        if len(players) > advancing:
-                            for i in range(advancing, len(players)):
+                        if len(players) > advancing_count:
+                            for i in range(advancing_count, len(players)):
                                 eliminated_seeds.append(f"{i + 1}{group_name}")
 
-                    # 2. Vygenerujeme kruhový systém pouze pro tyto textové značky (n-tice)
                     minigroup_slots = []
                     match_players = list(eliminated_seeds)
                     if len(match_players) % 2 != 0:
@@ -191,23 +182,20 @@ class Tournament:
                         name="Útěcha-Minitabulka",
                         bracket_type="round_robin",
                         is_consolation=True,
-                        tree_data={"matches":minigroup_slots}
+                        tree_data={"matches": minigroup_slots}
                     )
                     db.session.add(db_cons_bracket)
 
-                    # 4. Uložíme si to do paměti pavouka
                     self.branches["consolation"] = {
                         "type": "minigroup",
                         "group_id": db_cons_bracket.id,
                         "matches": minigroup_slots
                     }
-            else:
-                # Žádní hráči na vyřazení nezbyli (např. všichni postupují do hlavního pavouka)
-                # Takže v DB natvrdo vypneme konzoli, aby zmizela z menu
+
+                # Útěcha byla úspěšně vytvořena -> povolíme ji v databázi pro zobrazení záložky v menu
                 db_tournament = TournamentModel.query.get(self.id)
                 if db_tournament:
-                    db_tournament.has_consolation = False
-                    db.session.commit()
+                    db_tournament.has_consolation = True
 
         db.session.commit()
 

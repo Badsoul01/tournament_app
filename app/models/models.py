@@ -19,7 +19,8 @@ class Tournament(db.Model):
     total_players = db.Column(db.Integer, nullable=False)
     total_players_in_playoff = db.Column(db.Integer, default=0)
 
-    has_consolation = db.Column(db.Boolean, default=True)
+    has_playoff = db.Column(db.Boolean, default=True)
+    has_consolation = db.Column(db.Boolean, default=False)
     consolation_format = db.Column(db.String(50))
 
     is_finished = db.Column(db.Boolean, default=False)
@@ -55,6 +56,83 @@ class Tournament(db.Model):
             return self.date.strftime('%d.%m.%Y')
         return ""
 
+    @property
+    def computed_winner(self):
+        """Vrátí objekt hráče, který vyhrál turnaj (1. místo), pro hlavní tabulku."""
+        # 1. Pokud je uložené winner_id (z playoff / ukončení turnaje)
+        if self.winner_id:
+            return Player.query.get(self.winner_id)
+
+        # 2. Zkusíme pohledat hráče s final_rank == 1 v playoff statistikách
+        for p in self.players:
+            if (p.playoff_stats and p.playoff_stats.final_rank == 1) or \
+                    (p.consolation_stats and p.consolation_stats.final_rank == 1):
+                return p
+
+        # 3. Pro turnaj bez playoff (jedna skupina) vezmeme 1. hráče ze skupiny podle statistik
+        group = self.groups.filter_by(is_consolation=False).first()
+        if group:
+            ranked = sorted(
+                group.players,
+                key=lambda p: (
+                    p.group_stats.points if p.group_stats else 0,
+                    (p.group_stats.balls_win - p.group_stats.balls_lost) if p.group_stats else 0
+                ),
+                reverse=True
+            )
+            return ranked[0] if ranked else None
+
+        return None
+
+    @property
+    def top_3_players(self):
+        """Vrátí slovník {1: hráč1, 2: hráč2, 3: hráč3} pro rozbalovací detail turnaje."""
+        players_data = {}
+
+        # 1. Zkusíme načíst data z playoff / konzole (pokud existují statistiky s final_rank 1, 2, 3)
+        for p in self.players:
+            rank = None
+            if p.playoff_stats and p.playoff_stats.final_rank in [1, 2, 3]:
+                rank = p.playoff_stats.final_rank
+            elif p.consolation_stats and p.consolation_stats.final_rank in [1, 2, 3]:
+                rank = p.consolation_stats.final_rank
+
+            if rank:
+                players_data[rank] = {
+                    "name": p.name,
+                    "global_id": p.global_player_id
+                }
+
+        # 2. Pokud nemáme všechna 3 místa z playoff (např. turnaj bez playoff nebo neúplná data),
+        # doplníme/vyřešíme to přes pořadí v hlavní skupině (Group rank)
+        if len(players_data) < 3:
+            group = self.groups.filter_by(is_consolation=False).first()
+            if group:
+                # Seřadíme hráče ve skupině podle jejich reálných bodů a skóre
+                ranked = sorted(
+                    group.players,
+                    key=lambda p: (
+                        p.group_stats.points if p.group_stats else 0,
+                        (p.group_stats.balls_win - p.group_stats.balls_lost) if p.group_stats else 0
+                    ),
+                    reverse=True
+                )
+                for idx, p in enumerate(ranked[:3]):
+                    rank = idx + 1
+                    # Pokud pro toto umístění ještě nemáme hráče z playoff, doplníme ho ze skupiny
+                    if rank not in players_data:
+                        players_data[rank] = {
+                            "name": p.name,
+                            "global_id": p.global_player_id
+                        }
+
+        return players_data
+
+    @property
+    def winner_player(self):
+        """Vrátí objekt nebo slovník vítěze (1. místo)."""
+        top3 = self.top_3_players
+        return top3.get(1)
 
 
 class Group(db.Model):
