@@ -220,6 +220,7 @@ class Playoff:
     def update_slots_with_players(self, group_name: str, advancing_players: list, start_rank: int = 0) -> None:
         """
         Nahradí textové sloty (např. "1A") reálnými ID HRÁČŮ po dohrání skupiny.
+        Případně aktualizuje již vytvořené zápasy, pokud došlo ke změně v opravené skupině.
         """
         # Vytvoříme mapování: "1A" -> 5 (kde 5 je ID hráče v DB)
         slot_mapping = {}
@@ -230,18 +231,47 @@ class Playoff:
 
         updated_round = []
         for item in self.rounds[1]:
-            if isinstance(item, (tuple,list)):
-                slot_a, slot_b = item
+            if isinstance(item, (tuple, list)):
+                orig_slot_a, orig_slot_b = item  # Uložíme si původní texty pro seedy
 
-                # Zkusíme nahradit "1A" za reálné ID
-                if isinstance(slot_a, str) and slot_a in slot_mapping:
-                    slot_a = slot_mapping[slot_a]
-                if isinstance(slot_b, str) and slot_b in slot_mapping:
-                    slot_b = slot_mapping[slot_b]
+                # Zkusíme nahradit "1A" za reálné ID, jinak necháme původní text/hodnotu
+                slot_a = slot_mapping[orig_slot_a] if (
+                            isinstance(orig_slot_a, str) and orig_slot_a in slot_mapping) else orig_slot_a
+                slot_b = slot_mapping[orig_slot_b] if (
+                            isinstance(orig_slot_b, str) and orig_slot_b in slot_mapping) else orig_slot_b
 
-                # Zkusíme vyřešit a vytvořit Match
-                resolved = self._resolve_slot_pair_to_match(slot_a, slot_b)
+                # Předáme vyhodnocené sloty i původní textové seedy
+                resolved = self._resolve_slot_pair_to_match(
+                    slot_a,
+                    slot_b,
+                    orig_seed_a=orig_slot_a if isinstance(orig_slot_a, str) else None,
+                    orig_seed_b=orig_slot_b if isinstance(orig_slot_b, str) else None
+                )
                 updated_round.append(resolved)
+
+            elif isinstance(item, int):
+                # Zápas už byl vytvořen, zkontrolujeme ho a případně updatneme ID hráčů
+                db_match = MatchModel.query.get(item)
+
+                if db_match and not db_match.is_finished:
+                    changed = False
+
+                    if db_match.seed_a in slot_mapping:
+                        # Pokud ID hráče nesedí s opraveným pořadím, přepíšeme ho
+                        if db_match.player_a_id != slot_mapping[db_match.seed_a]:
+                            db_match.player_a_id = slot_mapping[db_match.seed_a]
+                            changed = True
+
+                    if db_match.seed_b in slot_mapping:
+                        # Pokud ID hráče nesedí s opraveným pořadím, přepíšeme ho
+                        if db_match.player_b_id != slot_mapping[db_match.seed_b]:
+                            db_match.player_b_id = slot_mapping[db_match.seed_b]
+                            changed = True
+
+                    if changed:
+                        db.session.commit()
+
+                updated_round.append(item)
             else:
                 updated_round.append(item)
 
@@ -390,10 +420,10 @@ class Playoff:
             }
             self._pregenerate_sub_brackets_recursive(mid + 1, high, sub_match_count, source_main_round)
 
-    def _resolve_slot_pair_to_match(self, slot_a, slot_b):
+    def _resolve_slot_pair_to_match(self, slot_a, slot_b, orig_seed_a=None, orig_seed_b=None):
         """
         Zkontroluje, zda jsou oba sloty plné (obsahují ID hráče nebo 'BYE' / None).
-        Pokud ano, založí MatchModel v databázi a vrátí jeho ID.
+        Pokud ano, založí MatchModel v databázi, uloží u něj původní seedy a vrátí jeho ID.
         Jinak vrátí původní tuple (např. (15, 'Čeká se..')).
         """
 
@@ -414,6 +444,8 @@ class Playoff:
                 bracket_id=self.bracket_id,
                 player_a_id=p_a_id,
                 player_b_id=p_b_id,
+                seed_a=orig_seed_a,
+                seed_b=orig_seed_b,
                 is_finished=False
             )
 
