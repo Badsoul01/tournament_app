@@ -1,365 +1,1090 @@
+from functools import lru_cache
+from itertools import permutations
+
+
 class SeedingEngine:
     """
-    Modulární a přehledný engine pro generování turnajových pavouků
-    se zachováním původních kotev, chytrého lineárního řazení a přesných BYE pozic.
+    SeedingEngine v5
+
+    Hlavni pavouk (start_rank == 1):
+      1) stejna skupina se NESMI potkat v 1. kole,
+      2) prvni kolo preferuje "prvni vs posledni":
+           1-2 -> 1v2
+           1-3 -> 1v3, 2v2
+           1-4 -> 1v4, 2v3
+      3) BYE dostavaji prednostne lepe umisteni hraci,
+      4) zapasy se po pavouku rozlozi tak, aby se hraci stejne skupiny
+         mohli potkat co nejpozdeji,
+      5) uvnitr skupiny se preferuje krizove rozdeleni polovin:
+           1./3. misto v jedne polovine,
+           2./4. misto v opacne polovine.
+
+    Zadny HARDCODED_BRACKETS zde neni.
+
+    Utecha (start_rank > 1):
+      - zachovava puvodni ATP generator.
     """
 
-    # ==========================================
-    # 1. VEŘEJNÉ API
-    # ==========================================
+    MAX_GROUPS = 8
+    MAX_MAIN_PLAYERS = 16
 
-    def build_first_round(self, groups: dict, start_rank: int = 0, end_rank: int = 0) -> list:
-        """
-        Hlavní vstupní bod. Vygeneruje základní pavouk prvního kola
-        a následně provede korekci skupinových kolizí[cite: 2].
-        """
-        matches = self._generate_grouped_bracket(groups, start_rank, end_rank)
-        print(f"DEBUG: matches v _build_first_round: {matches}")
-        return self._fix_group_collisions(matches)
+    # Kolik nejlepsich variant prvniho kola si nechame pro druhe kolo
+    # optimalizace. 8 je pro max. 16 hracu dostatecne a rychle.
+    PAIRING_CANDIDATES = 8
 
-    # ==========================================
-    # 2. GENERÁTORY PAVOUKŮ (ATP / GROUPED)
-    # ==========================================
+    # Pevne kotvy pro 16clenny pavouk (indexy zapasu prvniho kola).
+    FIXED_ANCHORS_16 = {
+        "1A": 0,
+        "1C": 3,
+        "1D": 4,
+        "1B": 7,
+    }
 
-    def _generate_grouped_bracket(self, groups: dict, start_rank: int, end_rank: int) -> list:
-        """Rozhoduje mezi klasickým ATP pavoukem (pro útěchu) a chytrým lineárním generátorem[cite: 2]."""
-        if start_rank > 1:
-            pots = self._prepare_simple_pots(groups, start_rank, end_rank)
-            all_players = [p for pot in pots.values() for p in pot]
-            print(f"DEBUG: Generuji útěchu pro start_rank ={start_rank} přes ATP.")
-            return self._generate_atp_bracket(all_players)
+    # Presne poradi BYE podle puvodni logiky.
+    # 1 BYE  -> 1A
+    # 2 BYE  -> 1A + 1B
+    # 3 BYE  -> 1A + 1C + 1B
+    # 4 BYE  -> 1A + 1C + 1D + 1B
+    BYE_RECIPIENTS_16 = {
+        1: ("1A",),
+        2: ("1A", "1B"),
+        3: ("1A", "1C", "1B"),
+        4: ("1A", "1C", "1D", "1B"),
+    }
 
-        print(f"DEBUG: Použit chytrý lineární algoritmus s hlídáním sousedních větví.")
-        return self._generate_smart_grouped_bracket(groups, start_rank, end_rank)
+    def __init__(self, debug: bool = False):
+        self.debug = debug
 
-    def _generate_smart_grouped_bracket(self, groups: dict, start_rank: int, end_rank: int) -> list:
-        """
-        Sestavuje chytrý pavouk, který plně respektuje původní kotvení (A, B, C, D)
-        a zároveň dynamicky rozděluje hráče ze stejné skupiny do opačných polovin pavouka,
-        aby se potkali co nejdále.
-        """
-        pots = self._prepare_pots(groups, start_rank, end_rank)
-        if not pots:
+    # ============================================================
+    # 1. VEREJNE API
+    # ============================================================
+
+    def build_first_round(
+        self,
+        groups: dict,
+        start_rank: int = 1,
+        end_rank: int = 1,
+    ) -> list:
+        if not groups:
             return []
 
-        total_slot_count = sum(len(pot) for pot in pots.values())
-        bracket_size, byes_count = self._get_smart_bracket_config(total_slot_count)
-        total_matches = bracket_size // 2
-        byes_indices = self._get_byes_indices(total_matches, byes_count)
+        if start_rank < 1:
+            raise ValueError("start_rank musi byt >= 1.")
 
-        top_rank = min(pots.keys()) if pots else start_rank
-        worst_rank = max(pots.keys()) if pots else start_rank
+        if end_rank < start_rank:
+            raise ValueError("end_rank musi byt >= start_rank.")
 
-        # 1. Zachováme tvé původní pevné kotvy pro vítěze skupin a volné losy
-        final_matches = self._assign_anchors_and_byes(
-            total_matches=total_matches,
-            byes_indices=byes_indices,
-            top_pot=pots.get(top_rank, []).copy(),
-            worst_pool=pots.get(worst_rank, []).copy()
+        # Utecha zustava na puvodnim ATP pristupu.
+        if start_rank > 1:
+            pots = self._prepare_simple_pots(
+                groups,
+                start_rank,
+                end_rank,
+            )
+            players = [
+                player
+                for rank in sorted(pots)
+                for player in pots[rank]
+            ]
+
+            matches = self._generate_atp_bracket(players)
+            self._debug("UTECHA / ATP", matches)
+            return matches
+
+        players = self._prepare_players(
+            groups,
+            start_rank,
+            end_rank,
         )
 
-        # 2. Detekujeme, ve které polovině pavouka skončili vítězové (kotvy)
-        mid = total_matches // 2
-        group_base_half = {}
-        for i, match in enumerate(final_matches):
-            if match and match[0]:
-                group_name = match[0][-1]  # z "1A" získá "A"
-                group_base_half[group_name] = "top" if i < mid else "bottom"
-
-        # 3. Získáme všechny dosud nezařazené hráče
-        used_player_names = {
-                                m[0] for m in final_matches if m and m[0]
-                            } | {
-                                m[1] for m in final_matches if m and m[1]
-                            }
-
-        unassigned_players = []
-        for rank in range(start_rank, end_rank + 1):
-            for p in pots.get(rank, []):
-                if p["name"] not in used_player_names:
-                    unassigned_players.append(p)
-
-        if not unassigned_players:
-            return final_matches
-
-        # 4. Oddálení hráčů: sudá místa (2, 4) jdou do opačné poloviny než jejich vítěz
-        upper_candidates = []
-        lower_candidates = []
-
-        for p in unassigned_players:
-            # Zjistíme, kam šla kotva skupiny (pokud skupina kotvu neměla, výchozí je "top")
-            base_half = group_base_half.get(p["group"], "top")
-
-            # Lichý rank (3., 5.) drží stejnou polovinu jako kotva, sudý (2., 4.) jde naproti
-            is_same_half = (p["rank"] % 2 != 0)
-
-            if (base_half == "top" and is_same_half) or (base_half == "bottom" and not is_same_half):
-                upper_candidates.append(p)
-            else:
-                lower_candidates.append(p)
-
-        # Seřadíme podle ranku pro korektní spárování (lepší s horším)
-        upper_candidates.sort(key=lambda x: x["rank"])
-        lower_candidates.sort(key=lambda x: x["rank"])
-
-        # 5. Bezpečné naplnění prázdných slotů v pavouku
-        top_empty = [i for i in range(mid) if final_matches[i] is None]
-        bottom_empty = [i for i in range(mid, total_matches) if final_matches[i] is None]
-
-        def fill_slots(slots, candidates):
-            for slot in slots:
-                if not candidates:
-                    break
-                if len(candidates) >= 2:
-                    p1 = candidates.pop(0)  # Nejlepší dostupný z dané poloviny
-                    p2 = candidates.pop(-1)  # Nejhorší dostupný z dané poloviny (křížové pravidlo)
-                    final_matches[slot] = (p1["name"], p2["name"])
-                elif len(candidates) == 1:
-                    p1 = candidates.pop(0)
-                    final_matches[slot] = (p1["name"], None)
-
-        # Rozdělíme připravené hráče do volných míst v daných polovinách
-        fill_slots(top_empty, upper_candidates)
-        fill_slots(bottom_empty, lower_candidates)
-
-        # Nouzové dočištění pro případ nestandardně asymetrických skupin
-        leftovers = upper_candidates + lower_candidates
-        empty_any = [i for i in range(total_matches) if final_matches[i] is None]
-        fill_slots(empty_any, leftovers)
-
-        return final_matches
-
-    def _generate_atp_bracket(self, players: list) -> list:
-        """Vygeneruje klasický pavouk na základě standardního seedingového algoritmu[cite: 2]."""
         if not players:
             return []
 
-        byes_needed = self._calculating_byes(len(players))
-        bracket_size = len(players) + byes_needed
-        all_slots = list(players) + [None] * byes_needed
+        if len(groups) < 2:
+            raise ValueError(
+                "Pro hlavni pavouk jsou potreba alespon 2 skupiny."
+            )
 
-        indices = self._get_seeding_indices(bracket_size)
-        return [
-            (all_slots[indices[i]], all_slots[indices[i + 1]])
-            for i in range(0, len(indices), 2)
-        ]
+        if len(groups) > self.MAX_GROUPS:
+            raise ValueError(
+                f"Hlavni pavouk podporuje maximalne "
+                f"{self.MAX_GROUPS} skupin."
+            )
 
-    # ==========================================
-    # 3. POMOCNÉ VÝPOČTY A KOTVY
-    # ==========================================
+        if len(players) > self.MAX_MAIN_PLAYERS:
+            raise ValueError(
+                f"Hlavni pavouk podporuje maximalne "
+                f"{self.MAX_MAIN_PLAYERS} hracu, "
+                f"ale bylo zadano {len(players)}."
+            )
 
-    def _prepare_pots(self, groups: dict, start_rank: int, end_rank: int) -> dict:
-        """Připraví strukturované slovníkové koše hráčů podle umístění[cite: 2]."""
-        pots = {}
-        for group_name in sorted(groups.keys()):
-            players = groups[group_name]
-            for rank_idx in range(start_rank, end_rank + 1):
-                if rank_idx - 1 < len(players):
-                    slot_info = {"name": f"{rank_idx}{group_name}", "group": group_name, "rank": rank_idx}
-                    pots.setdefault(rank_idx, []).append(slot_info)
-        return pots
+        bracket_size = self._next_power_of_two(
+            max(2, len(players))
+        )
 
-    def _prepare_simple_pots(self, groups: dict, start_rank: int, end_rank: int) -> dict:
-        """Připraví jednoduché stringové koše pro ATP pavouka."""
-        pots = {}
-        for group_name in sorted(groups.keys()):
-            players = groups[group_name]
-            for rank_idx in range(start_rank, end_rank + 1):
-                if rank_idx - 1 < len(players):
-                    pots.setdefault(rank_idx, []).append(f"{rank_idx}{group_name}")
-        return pots
+        nodes = self._add_byes(
+            players,
+            bracket_size,
+        )
 
-    def _get_byes_indices(self, total_matches: int, bye_count: int) -> list[int]:
-        """Vrátí přesné původní indexy pro umístění BYE slotů[cite: 2]."""
-        if total_matches == 4:
-            if bye_count == 1: return [0]
-            if bye_count == 2: return [0, 3]
+        bye_count = bracket_size - len(players)
+        fixed_bye_recipients = self._get_fixed_bye_recipients(
+            players=players,
+            bracket_size=bracket_size,
+            bye_count=bye_count,
+        )
 
-        elif total_matches == 8:
-            if bye_count == 1: return [0]
-            if bye_count == 2: return [0, 7]
-            if bye_count == 3: return [0, 3, 7]
-            if bye_count == 4: return [0, 3, 4, 7]
+        pairing_candidates = self._get_best_pairings(
+            nodes=nodes,
+            min_rank=start_rank,
+            max_rank=end_rank,
+            limit=self.PAIRING_CANDIDATES,
+            fixed_bye_recipients=fixed_bye_recipients,
+        )
 
-        return list(range(bye_count))
+        if not pairing_candidates:
+            raise ValueError(
+                "Nepodarilo se sestavit prvni kolo bez kolize skupin."
+            )
 
-    def _assign_anchors_and_byes(self, total_matches: int, byes_indices: list, top_pot: list, worst_pool: list) -> list:
-        """Původní bezpečná logika pro umístění kotev (A, B, C, D) a BYE pozic[cite: 2]."""
-        final_matches = [None] * total_matches
-        assigned_slots = {}
+        best_result = None
 
-        anchor_map = {"A": 0, "B": total_matches - 1}
-        if total_matches >= 8:
-            anchor_map["C"] = 3
-            anchor_map["D"] = 4
+        for pairing_cost, pair_indices in pairing_candidates:
+            arrangement_score, arranged_pairs = (
+                self._find_best_match_arrangement(
+                    nodes=nodes,
+                    pairs=pair_indices,
+                    bracket_size=bracket_size,
+                )
+            )
 
-        for group_letter, idx in anchor_map.items():
-            if idx >= total_matches:
+            # Priorita:
+            # 1) stejna skupina co nejpozdeji,
+            # 2) prvni vs posledni + spravne BYE,
+            # 3) krizove rozdeleni uvnitr skupiny,
+            # 4) rozprostreni vitezu skupin.
+            total_score = (
+                arrangement_score[0],
+                pairing_cost,
+                arrangement_score[1],
+                arrangement_score[2],
+                arrangement_score[3],
+            )
+
+            candidate = (
+                total_score,
+                arranged_pairs,
+            )
+
+            if (
+                best_result is None
+                or candidate[0] < best_result[0]
+            ):
+                best_result = candidate
+
+        matches = self._pairs_to_matches(
+            nodes,
+            best_result[1],
+        )
+
+        self._debug("HLAVNI PAVOUK", matches)
+        return matches
+
+    # ============================================================
+    # 2. KROK A - TVORBA DVOJIC PRO PRVNI KOLO
+    # ============================================================
+
+    def _get_best_pairings(
+        self,
+        nodes: list,
+        min_rank: int,
+        max_rank: int,
+        limit: int,
+        fixed_bye_recipients=None,
+    ) -> list:
+        """
+        Najde nekolik nejlepsich kompletnich sparovani.
+
+        Hard pravidla:
+          - stejna skupina proti sobe = zakazano,
+          - BYE proti BYE = zakazano,
+          - u 16clenneho pavouka s 1-4 BYE muze BYE dostat
+            pouze predem urceny anchor (1A/1B/1C/1D).
+
+        Soft pravidla:
+          - prvni vs posledni.
+        """
+        count = len(nodes)
+
+        @lru_cache(maxsize=None)
+        def solve(mask: int):
+            if mask == 0:
+                return ((0, ()),)
+
+            first_bit = mask & -mask
+            i = first_bit.bit_length() - 1
+            remaining = mask & ~first_bit
+
+            candidates = []
+            remaining_copy = remaining
+
+            while remaining_copy:
+                bit = remaining_copy & -remaining_copy
+                j = bit.bit_length() - 1
+                remaining_copy &= ~bit
+
+                pair_cost = self._first_round_pair_cost(
+                    nodes[i],
+                    nodes[j],
+                    min_rank,
+                    max_rank,
+                    fixed_bye_recipients,
+                )
+
+                if pair_cost is None:
+                    continue
+
+                rest_mask = remaining & ~(1 << j)
+
+                for rest_cost, rest_pairs in solve(rest_mask):
+                    candidates.append(
+                        (
+                            pair_cost + rest_cost,
+                            ((i, j),) + rest_pairs,
+                        )
+                    )
+
+            candidates.sort(
+                key=lambda item: (
+                    item[0],
+                    item[1],
+                )
+            )
+
+            return tuple(candidates[:limit])
+
+        full_mask = (1 << count) - 1
+        return list(solve(full_mask))
+
+    def _first_round_pair_cost(
+        self,
+        a: dict,
+        b: dict,
+        min_rank: int,
+        max_rank: int,
+        fixed_bye_recipients=None,
+    ):
+        a_bye = a["bye"]
+        b_bye = b["bye"]
+
+        # Dve BYE proti sobe nechceme.
+        if a_bye and b_bye:
+            return None
+
+        if a_bye or b_bye:
+            player = b if a_bye else a
+
+            # Pokud mame aktivni pevne BYE kotvy, nikdo jiny BYE dostat nesmi.
+            if (
+                fixed_bye_recipients is not None
+                and player["name"] not in fixed_bye_recipients
+            ):
+                return None
+
+            # Kdyz pevne kotvy aktivni nejsou, zustava puvodni preference:
+            # BYE dostavaji lepe umisteni.
+            if fixed_bye_recipients is None:
+                return (
+                    player["rank"] - min_rank
+                ) * 100
+
+            return 0
+
+        # Stejna skupina v 1. kole je absolutne zakazana.
+        if a["group"] == b["group"]:
+            return None
+
+        # "Prvni s poslednim".
+        target_sum = min_rank + max_rank
+        rank_sum_error = abs(
+            (a["rank"] + b["rank"]) - target_sum
+        )
+
+        # Pri stejnem souctu lehce preferujeme vetsi rozdil poradi.
+        spread = abs(a["rank"] - b["rank"])
+        max_spread = max_rank - min_rank
+        spread_penalty = max_spread - spread
+
+        return (
+            rank_sum_error * 20
+            + spread_penalty
+        )
+
+    # ============================================================
+    # 3. KROK B - ROZMISTENI ZAPASU V PAVOUKU
+    # ============================================================
+
+    def _find_best_match_arrangement(
+        self,
+        nodes: list,
+        pairs: tuple,
+        bracket_size: int,
+    ):
+        """
+        Rozmisti hotove dvojice do pavouka.
+
+        U 16clenneho pavouka jsou pevne:
+          index 0 -> zapas obsahujici 1A
+          index 3 -> zapas obsahujici 1C
+          index 4 -> zapas obsahujici 1D
+          index 7 -> zapas obsahujici 1B
+
+        Ostatni zapasy se optimalizuji kolem techto kotev.
+        """
+        if not pairs:
+            return ((), 0, (), ()), ()
+
+        match_count = len(pairs)
+        arranged_base = [None] * match_count
+
+        fixed_positions = self._get_fixed_anchor_positions(
+            nodes=nodes,
+            pairs=pairs,
+            bracket_size=bracket_size,
+        )
+
+        used_pairs = set()
+
+        for position, pair_index in fixed_positions.items():
+            if position >= match_count:
                 continue
 
-            slot_info = next((s for s in top_pot if s["group"] == group_letter), None)
-            if slot_info:
-                top_pot.remove(slot_info)
+            # Jeden zapas nemuze byt ukotven na dve ruzna mista.
+            if pair_index in used_pairs:
+                raise ValueError(
+                    "Dva pevne anchory skoncily ve stejnem zapase. "
+                    "To by porusilo seedingova pravidla."
+                )
 
-                if idx in byes_indices:
-                    assigned_slots[idx] = (slot_info["name"], None)
-                else:
-                    p2 = next((w for w in worst_pool if w["group"] != group_letter), None)
-                    if not p2 and worst_pool:
-                        p2 = worst_pool[0]
+            arranged_base[position] = pairs[pair_index]
+            used_pairs.add(pair_index)
 
-                    if p2:
-                        worst_pool.remove(p2)
-                        assigned_slots[idx] = (slot_info["name"], p2["name"])
-                    else:
-                        assigned_slots[idx] = (slot_info["name"], None)
+        remaining_pairs = tuple(
+            pair
+            for index, pair in enumerate(pairs)
+            if index not in used_pairs
+        )
 
-        for idx in byes_indices:
-            if idx not in assigned_slots and top_pot:
-                slot_info = top_pot.pop(0)
-                assigned_slots[idx] = (slot_info["name"], None)
+        free_positions = [
+            index
+            for index, pair in enumerate(arranged_base)
+            if pair is None
+        ]
 
-        for idx, match in assigned_slots.items():
-            final_matches[idx] = match
+        best = None
 
-        return final_matches
+        for perm in permutations(remaining_pairs):
+            arranged = list(arranged_base)
 
-    # ==========================================
-    # 4. POST-PROCESSING KOREKCE KOLIZÍ
-    # ==========================================
+            for position, pair in zip(free_positions, perm):
+                arranged[position] = pair
 
-    def _fix_group_collisions(self, final_matches: list) -> list:
-        """Provede dodatečné prohození pro odstranění sousedních a partnerských kolizí skupin[cite: 2]."""
-        def get_rank(p_str):
-            return int(p_str[0]) if p_str and p_str[0].isdigit() else 0
+            arranged = tuple(arranged)
 
-        def get_group(p_str):
-            return p_str[-1] if p_str else ""
+            score = self._arrangement_score(
+                nodes,
+                arranged,
+                bracket_size,
+            )
 
-        def get_all_forbidden_groups(idx, matches):
-            forbidden = set()
-            # 1. XOR partner
-            partner_idx = idx ^ 1
-            if 0 <= partner_idx < len(matches) and matches[partner_idx]:
-                m = matches[partner_idx]
-                if m[0]: forbidden.add(get_group(m[0]))
-                if m[1]: forbidden.add(get_group(m[1]))
+            candidate = (
+                score,
+                arranged,
+            )
 
-            # 2. Lineární sousedé (i-1 a i+1)
-            for n_idx in (idx - 1, idx + 1):
-                if 0 <= n_idx < len(matches) and matches[n_idx]:
-                    m = matches[n_idx]
-                    if m[0]: forbidden.add(get_group(m[0]))
-                    if m[1]: forbidden.add(get_group(m[1]))
+            if (
+                best is None
+                or candidate[0] < best[0]
+                or (
+                    candidate[0] == best[0]
+                    and candidate[1] < best[1]
+                )
+            ):
+                best = candidate
 
-            return forbidden
+        return best
 
-        def is_bad_match(m, idx, matches):
-            if not m or not m[0] or not m[1]:
-                return False
-            g1, g2 = get_group(m[0]), get_group(m[1])
-            r1, r2 = get_rank(m[0]), get_rank(m[1])
+    def _arrangement_score(
+        self,
+        nodes: list,
+        arranged_pairs: tuple,
+        bracket_size: int,
+    ) -> tuple:
+        """
+        Vraci:
+          0) pocty predcasnych setkani stejne skupiny po kolech,
+          1) pocet poruseni krizove parity polovin,
+          2) pocty predcasnych setkani vitezu skupin,
+          3) deterministicky tie-break.
+        """
+        group_positions = {}
+        rank_positions = {}
 
-            if g1 == g2 or (r1 > 1 and r2 > 1 and r1 == r2):
-                return True
+        for match_index, pair in enumerate(arranged_pairs):
+            for node_index in pair:
+                player = nodes[node_index]
 
-            forbidden = get_all_forbidden_groups(idx, matches)
-            return g1 in forbidden or g2 in forbidden
-
-        protected_indices = {0, len(final_matches) - 1}
-
-        for _ in range(20):
-            changed = False
-            for i in range(len(final_matches)):
-                if i in protected_indices:
-                    continue
-                m_i = final_matches[i]
-                if not m_i or not m_i[0] or not m_i[1]:
+                if player["bye"]:
                     continue
 
-                if not is_bad_match(m_i, i, final_matches):
+                group_positions.setdefault(
+                    player["group"],
+                    [],
+                ).append(
+                    (
+                        match_index,
+                        player["rank"],
+                    )
+                )
+
+                rank_positions.setdefault(
+                    player["rank"],
+                    [],
+                ).append(match_index)
+
+        group_round_counts = (
+            self._early_meeting_counts(
+                group_positions,
+                bracket_size,
+            )
+        )
+
+        parity_penalty = (
+            self._group_half_parity_penalty(
+                group_positions,
+                bracket_size,
+            )
+        )
+
+        winner_round_counts = (
+            self._winner_meeting_counts(
+                rank_positions.get(1, []),
+                bracket_size,
+            )
+        )
+
+        deterministic_key = tuple(
+            tuple(pair)
+            for pair in arranged_pairs
+        )
+
+        return (
+            group_round_counts,
+            parity_penalty,
+            winner_round_counts,
+            deterministic_key,
+        )
+
+    def _early_meeting_counts(
+        self,
+        group_positions: dict,
+        bracket_size: int,
+    ) -> tuple:
+        """
+        Pocita, kolik dvojic stejne skupiny se muze potkat
+        ve 2., 3., ... kole.
+
+        Posledni kolo (finale) netrestame.
+        """
+        total_rounds = (
+            bracket_size.bit_length() - 1
+        )
+
+        counts = {
+            round_no: 0
+            for round_no in range(
+                2,
+                total_rounds,
+            )
+        }
+
+        for members in group_positions.values():
+            for i in range(len(members)):
+                for j in range(
+                    i + 1,
+                    len(members),
+                ):
+                    match_a = members[i][0]
+                    match_b = members[j][0]
+
+                    round_no = (
+                        self._meeting_round_for_matches(
+                            match_a,
+                            match_b,
+                        )
+                    )
+
+                    if round_no in counts:
+                        counts[round_no] += 1
+
+        return tuple(
+            counts[r]
+            for r in sorted(counts)
+        )
+
+    def _group_half_parity_penalty(
+        self,
+        group_positions: dict,
+        bracket_size: int,
+    ) -> int:
+        """
+        Parita je relativni ke skupine.
+
+        Priklad:
+          kdyz 1H skonci dole,
+          2H ma byt idealne nahore,
+          3H dole,
+          4H nahore.
+        """
+        match_count = bracket_size // 2
+        half = match_count // 2
+
+        if half == 0:
+            return 0
+
+        penalty = 0
+
+        for members in group_positions.values():
+            rank_one_match = next(
+                (
+                    match_index
+                    for match_index, rank in members
+                    if rank == 1
+                ),
+                None,
+            )
+
+            if rank_one_match is None:
+                continue
+
+            base_half = (
+                0
+                if rank_one_match < half
+                else 1
+            )
+
+            for match_index, rank in members:
+                if rank == 1:
                     continue
 
-                for j in range(len(final_matches)):
-                    if i == j or j in protected_indices:
-                        continue
-                    m_j = final_matches[j]
-                    if not m_j or not m_j[0] or not m_j[1]:
-                        continue
+                actual_half = (
+                    0
+                    if match_index < half
+                    else 1
+                )
 
-                    # NOVÉ: 1. Nejprve zkus prohodit celé zápasy (udrží křížové párování)
-                    final_matches[i], final_matches[j] = m_j, m_i
-                    if not is_bad_match(final_matches[i], i, final_matches) and not is_bad_match(final_matches[j], j,
-                                                                                                 final_matches):
-                        changed = True
-                        break
-                    # Validace neprošla, vrať zápasy na původní místo
-                    final_matches[i], final_matches[j] = m_i, m_j
+                expected_half = (
+                    base_half
+                    if rank % 2 == 1
+                    else 1 - base_half
+                )
 
-                    # PŮVODNÍ: 2. Pokud výměna celých zápasů nepomohla, zkus prohodit jednotlivé hráče
-                    for slot_i in (0, 1):
-                        for slot_j in (0, 1):
-                            cand_i_players = list(m_i)
-                            cand_j_players = list(m_j)
+                if actual_half != expected_half:
+                    penalty += 1
 
-                            cand_i_players[slot_i], cand_j_players[slot_j] = cand_j_players[slot_j], cand_i_players[
-                                slot_i]
-                            new_i = tuple(cand_i_players)
-                            new_j = tuple(cand_j_players)
+        return penalty
 
-                            final_matches[i] = new_i
-                            final_matches[j] = new_j
+    def _winner_meeting_counts(
+        self,
+        winner_positions: list,
+        bracket_size: int,
+    ) -> tuple:
+        """
+        Pomocny tie-break:
+        vitezove skupin se take snazi byt rozprostreni.
+        """
+        total_rounds = (
+            bracket_size.bit_length() - 1
+        )
 
-                            if not is_bad_match(new_i, i, final_matches) and not is_bad_match(new_j, j, final_matches):
-                                changed = True
-                                break
-                            else:
-                                final_matches[i] = m_i
-                                final_matches[j] = m_j
+        counts = {
+            round_no: 0
+            for round_no in range(
+                2,
+                total_rounds,
+            )
+        }
 
-                        if changed: break
-                    if changed: break
-                if changed: break
+        for i in range(len(winner_positions)):
+            for j in range(
+                i + 1,
+                len(winner_positions),
+            ):
+                round_no = (
+                    self._meeting_round_for_matches(
+                        winner_positions[i],
+                        winner_positions[j],
+                    )
+                )
 
-            if not changed: break
+                if round_no in counts:
+                    counts[round_no] += 1
 
-        print(f"DEBUG: matches v _fix_group_collisions: {final_matches}")
-        return final_matches
+        return tuple(
+            counts[r]
+            for r in sorted(counts)
+        )
 
-    # ==========================================
-    # 5. MATEMATICKÉ UTILITKY
-    # ==========================================
+    def _meeting_round_for_matches(
+        self,
+        match_a: int,
+        match_b: int,
+    ) -> int:
+        """
+        Dva ruzne zapasy prvniho kola:
+          sousedni zapasy -> jejich vitezove se mohou potkat ve 2. kole,
+          dalsi vetev     -> ve 3. kole,
+          atd.
+        """
+        if match_a == match_b:
+            return 1
 
-    def _get_seeding_indices(self, size: int) -> list[int]:
+        return (
+            (match_a ^ match_b).bit_length()
+            + 1
+        )
+
+    # ============================================================
+    # 4. PREVOD / PRIPRAVA DAT
+    # ============================================================
+
+    def _prepare_players(
+        self,
+        groups: dict,
+        start_rank: int,
+        end_rank: int,
+    ) -> list:
+        players = []
+
+        for group_name in sorted(groups.keys()):
+            group_players = groups[group_name]
+
+            for rank in range(
+                start_rank,
+                end_rank + 1,
+            ):
+                if rank - 1 < len(group_players):
+                    players.append(
+                        {
+                            "name": f"{rank}{group_name}",
+                            "group": group_name,
+                            "rank": rank,
+                            "bye": False,
+                        }
+                    )
+
+        # Stabilni poradi.
+        players.sort(
+            key=lambda p: (
+                p["rank"],
+                p["group"],
+            )
+        )
+
+        return players
+
+    def _add_byes(
+        self,
+        players: list,
+        bracket_size: int,
+    ) -> list:
+        result = [
+            player.copy()
+            for player in players
+        ]
+
+        bye_count = (
+            bracket_size - len(result)
+        )
+
+        for index in range(bye_count):
+            result.append(
+                {
+                    "name": f"__BYE_{index + 1}",
+                    "group": None,
+                    "rank": None,
+                    "bye": True,
+                }
+            )
+
+        return result
+
+    def _get_fixed_bye_recipients(
+        self,
+        players: list,
+        bracket_size: int,
+        bye_count: int,
+    ):
+        """
+        Pro 16clenny pavouk s 1-4 BYE vrati presny seznam hracu,
+        kteri BYE dostanou.
+
+        Pri 5+ BYE uz nelze splnit pravidlo "BYE jen A/B/C/D",
+        proto se pouzije obecna logika.
+        """
+        if bracket_size != 16:
+            return None
+
+        recipients = self.BYE_RECIPIENTS_16.get(bye_count)
+
+        if not recipients:
+            return None
+
+        existing_names = {
+            player["name"]
+            for player in players
+        }
+
+        if not all(
+            name in existing_names
+            for name in recipients
+        ):
+            return None
+
+        return frozenset(recipients)
+
+    def _get_fixed_anchor_positions(
+        self,
+        nodes: list,
+        pairs: tuple,
+        bracket_size: int,
+    ) -> dict:
+        """
+        Vrati mapu:
+            index_zapasu -> index_dvojice
+
+        Pro 16ku pouzije pevne A/C/D/B kotvy.
+        Pro mensi pavouk zustava pouze 1A (nebo prvni vitez) na indexu 0.
+        """
+        if bracket_size == 16:
+            result = {}
+
+            for player_name, match_index in self.FIXED_ANCHORS_16.items():
+                pair_index = self._find_pair_containing_player(
+                    nodes,
+                    pairs,
+                    player_name,
+                )
+
+                if pair_index is not None:
+                    result[match_index] = pair_index
+
+            return result
+
+        return {
+            0: self._find_anchor_pair_index(
+                nodes,
+                pairs,
+            )
+        }
+
+    def _find_pair_containing_player(
+        self,
+        nodes: list,
+        pairs: tuple,
+        player_name: str,
+    ):
+        for pair_index, pair in enumerate(pairs):
+            for node_index in pair:
+                if nodes[node_index]["name"] == player_name:
+                    return pair_index
+
+        return None
+
+    def _find_anchor_pair_index(
+        self,
+        nodes: list,
+        pairs: tuple,
+    ) -> int:
+        """
+        Ukotvime zapas s 1A nahore.
+        Kdyby skupina A nebyla, vezmeme abecedne prvniho viteze skupiny.
+        """
+        winners = [
+            p
+            for p in nodes
+            if (
+                not p["bye"]
+                and p["rank"] == 1
+            )
+        ]
+
+        if not winners:
+            return 0
+
+        anchor_name = min(
+            p["name"]
+            for p in winners
+        )
+
+        for pair_index, pair in enumerate(pairs):
+            for node_index in pair:
+                if (
+                    nodes[node_index]["name"]
+                    == anchor_name
+                ):
+                    return pair_index
+
+        return 0
+
+    def _pairs_to_matches(
+        self,
+        nodes: list,
+        arranged_pairs: tuple,
+    ) -> list:
+        matches = []
+
+        for pair in arranged_pairs:
+            members = [
+                nodes[index]
+                for index in pair
+            ]
+
+            # BYE vzdy jako druhy slot.
+            # U dvou hracu dame lepe umisteneho jako prvniho.
+            members.sort(
+                key=lambda p: (
+                    p["bye"],
+                    (
+                        p["rank"]
+                        if p["rank"] is not None
+                        else 999
+                    ),
+                    p["name"],
+                )
+            )
+
+            p1 = (
+                None
+                if members[0]["bye"]
+                else members[0]["name"]
+            )
+
+            p2 = (
+                None
+                if members[1]["bye"]
+                else members[1]["name"]
+            )
+
+            matches.append(
+                (p1, p2)
+            )
+
+        return matches
+
+    def _prepare_simple_pots(
+        self,
+        groups: dict,
+        start_rank: int,
+        end_rank: int,
+    ) -> dict:
+        pots = {}
+
+        for group_name in sorted(groups.keys()):
+            group_players = groups[group_name]
+
+            for rank in range(
+                start_rank,
+                end_rank + 1,
+            ):
+                if rank - 1 < len(group_players):
+                    pots.setdefault(
+                        rank,
+                        [],
+                    ).append(
+                        f"{rank}{group_name}"
+                    )
+
+        return pots
+
+    # ============================================================
+    # 5. ATP GENERATOR PRO UTECHU
+    # ============================================================
+
+    def _generate_atp_bracket(
+        self,
+        players: list,
+    ) -> list:
+        if not players:
+            return []
+
+        byes_needed = (
+            self._calculating_byes(
+                len(players)
+            )
+        )
+
+        bracket_size = (
+            len(players)
+            + byes_needed
+        )
+
+        all_slots = (
+            list(players)
+            + [None] * byes_needed
+        )
+
+        indices = (
+            self._get_seeding_indices(
+                bracket_size
+            )
+        )
+
+        return [
+            (
+                all_slots[indices[i]],
+                all_slots[indices[i + 1]],
+            )
+            for i in range(
+                0,
+                len(indices),
+                2,
+            )
+        ]
+
+    def _get_seeding_indices(
+        self,
+        size: int,
+    ) -> list:
         if size <= 1:
             return [0]
 
         brackets = [0]
+
         while len(brackets) < size:
             next_brackets = []
+
             for i, idx in enumerate(brackets):
-                pair = (idx, 2 * len(brackets) - 1 - idx)
+                pair = (
+                    idx,
+                    2 * len(brackets) - 1 - idx,
+                )
+
                 if i % 2 == 1:
-                    pair = (pair[1], pair[0])
+                    pair = (
+                        pair[1],
+                        pair[0],
+                    )
+
                 next_brackets.extend(pair)
+
             brackets = next_brackets
+
         return brackets
 
-    def _calculating_byes(self, total_slots: int) -> int:
-        size_of_bracket = 2
-        while size_of_bracket < total_slots:
-            size_of_bracket *= 2
-        return size_of_bracket - total_slots
+    def _calculating_byes(
+        self,
+        total_slots: int,
+    ) -> int:
+        bracket_size = (
+            self._next_power_of_two(
+                max(2, total_slots)
+            )
+        )
 
-    def _get_smart_bracket_config(self, num_players: int):
-        if num_players <= 4:
-            target_size = 4
-        elif num_players <= 8:
-            target_size = 8
-        elif num_players <= 16:
-            target_size = 16
-        else:
-            target_size = 32
+        return (
+            bracket_size
+            - total_slots
+        )
 
-        byes_count = target_size - num_players
-        return target_size, byes_count
+    def _next_power_of_two(
+        self,
+        value: int,
+    ) -> int:
+        size = 1
+
+        while size < value:
+            size *= 2
+
+        return size
+
+    # ============================================================
+    # 6. VALIDACE / DIAGNOSTIKA
+    # ============================================================
+
+    def validate_first_round(
+        self,
+        matches: list,
+    ) -> dict:
+        problems = []
+
+        for index, match in enumerate(matches):
+            p1, p2 = match
+
+            if p1 is None or p2 is None:
+                continue
+
+            g1 = self._parse_group(p1)
+            g2 = self._parse_group(p2)
+
+            if g1 == g2:
+                problems.append(
+                    f"Zapas {index + 1}: "
+                    f"stejna skupina "
+                    f"({p1} vs {p2})."
+                )
+
+        return {
+            "valid": not problems,
+            "problems": problems,
+        }
+
+    def analyze_bracket(
+        self,
+        matches: list,
+    ) -> dict:
+        """
+        Jednoducha diagnostika pro testovani v aplikaci.
+        """
+        validation = (
+            self.validate_first_round(matches)
+        )
+
+        byes = []
+
+        for p1, p2 in matches:
+            if p1 is None and p2 is not None:
+                byes.append(p2)
+            elif p2 is None and p1 is not None:
+                byes.append(p1)
+
+        return {
+            "valid_first_round": validation["valid"],
+            "problems": validation["problems"],
+            "byes": byes,
+            "matches": matches,
+        }
+
+    def _parse_group(
+        self,
+        player_name: str,
+    ) -> str:
+        index = 0
+
+        while (
+            index < len(player_name)
+            and player_name[index].isdigit()
+        ):
+            index += 1
+
+        return player_name[index:]
+
+    def _debug(
+        self,
+        label: str,
+        value,
+    ) -> None:
+        if self.debug:
+            print(
+                f"DEBUG [{label}]: {value}"
+            )

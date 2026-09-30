@@ -8,7 +8,7 @@ GROUPS_RULES = {
 
     "max_players_per_group": 10,
     "min_group": 1,
-    "max_group": 10,
+    "max_group": 8,
     "group_creation_options":[1,2,3,4,5,6,7,8],
     "min_advance_per_group": 0,
     "max_advance_per_group": 4,
