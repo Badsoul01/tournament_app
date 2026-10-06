@@ -286,6 +286,76 @@ class Playoff:
         # Automaticky zkontrolujeme vytvořené zápasy a posuneme vítěze BYE dál!
         self.check_and_proceed()
 
+    def remove_player_from_first_round(self, player_id: int, seed: str) -> bool:
+        """
+        Odebere hráče z jeho starého slotu v 1. kole a obnoví textový seed
+        (např. 3A). Používá se při opravě výsledku ve skupině.
+
+        Vrací False, pokud už je příslušný playoff zápas skutečně odehraný;
+        takovou změnu nelze bezpečně provést bez resetu navazujících kol.
+        """
+        if 1 not in self.rounds:
+            return True
+
+        changed = False
+        updated_round = list(self.rounds[1])
+
+        for idx, item in enumerate(updated_round):
+            if isinstance(item, (tuple, list)):
+                slot_a, slot_b = item
+
+                if slot_a == player_id:
+                    slot_a = seed
+                    changed = True
+
+                if slot_b == player_id:
+                    slot_b = seed
+                    changed = True
+
+                updated_round[idx] = (slot_a, slot_b)
+
+            elif isinstance(item, int):
+                db_match = MatchModel.query.get(item)
+                if not db_match:
+                    continue
+
+                player_is_a = db_match.player_a_id == player_id
+                player_is_b = db_match.player_b_id == player_id
+
+                if not player_is_a and not player_is_b:
+                    continue
+
+                # Pokud byl zápas skutečně odehrán, jeho změna by vyžadovala
+                # zrušení výsledku a navazujících kol.
+                if db_match.is_finished and db_match.winner_id is not None:
+                    return False
+
+                # Zápas ještě nezačal: vrátíme ho zpět na slotovou dvojici,
+                # abychom nezaměnili "čeká se na hráče" za skutečné BYE.
+                slot_a = db_match.player_a_id
+                slot_b = db_match.player_b_id
+
+                if player_is_a:
+                    slot_a = seed
+                elif slot_a is None and db_match.seed_a:
+                    slot_a = db_match.seed_a
+
+                if player_is_b:
+                    slot_b = seed
+                elif slot_b is None and db_match.seed_b:
+                    slot_b = db_match.seed_b
+
+                db.session.delete(db_match)
+                db.session.flush()
+
+                updated_round[idx] = (slot_a, slot_b)
+                changed = True
+
+        if changed:
+            self.rounds[1] = updated_round
+
+        return True
+
     def check_and_proceed(self) -> None:
         """
         Hlavní motor pavouka. Zkontroluje aktuální stav všech vygenerovaných

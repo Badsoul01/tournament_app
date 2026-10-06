@@ -92,6 +92,11 @@ class GroupManager:
         db.session.commit()
 
         group = GroupModel.query.get(db_match.group_id)
+
+        # Po každém dohraném zápase zkusíme určit pozice, které už jsou
+        # matematicky jisté, a ihned je pošleme do příslušného pavouka.
+        self._push_locked_group_positions(group, current_tournament)
+
         if not self.are_all_matches_played(group.id):
             return
 
@@ -185,6 +190,246 @@ class GroupManager:
 
                 db.session.commit()
 
+    def _get_locked_group_positions(self, group_id: int) -> dict[int, PlayerModel]:
+        """
+        Vrátí pozice ve skupině, které už jsou matematicky jisté pouze na body.
+
+        Výpočet je záměrně konzervativní:
+        - výhra může přidat maximálně 3 body,
+        - pokud může ještě vzniknout bodová shoda, pozici za jistou nepovažujeme,
+          protože by následně rozhodovaly tie-breaky.
+
+        Výsledkem může být například {1: player_a, 3: player_c}.
+        """
+        group = GroupModel.query.get(group_id)
+        if not group:
+            return {}
+
+        players = list(group.players)
+        if not players:
+            return {}
+
+        unfinished_matches = MatchModel.query.filter_by(
+            group_id=group_id,
+            is_finished=False
+        ).all()
+
+        remaining_matches = {player.id: 0 for player in players}
+        for match in unfinished_matches:
+            if match.player_a_id in remaining_matches:
+                remaining_matches[match.player_a_id] += 1
+            if match.player_b_id in remaining_matches:
+                remaining_matches[match.player_b_id] += 1
+
+        current_points = {
+            player.id: PlayerHelper.get_sorting_stats(player.id, "Group")[0]
+            for player in players
+        }
+
+        max_points = {
+            player.id: current_points[player.id] + (remaining_matches[player.id] * 3)
+            for player in players
+        }
+
+        locked_positions = {}
+
+        for player in players:
+            guaranteed_above = sum(
+                1
+                for opponent in players
+                if opponent.id != player.id
+                and current_points[opponent.id] > max_points[player.id]
+            )
+
+            guaranteed_below = sum(
+                1
+                for opponent in players
+                if opponent.id != player.id
+                and max_points[opponent.id] < current_points[player.id]
+            )
+
+            if guaranteed_above + guaranteed_below == len(players) - 1:
+                rank = guaranteed_above + 1
+                locked_positions[rank] = player
+
+        return locked_positions
+
+    def _push_locked_group_positions(self, group, current_tournament) -> None:
+        """
+        Synchronizuje průběžně jisté pozice skupiny s playoff / útěchou.
+
+        Oproti původní "push-only" variantě umí i opravu výsledku:
+        - starý seed odstraní ze starého pavouka,
+        - hráči upraví group_seed,
+        - nový jistý seed vloží na správné místo.
+        """
+        locked_positions = self._get_locked_group_positions(group.id)
+
+        letter = group.name.replace("Skupina ", "").strip()
+        adv_count = current_tournament.advance_per_group
+        players = list(group.players)
+
+        main_bracket = BracketModel.query.filter_by(
+            tournament_id=self.tournament_id,
+            name="Hlavní Playoff"
+        ).first()
+
+        cons_bracket = BracketModel.query.filter_by(
+            tournament_id=self.tournament_id,
+            is_consolation=True
+        ).first()
+
+        main_engine = None
+        cons_engine = None
+
+        if main_bracket:
+            main_engine = Playoff(
+                self.tournament_id,
+                current_tournament.playoff_match_format,
+                "main",
+                current_tournament.playoff_elimination_action,
+                bracket_id=main_bracket.id
+            )
+
+        if cons_bracket and cons_bracket.bracket_type == "elimination":
+            main_groups_count = GroupModel.query.filter_by(
+                tournament_id=self.tournament_id,
+                is_consolation=False
+            ).count()
+
+            cons_engine = Playoff(
+                self.tournament_id,
+                current_tournament.playoff_match_format,
+                "consolation",
+                current_tournament.playoff_elimination_action,
+                rank_offset=current_tournament.advance_per_group * main_groups_count,
+                bracket_id=cons_bracket.id
+            )
+
+        player_to_locked_rank = {
+            player.id: rank
+            for rank, player in locked_positions.items()
+        }
+
+        changed = False
+
+        # 1) Nejdřív odstraníme stará přiřazení, která po opravě výsledku
+        #    už neplatí.
+        for player in players:
+            old_seed = player.group_seed
+            locked_rank = player_to_locked_rank.get(player.id)
+            new_seed = f"{locked_rank}{letter}" if locked_rank is not None else None
+
+            if old_seed == new_seed:
+                continue
+
+            if old_seed and old_seed.endswith(letter):
+                try:
+                    old_rank = int(old_seed[:-len(letter)])
+                except (TypeError, ValueError):
+                    old_rank = None
+
+                if old_rank is not None:
+                    if old_rank <= adv_count and main_engine:
+                        main_engine.remove_player_from_first_round(player.id, old_seed)
+                    elif old_rank > adv_count and cons_engine:
+                        cons_engine.remove_player_from_first_round(player.id, old_seed)
+
+            player.group_seed = new_seed
+            changed = True
+
+        if changed:
+            db.session.commit()
+
+        # 2) Potom vložíme všechny aktuálně jisté pozice na správné místo.
+        for rank, player in sorted(locked_positions.items()):
+            if rank <= adv_count and main_engine:
+                main_engine.update_slots_with_players(
+                    letter,
+                    [player],
+                    start_rank=rank - 1
+                )
+
+            elif rank > adv_count and cons_engine:
+                cons_engine.update_slots_with_players(
+                    letter,
+                    [player],
+                    start_rank=rank - 1
+                )
+
+        if main_engine is not None:
+            main_engine.save_to_db()
+
+        if cons_engine is not None:
+            cons_engine.save_to_db()
+
+        # Round-robin útěchu při změně seedů znovu synchronizujeme.
+        if changed and cons_bracket and cons_bracket.bracket_type == "round_robin":
+            self._refresh_consolation_minigroup(cons_bracket, current_tournament)
+
+    def _refresh_consolation_minigroup(self, cons_bracket, current_tournament) -> None:
+        """
+        Synchronizuje neodehrané zápasy minitabulky útěchy s aktuálními seedy.
+
+        Neodehrané zápasy bezpečně vytvoří znovu. Odehrané zápasy nemaže,
+        protože jejich změna by už vyžadovala samostatný cascade-reset.
+        """
+        tree_data = cons_bracket.tree_data or {}
+        matches_list = tree_data.get("matches", [])
+
+        # Staré neodehrané kombinace po opravě skupiny zahodíme.
+        MatchModel.query.filter_by(
+            bracket_id=cons_bracket.id,
+            is_finished=False
+        ).delete(synchronize_session=False)
+        db.session.flush()
+
+        for slot_a, slot_b in matches_list:
+            p_a_id = slot_a if isinstance(slot_a, int) else None
+            p_b_id = slot_b if isinstance(slot_b, int) else None
+
+            if isinstance(slot_a, str):
+                p_obj = PlayerModel.query.filter_by(
+                    tournament_id=self.tournament_id,
+                    group_seed=slot_a
+                ).first()
+                if p_obj:
+                    p_a_id = p_obj.id
+
+            if isinstance(slot_b, str):
+                p_obj = PlayerModel.query.filter_by(
+                    tournament_id=self.tournament_id,
+                    group_seed=slot_b
+                ).first()
+                if p_obj:
+                    p_b_id = p_obj.id
+
+            # Zápas vzniká až ve chvíli, kdy jsou známí oba hráči.
+            if p_a_id is None or p_b_id is None:
+                continue
+
+            existing_match = MatchModel.query.filter(
+                MatchModel.bracket_id == cons_bracket.id,
+                ((MatchModel.player_a_id == p_a_id) & (MatchModel.player_b_id == p_b_id)) |
+                ((MatchModel.player_a_id == p_b_id) & (MatchModel.player_b_id == p_a_id))
+            ).first()
+
+            if not existing_match:
+                db_match = MatchModel(
+                    match_type="minigroup",
+                    match_format=str(current_tournament.group_match_format),
+                    tournament_id=self.tournament_id,
+                    bracket_id=cons_bracket.id,
+                    player_a_id=p_a_id,
+                    player_b_id=p_b_id,
+                    seed_a=slot_a if isinstance(slot_a, str) else None,
+                    seed_b=slot_b if isinstance(slot_b, str) else None,
+                    is_finished=False
+                )
+                db.session.add(db_match)
+
+        db.session.commit()
+
     def _process_minigroup_finish(self, db_match, current_tournament) -> None:
         """Privátní metoda: Vyhodnotí zápas v minitabulce a rozdělí konečná umístění."""
         if db_match.player_a_id: PlayerHelper.recalculate_player_stats(db_match.player_a_id, "minigroup")
@@ -214,51 +459,174 @@ class GroupManager:
                 PlayerHelper.set_final_rank(p.id, start_rank + idx, stage_name="minigroup")
 
     def rank_players(self, group_id: int, stage_name: str = "Group") -> list:
+        """
+        Seřadí hráče nejprve podle bodů v celé skupině.
+
+        Pokud má více hráčů stejně bodů, pořadí mezi nimi určí jejich
+        vzájemná minitabulka:
+            1) body ze vzájemných zápasů,
+            2) rozdíl setů ve vzájemných zápasech,
+            3) rozdíl míčků ve vzájemných zápasech.
+
+        Pokud se po rozdělení část hráčů stále shoduje, pravidla se znovu
+        aplikují pouze na tuto menší podskupinu.
+
+        Pokud ani vzájemné zápasy, sety ani míčky hráče nerozliší, zachová
+        se jejich původní pořadí.
+        """
         group = GroupModel.query.get(group_id)
-        if not group: return []
+        if not group:
+            return []
 
         if group.is_consolation:
-            player_ids = {m.player_a_id for m in group.matches if m.player_a_id} | {m.player_b_id for m in group.matches if m.player_b_id}
+            player_ids = (
+                {m.player_a_id for m in group.matches if m.player_a_id}
+                | {m.player_b_id for m in group.matches if m.player_b_id}
+            )
             players = PlayerModel.query.filter(PlayerModel.id.in_(player_ids)).all()
         else:
             players = list(group.players)
 
-        matches = MatchModel.query.filter_by(group_id=group_id, is_finished=True).all()
-        sorted_players = sorted(players, key=lambda p: PlayerHelper.get_sorting_stats(p.id, stage_name), reverse=True)
+        matches = MatchModel.query.filter_by(
+            group_id=group_id,
+            is_finished=True
+        ).all()
+
+        # Python sort je stabilní. Pokud mají hráči stejný počet bodů,
+        # zachová se jejich původní pořadí v seznamu `players`.
+        sorted_players = sorted(
+            players,
+            key=lambda p: PlayerHelper.get_sorting_stats(p.id, stage_name)[0],
+            reverse=True
+        )
+
         final_ranked = []
 
-        for _, group_iter in itertools.groupby(sorted_players, key=lambda p: PlayerHelper.get_sorting_stats(p.id, stage_name)[:1]):
+        for _, group_iter in itertools.groupby(
+            sorted_players,
+            key=lambda p: PlayerHelper.get_sorting_stats(p.id, stage_name)[0]
+        ):
             subgroup = list(group_iter)
+
             if len(subgroup) == 1:
                 final_ranked.extend(subgroup)
             else:
-                final_ranked.extend(self._resolve_mini_group(subgroup, matches))
+                final_ranked.extend(
+                    self._resolve_mini_group(subgroup, matches)
+                )
 
         return final_ranked
 
     def _resolve_mini_group(self, subgroup: list, matches: list) -> list:
-        sub_ids = {p.id for p in subgroup}
-        rel_matches = [m for m in matches if m.player_a_id in sub_ids and m.player_b_id in sub_ids]
-        if not rel_matches: return subgroup
+        """
+        Vyřeší pořadí hráčů se stejným počtem bodů pomocí vzájemné
+        minitabulky.
 
-        mini_stats = {p.id: {"points": 0, "game_diff": 0, "ball_diff": 0} for p in subgroup}
-        for m in rel_matches:
-            # Používáme správnou relaci .sets místo .match_results / .results
-            p_a_sets = 0
-            p_b_sets = 0
-            if hasattr(m, 'sets') and m.sets:
-                for s in m.sets:
-                    if s.score_a > s.score_b:
-                        p_a_sets += 1
-                    elif s.score_b > s.score_a:
-                        p_b_sets += 1
+        Pravidla:
+            1) vzájemné body,
+            2) rozdíl setů,
+            3) rozdíl míčků.
 
-            if p_a_sets > p_b_sets:
-                mini_stats[m.player_a_id]["points"] += 3
-            elif p_a_sets == p_b_sets:
-                mini_stats[m.player_a_id]["points"] += 1
-                mini_stats[m.player_b_id]["points"] += 1
+        Pokud vznikne menší shodná podskupina, vyhodnotí se znovu pouze
+        její vzájemné zápasy. Jestliže se nerozliší vůbec nikdo, zachová
+        se původní pořadí hráčů v `subgroup`.
+        """
+        if len(subgroup) <= 1:
+            return subgroup
+
+        sub_ids = {player.id for player in subgroup}
+
+        rel_matches = [
+            match for match in matches
+            if match.player_a_id in sub_ids
+            and match.player_b_id in sub_ids
+            and match.is_finished
+        ]
+
+        # Bez vzájemných zápasů nemáme podle čeho pořadí měnit.
+        if not rel_matches:
+            return subgroup
+
+        mini_stats = {
+            player.id: {
+                "points": 0,
+                "set_diff": 0,
+                "ball_diff": 0,
+            }
+            for player in subgroup
+        }
+
+        for match in rel_matches:
+            sets_a = 0
+            sets_b = 0
+            balls_a = 0
+            balls_b = 0
+
+            match_sets = match.sets.order_by("set_number").all()
+
+            for set_result in match_sets:
+                balls_a += set_result.score_a
+                balls_b += set_result.score_b
+
+                if set_result.score_a > set_result.score_b:
+                    sets_a += 1
+                elif set_result.score_b > set_result.score_a:
+                    sets_b += 1
+
+            # Body pouze ze vzájemných zápasů právě řešené podskupiny.
+            if sets_a > sets_b:
+                mini_stats[match.player_a_id]["points"] += 3
+            elif sets_b > sets_a:
+                mini_stats[match.player_b_id]["points"] += 3
             else:
-                mini_stats[m.player_b_id]["points"] += 3
+                # Remíza je povolená.
+                mini_stats[match.player_a_id]["points"] += 1
+                mini_stats[match.player_b_id]["points"] += 1
 
-        return sorted(subgroup, key=lambda p: (mini_stats[p.id]["points"], PlayerHelper.get_sorting_stats(p.id, "Group")), reverse=True)
+            mini_stats[match.player_a_id]["set_diff"] += sets_a - sets_b
+            mini_stats[match.player_b_id]["set_diff"] += sets_b - sets_a
+
+            mini_stats[match.player_a_id]["ball_diff"] += balls_a - balls_b
+            mini_stats[match.player_b_id]["ball_diff"] += balls_b - balls_a
+
+        def mini_key(player):
+            stats = mini_stats[player.id]
+            return (
+                stats["points"],
+                stats["set_diff"],
+                stats["ball_diff"],
+            )
+
+        # Stabilní sort zajistí, že při úplné shodě zůstává původní pořadí.
+        ordered = sorted(
+            subgroup,
+            key=mini_key,
+            reverse=True
+        )
+
+        key_groups = [
+            list(group_iter)
+            for _, group_iter in itertools.groupby(ordered, key=mini_key)
+        ]
+
+        # Jestli všechna tři kritéria dopadla pro všechny stejně,
+        # nemáme čím pořadí dál rozhodnout. Zachováme původní pořadí.
+        if len(key_groups) == 1:
+            return subgroup
+
+        resolved = []
+
+        for tied_players in key_groups:
+            if len(tied_players) == 1:
+                resolved.extend(tied_players)
+            else:
+                # Část hráčů zůstala shodná. Přepočítáme vzájemnou
+                # minitabulku pouze mezi nimi. Tím např. po oddělení
+                # třetího hráče může rozhodnout přímý vzájemný zápas
+                # zbývající dvojice.
+                resolved.extend(
+                    self._resolve_mini_group(tied_players, matches)
+                )
+
+        return resolved
+
