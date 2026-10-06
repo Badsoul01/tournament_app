@@ -6,23 +6,23 @@ class SeedingEngine:
     """
     SeedingEngine v5
 
-    Hlavni pavouk (start_rank == 1):
+    Univerzalni seeding pro libovolny rozsah poradi start_rank..end_rank.
+
+    Priklady:
+      1-2 -> hlavni playoff pro 1. a 2. mista
+      3-4 -> utecha pro 3. a 4. mista
+      5-6 -> dalsi vykonnostni pavouk
+      1-4 -> pavouk pro prvni ctyri z kazde skupiny
+
+    Pravidla:
       1) stejna skupina se NESMI potkat v 1. kole,
-      2) prvni kolo preferuje "prvni vs posledni":
-           1-2 -> 1v2
-           1-3 -> 1v3, 2v2
-           1-4 -> 1v4, 2v3
-      3) BYE dostavaji prednostne lepe umisteni hraci,
-      4) zapasy se po pavouku rozlozi tak, aby se hraci stejne skupiny
-         mohli potkat co nejpozdeji,
-      5) uvnitr skupiny se preferuje krizove rozdeleni polovin:
-           1./3. misto v jedne polovine,
-           2./4. misto v opacne polovine.
+      2) prvni kolo preferuje nejlepsi rank vs nejhorsi rank,
+      3) BYE dostavaji prednostne lepe umisteni hraci daneho rozsahu,
+      4) hraci stejne skupiny se maji potkat co nejpozdeji,
+      5) start_rank je anchor rank celeho daneho pavouka,
+      6) krizove rozdeleni polovin je relativni ke start_rank.
 
     Zadny HARDCODED_BRACKETS zde neni.
-
-    Utecha (start_rank > 1):
-      - zachovava puvodni ATP generator.
     """
 
     MAX_GROUPS = 8
@@ -30,26 +30,36 @@ class SeedingEngine:
 
     # Kolik nejlepsich variant prvniho kola si nechame pro druhe kolo
     # optimalizace. 8 je pro max. 16 hracu dostatecne a rychle.
-    PAIRING_CANDIDATES = 8
+    PAIRING_CANDIDATES = 256
 
-    # Pevne kotvy pro 16clenny pavouk (indexy zapasu prvniho kola).
-    FIXED_ANCHORS_16 = {
-        "1A": 0,
-        "1C": 3,
-        "1D": 4,
-        "1B": 7,
+    # Pevne kotvy podle velikosti pavouka.
+    # Konkretni rank se doplni dynamicky podle start_rank.
+    FIXED_ANCHOR_GROUPS = {
+        4: {
+            "A": 0,
+            "B": 1,
+        },
+        8: {
+            "A": 0,
+            "C": 1,
+            "D": 2,
+            "B": 3,
+        },
+        16: {
+            "A": 0,
+            "C": 3,
+            "D": 4,
+            "B": 7,
+        },
     }
 
-    # Presne poradi BYE podle puvodni logiky.
-    # 1 BYE  -> 1A
-    # 2 BYE  -> 1A + 1B
-    # 3 BYE  -> 1A + 1C + 1B
-    # 4 BYE  -> 1A + 1C + 1D + 1B
-    BYE_RECIPIENTS_16 = {
-        1: ("1A",),
-        2: ("1A", "1B"),
-        3: ("1A", "1C", "1B"),
-        4: ("1A", "1C", "1D", "1B"),
+    # Presne poradi prijemcu BYE podle skupiny.
+    # Rank se doplni dynamicky podle start_rank.
+    BYE_RECIPIENT_GROUPS = {
+        1: ("A",),
+        2: ("A", "B"),
+        3: ("A", "C", "B"),
+        4: ("A", "C", "D", "B"),
     }
 
     def __init__(self, debug: bool = False):
@@ -74,23 +84,6 @@ class SeedingEngine:
         if end_rank < start_rank:
             raise ValueError("end_rank musi byt >= start_rank.")
 
-        # Utecha zustava na puvodnim ATP pristupu.
-        if start_rank > 1:
-            pots = self._prepare_simple_pots(
-                groups,
-                start_rank,
-                end_rank,
-            )
-            players = [
-                player
-                for rank in sorted(pots)
-                for player in pots[rank]
-            ]
-
-            matches = self._generate_atp_bracket(players)
-            self._debug("UTECHA / ATP", matches)
-            return matches
-
         players = self._prepare_players(
             groups,
             start_rank,
@@ -102,18 +95,18 @@ class SeedingEngine:
 
         if len(groups) < 2:
             raise ValueError(
-                "Pro hlavni pavouk jsou potreba alespon 2 skupiny."
+                "Pro pavouk jsou potreba alespon 2 skupiny."
             )
 
         if len(groups) > self.MAX_GROUPS:
             raise ValueError(
-                f"Hlavni pavouk podporuje maximalne "
+                f"SeedingEngine podporuje maximalne "
                 f"{self.MAX_GROUPS} skupin."
             )
 
         if len(players) > self.MAX_MAIN_PLAYERS:
             raise ValueError(
-                f"Hlavni pavouk podporuje maximalne "
+                f"SeedingEngine podporuje maximalne "
                 f"{self.MAX_MAIN_PLAYERS} hracu, "
                 f"ale bylo zadano {len(players)}."
             )
@@ -132,6 +125,7 @@ class SeedingEngine:
             players=players,
             bracket_size=bracket_size,
             bye_count=bye_count,
+            anchor_rank=start_rank,
         )
 
         pairing_candidates = self._get_best_pairings(
@@ -155,18 +149,20 @@ class SeedingEngine:
                     nodes=nodes,
                     pairs=pair_indices,
                     bracket_size=bracket_size,
+                    anchor_rank=start_rank,
                 )
             )
 
             # Priorita:
             # 1) stejna skupina co nejpozdeji,
-            # 2) prvni vs posledni + spravne BYE,
-            # 3) krizove rozdeleni uvnitr skupiny,
-            # 4) rozprostreni vitezu skupin.
+            # 2) krizove rozdeleni polovin uvnitr skupiny,
+            #    napr. 1A nahore -> 2A dole,
+            # 3) prvni vs posledni + spravne BYE,
+            # 4) rozprostreni anchor ranku.
             total_score = (
                 arrangement_score[0],
-                pairing_cost,
                 arrangement_score[1],
+                pairing_cost,
                 arrangement_score[2],
                 arrangement_score[3],
             )
@@ -187,7 +183,10 @@ class SeedingEngine:
             best_result[1],
         )
 
-        self._debug("HLAVNI PAVOUK", matches)
+        self._debug(
+            f"PAVOUK RANK {start_rank}-{end_rank}",
+            matches,
+        )
         return matches
 
     # ============================================================
@@ -329,15 +328,18 @@ class SeedingEngine:
         nodes: list,
         pairs: tuple,
         bracket_size: int,
+        anchor_rank: int,
     ):
         """
         Rozmisti hotove dvojice do pavouka.
 
-        U 16clenneho pavouka jsou pevne:
-          index 0 -> zapas obsahujici 1A
-          index 3 -> zapas obsahujici 1C
-          index 4 -> zapas obsahujici 1D
-          index 7 -> zapas obsahujici 1B
+        Pevne kotvy se odvodi podle velikosti pavouka a anchor_ranku.
+
+        Napr. pro anchor_rank == 3 a bracket_size == 8:
+          index 0 -> zapas obsahujici 3A
+          index 1 -> zapas obsahujici 3C
+          index 2 -> zapas obsahujici 3D
+          index 3 -> zapas obsahujici 3B
 
         Ostatni zapasy se optimalizuji kolem techto kotev.
         """
@@ -351,6 +353,7 @@ class SeedingEngine:
             nodes=nodes,
             pairs=pairs,
             bracket_size=bracket_size,
+            anchor_rank=anchor_rank,
         )
 
         used_pairs = set()
@@ -359,12 +362,15 @@ class SeedingEngine:
             if position >= match_count:
                 continue
 
-            # Jeden zapas nemuze byt ukotven na dve ruzna mista.
+            # Jeden realny zapas muze obsahovat vice anchor hracu
+            # (typicky pavouk tvoreny pouze jednim rankem, napr.
+            # 3A/3B/3C/3D). V takovem pripade nelze oba hrace
+            # zaroven ukotvit na ruzne pozice.
+            #
+            # Prvni kotvu zachovame a dalsi kolizni kotvu preskocime.
+            # Zbytek rozmisteni pak vyresi optimalizace.
             if pair_index in used_pairs:
-                raise ValueError(
-                    "Dva pevne anchory skoncily ve stejnem zapase. "
-                    "To by porusilo seedingova pravidla."
-                )
+                continue
 
             arranged_base[position] = pairs[pair_index]
             used_pairs.add(pair_index)
@@ -395,6 +401,7 @@ class SeedingEngine:
                 nodes,
                 arranged,
                 bracket_size,
+                anchor_rank,
             )
 
             candidate = (
@@ -419,6 +426,7 @@ class SeedingEngine:
         nodes: list,
         arranged_pairs: tuple,
         bracket_size: int,
+        anchor_rank: int,
     ) -> tuple:
         """
         Vraci:
@@ -463,12 +471,13 @@ class SeedingEngine:
             self._group_half_parity_penalty(
                 group_positions,
                 bracket_size,
+                anchor_rank,
             )
         )
 
-        winner_round_counts = (
+        anchor_round_counts = (
             self._winner_meeting_counts(
-                rank_positions.get(1, []),
+                rank_positions.get(anchor_rank, []),
                 bracket_size,
             )
         )
@@ -481,7 +490,7 @@ class SeedingEngine:
         return (
             group_round_counts,
             parity_penalty,
-            winner_round_counts,
+            anchor_round_counts,
             deterministic_key,
         )
 
@@ -536,6 +545,7 @@ class SeedingEngine:
         self,
         group_positions: dict,
         bracket_size: int,
+        anchor_rank: int,
     ) -> int:
         """
         Parita je relativni ke skupine.
@@ -555,26 +565,26 @@ class SeedingEngine:
         penalty = 0
 
         for members in group_positions.values():
-            rank_one_match = next(
+            anchor_match = next(
                 (
                     match_index
                     for match_index, rank in members
-                    if rank == 1
+                    if rank == anchor_rank
                 ),
                 None,
             )
 
-            if rank_one_match is None:
+            if anchor_match is None:
                 continue
 
             base_half = (
                 0
-                if rank_one_match < half
+                if anchor_match < half
                 else 1
             )
 
             for match_index, rank in members:
-                if rank == 1:
+                if rank == anchor_rank:
                     continue
 
                 actual_half = (
@@ -583,9 +593,13 @@ class SeedingEngine:
                     else 1
                 )
 
+                # Parita je relativni ke start_rank:
+                # start_rank, start_rank+2, ... ve stejne polovine;
+                # start_rank+1, start_rank+3, ... v opacne.
+                relative_rank = rank - anchor_rank
                 expected_half = (
                     base_half
-                    if rank % 2 == 1
+                    if relative_rank % 2 == 0
                     else 1 - base_half
                 )
 
@@ -601,7 +615,7 @@ class SeedingEngine:
     ) -> tuple:
         """
         Pomocny tie-break:
-        vitezove skupin se take snazi byt rozprostreni.
+        hraci s anchor rankem se take snazi byt rozprostreni.
         """
         total_rounds = (
             bracket_size.bit_length() - 1
@@ -724,31 +738,38 @@ class SeedingEngine:
         players: list,
         bracket_size: int,
         bye_count: int,
+        anchor_rank: int,
     ):
         """
-        Pro 16clenny pavouk s 1-4 BYE vrati presny seznam hracu,
-        kteri BYE dostanou.
+        Pro 1-4 BYE vrati presny seznam hracu s nejlepsim rankem
+        daneho pavouka.
 
-        Pri 5+ BYE uz nelze splnit pravidlo "BYE jen A/B/C/D",
-        proto se pouzije obecna logika.
+        Priklady:
+          start_rank=1 -> 1A, 1B, 1C, 1D
+          start_rank=3 -> 3A, 3B, 3C, 3D
+          start_rank=5 -> 5A, 5B, 5C, 5D
+
+        Pokud potrebne skupiny v datech nejsou, vrati None a pouzije se
+        obecna preference lepe umistenych hracu.
         """
-        if bracket_size != 16:
+        if bye_count <= 0:
             return None
 
-        recipients = self.BYE_RECIPIENTS_16.get(bye_count)
-
-        if not recipients:
+        recipient_groups = self.BYE_RECIPIENT_GROUPS.get(bye_count)
+        if not recipient_groups:
             return None
+
+        recipients = tuple(
+            f"{anchor_rank}{group_name}"
+            for group_name in recipient_groups
+        )
 
         existing_names = {
             player["name"]
             for player in players
         }
 
-        if not all(
-            name in existing_names
-            for name in recipients
-        ):
+        if not all(name in existing_names for name in recipients):
             return None
 
         return frozenset(recipients)
@@ -758,18 +779,34 @@ class SeedingEngine:
         nodes: list,
         pairs: tuple,
         bracket_size: int,
+        anchor_rank: int,
     ) -> dict:
         """
-        Vrati mapu:
-            index_zapasu -> index_dvojice
+        Vrati mapu index_zapasu -> index_dvojice.
 
-        Pro 16ku pouzije pevne A/C/D/B kotvy.
-        Pro mensi pavouk zustava pouze 1A (nebo prvni vitez) na indexu 0.
+        Kotvy jsou obecne podle anchor_ranku.
+        Pro 8clenny pavouk: A nahore, B dole, C/D mezi nimi.
+        Pro 16clenny pavouk zustava puvodni A/C/D/B rozlozeni.
         """
-        if bracket_size == 16:
+        anchor_map = self.FIXED_ANCHOR_GROUPS.get(bracket_size)
+
+        if anchor_map:
             result = {}
 
-            for player_name, match_index in self.FIXED_ANCHORS_16.items():
+            # A a B jsou hlavni okrajove kotvy.
+            # C a D jsou az sekundarni.
+            # Kdyz jeden zapas obsahuje dva anchor hrace
+            # (napr. 3B vs 3C), chceme zachovat B dole,
+            # misto aby ho C vytlacilo z okrajove pozice.
+            anchor_priority = ("A", "B", "C", "D")
+
+            for group_name in anchor_priority:
+                if group_name not in anchor_map:
+                    continue
+
+                match_index = anchor_map[group_name]
+                player_name = f"{anchor_rank}{group_name}"
+
                 pair_index = self._find_pair_containing_player(
                     nodes,
                     pairs,
@@ -779,12 +816,14 @@ class SeedingEngine:
                 if pair_index is not None:
                     result[match_index] = pair_index
 
-            return result
+            if result:
+                return result
 
         return {
             0: self._find_anchor_pair_index(
                 nodes,
                 pairs,
+                anchor_rank,
             )
         }
 
@@ -805,34 +844,33 @@ class SeedingEngine:
         self,
         nodes: list,
         pairs: tuple,
+        anchor_rank: int,
     ) -> int:
         """
-        Ukotvime zapas s 1A nahore.
-        Kdyby skupina A nebyla, vezmeme abecedne prvniho viteze skupiny.
+        Ukotvi nahore anchor_rank + skupinu A.
+        Kdyby A nebyla, vezme abecedne prvni dostupnou skupinu
+        s anchor_rankem.
         """
-        winners = [
+        anchors = [
             p
             for p in nodes
-            if (
-                not p["bye"]
-                and p["rank"] == 1
-            )
+            if not p["bye"] and p["rank"] == anchor_rank
         ]
 
-        if not winners:
+        if not anchors:
             return 0
 
-        anchor_name = min(
-            p["name"]
-            for p in winners
+        preferred_name = f"{anchor_rank}A"
+        names = {p["name"] for p in anchors}
+        anchor_name = (
+            preferred_name
+            if preferred_name in names
+            else min(names)
         )
 
         for pair_index, pair in enumerate(pairs):
             for node_index in pair:
-                if (
-                    nodes[node_index]["name"]
-                    == anchor_name
-                ):
+                if nodes[node_index]["name"] == anchor_name:
                     return pair_index
 
         return 0
@@ -908,7 +946,7 @@ class SeedingEngine:
         return pots
 
     # ============================================================
-    # 5. ATP GENERATOR PRO UTECHU
+    # 5. LEGACY ATP GENERATOR (ponechan jako pomocny/fallback)
     # ============================================================
 
     def _generate_atp_bracket(

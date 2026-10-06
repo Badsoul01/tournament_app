@@ -118,7 +118,6 @@
                                       hx-target="#group-{{ group_name }}"
                                       hx-swap="innerHTML"
                                       class="match-form-column"
-                                      hx-on::before-request="if (!validatePlayoffMatch(this)) event.preventDefault();"
                                       hx-on::after-request="if(event.detail.successful) showScrollToast('Výsledek zápasu byl přidán do kroniky!');">
                                     <input type="hidden" name="match_id" value="{{ match.match_id }}">
                                     <input type="hidden" name="group_name" value="{{ group_name }}">

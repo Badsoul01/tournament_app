@@ -280,6 +280,8 @@ class SetupWizard:
         if self.total_tournament_players == 0:
             errors.append(f"V turnaji nejsou žádní hráči.")
 
+        if self.total_groups >1 and self.advance_per_group == 0:
+            errors.append("Nedostatek hráčů do playoff!")
 
         for letter, group_players in self.groups.items():
             if len(group_players) < self.min_players_per_group:
