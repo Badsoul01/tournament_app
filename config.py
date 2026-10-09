@@ -1,24 +1,34 @@
+TOURNAMENT_FORMAT = ["groups", "playoff_only"]
+
 GROUPS_RULES = {
     "group_match_format": {
         2: "2 hrané sety",
         3: "2 vítězné sety",
         5: "3 vítězné sety"
-        },
-    "min_players_per_group": 3,
+    },
 
-    "max_players_per_group": 10,
+    # obecné nastavení skupin
+    "min_players_per_group": 3,
+    "max_players_per_group": 8,
+
     "min_group": 1,
     "max_group": 8,
-    "group_creation_options":[1,2,3,4,5,6,7,8],
-    "min_advance_per_group": 0,
-    "max_advance_per_group": 4,
-    "advance_per_group":[0,1,2,3,4],
+    "group_creation_options": [1, 2, 3, 4, 5, 6, 7, 8],
+
+    # více skupin
+    "advance_per_group": [1, 2, 3, 4],
+
+    # speciální pravidla pro jedinou skupinu
+    "single_group": {
+        "max_players": 16,
+        "playoff_players": [0, 2, 4, 6, 7, 8]
+    },
+
     "elimination_actions": {
         "playoff_b": "Playoff B",
         "minigroup": "Mini-skupina o pořadí",
         "KO": "Konec v turnaji"
     },
-
 }
 
 PLAYOFF_RULES = {

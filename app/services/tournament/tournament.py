@@ -6,6 +6,8 @@ from app.services.tournament.groupmanager import GroupManager
 from app.services.tournament.seedingengine import SeedingEngine
 from app.services.tournament.playoff import Playoff
 from flask import session
+from datetime import datetime
+
 
 class Tournament:
     """
@@ -13,21 +15,50 @@ class Tournament:
     """
 
     def __init__(self, setup: SetupWizard) -> None:
-        has_playoff_flag = int(setup.advance_per_group) > 0
+
+        # =========================================================
+        # POČET POSTUPUJÍCÍCH
+        # =========================================================
+
+        # Jedna skupina používá vlastní nastavení počtu postupujících.
+        if setup.is_single_group:
+            advancing_count = setup.single_group_playoff_count
+        else:
+            advancing_count = setup.advance_per_group
+
+        has_playoff_flag = advancing_count > 0
+
+        # =========================================================
+        # TURNAJ
+        # =========================================================
 
         db_tournament = TournamentModel(
             name=setup.name,
-            advance_per_group=setup.advance_per_group,
-            group_elimination_action=setup.group_elimination_action,
-            has_playoff=has_playoff_flag,
-            has_consolation=False,
-            playoff_elimination_action=setup.playoff_elimination_action,
+
+            date=datetime.strptime(
+                setup.date,
+                "%Y-%m-%d"
+            ),
+
+            location=setup.location or None,
+            tournament_format=setup.tournament_format,
+            include_in_global_stats=setup.include_in_global_stats,
             group_match_format=setup.group_match_format,
             playoff_match_format=setup.playoff_match_format,
+            advance_per_group=advancing_count,
+            group_elimination_action=setup.group_elimination_action,
+            playoff_elimination_action=setup.playoff_elimination_action,
             total_players=setup.total_tournament_players,
             total_players_in_playoff=setup.total_players_advance_to_playoff,
+            has_playoff=has_playoff_flag,
+            has_consolation=False,
+
             consolation_format=setup.group_elimination_action
         )
+
+        # =========================================================
+        # ORGANIZÁTOR
+        # =========================================================
 
         if 'organizer_id' in session:
             db_tournament.organizer_id = session['organizer_id']
@@ -37,6 +68,10 @@ class Tournament:
 
         self.id = db_tournament.id
 
+        # =========================================================
+        # HOSTOVSKÝ TURNAJ
+        # =========================================================
+
         if 'organizer_id' not in session:
             if 'guest_tournaments' not in session:
                 session['guest_tournaments'] = []
@@ -45,16 +80,38 @@ class Tournament:
                 session['guest_tournaments'].append(self.id)
                 session.modified = True
 
-        self._build_database_structure(raw_groups=setup.groups)
-        group_manager = GroupManager(tournament_id=self.id, match_format=setup.group_match_format)
+        # =========================================================
+        # SKUPINY A HRÁČI
+        # =========================================================
+
+        self._build_database_structure(
+            raw_groups=setup.groups
+        )
+
+        group_manager = GroupManager(
+            tournament_id=self.id,
+            match_format=setup.group_match_format
+        )
+
         group_manager.generate_group_matches()
+
+        # =========================================================
+        # VĚTVE TURNAJE
+        # =========================================================
 
         self.branches: dict = {
             "main": None,
             "consolation": None,
         }
 
-        self._build_playoff(setup=setup)
+        # =========================================================
+        # PLAYOFF
+        # =========================================================
+
+        self._build_playoff(
+            setup=setup,
+            advancing_count=advancing_count
+        )
 
 
     def _build_database_structure(self, raw_groups: dict) -> None:
@@ -84,20 +141,43 @@ class Tournament:
         # 3. Jeden jediný hromadný commit pro všechny skupiny i hráče naráz
         db.session.commit()
 
-    def _build_playoff(self, setup) -> None:
-        """Sestaví struktury z databáze a uloží nové Brackets v JSON formátu."""
+    def _build_playoff(
+            self,
+            setup: SetupWizard,
+            advancing_count: int
+    ) -> None:
 
-        db_groups = GroupModel.query.filter_by(tournament_id=self.id, is_consolation=False).all()
-        groups_dict = {g.name.replace("Skupina ", "").strip(): list(g.players) for g in db_groups}
+        """
+        Vytvoří hlavní playoff a případnou útěchu
+        pro turnaj se skupinovou fází.
+        """
+
+        # =========================================================
+        # DATA SKUPIN
+        # =========================================================
+
+        db_groups = GroupModel.query.filter_by(
+            tournament_id=self.id,
+            is_consolation=False
+        ).all()
+
+        groups_dict = {
+            group.name.replace("Skupina ", "").strip():
+                list(group.players)
+            for group in db_groups
+        }
 
         engine = SeedingEngine()
-        advancing_count = int(setup.advance_per_group)
 
-        # 1. Hlavní Playoff
+        # =========================================================
+        # 1. HLAVNÍ PLAYOFF
+        # =========================================================
+
         if advancing_count > 0:
+
             main_playoff = Playoff(
                 tournament_id=self.id,
-                match_format=int(setup.playoff_match_format),
+                match_format=setup.playoff_match_format,
                 stage_name="main",
                 playoff_elimination_action=setup.playoff_elimination_action
             )
@@ -114,36 +194,67 @@ class Tournament:
                 name="Hlavní Playoff",
                 bracket_type="elimination",
                 is_consolation=False,
-                tree_data={"rounds": main_playoff.rounds, "placement_rounds": getattr(main_playoff, "placement_rounds", {})}
+                tree_data={
+                    "rounds": main_playoff.rounds,
+                    "placement_rounds": getattr(
+                        main_playoff,
+                        "placement_rounds",
+                        {}
+                    )
+                }
             )
+
             db.session.add(db_main_bracket)
+
             self.branches["main"] = main_playoff
+
         else:
             self.branches["main"] = None
 
-        # 2. Útěcha (Playoff B nebo Minitabulka)
-        if setup.group_elimination_action in ["playoff_b", "minigroup"]:
-            # Útěcha má smysl pouze tehdy, pokud je skupin více nebo jsou v nich vyřazení hráči
-            if len(groups_dict) <= 1:
-                has_eliminated_players = False
-            else:
-                has_eliminated_players = any(len(players) > advancing_count for players in groups_dict.values())
+        # =========================================================
+        # 2. ÚTĚCHA
+        # =========================================================
+
+        if setup.group_elimination_action in [
+            "playoff_b",
+            "minigroup"
+        ]:
+
+            has_eliminated_players = any(
+                len(players) > advancing_count
+                for players in groups_dict.values()
+            )
 
             if has_eliminated_players:
+
+                # =================================================
+                # PLAYOFF B
+                # =================================================
+
                 if setup.group_elimination_action == "playoff_b":
-                    advancing_total = advancing_count * len(groups_dict)
+
+                    advancing_total = (
+                        setup.total_players_advance_to_playoff
+                    )
+
                     cons_playoff = Playoff(
                         tournament_id=self.id,
-                        match_format=int(setup.playoff_match_format),
+                        match_format=setup.playoff_match_format,
                         stage_name="consolation",
-                        playoff_elimination_action=setup.playoff_elimination_action,
+                        playoff_elimination_action=(
+                            setup.playoff_elimination_action
+                        ),
                         rank_offset=advancing_total
                     )
+
                     cons_playoff.generate_full_bracket_structure(
                         groups=groups_dict,
                         seeding_engine=engine,
                         start_rank=advancing_count + 1,
-                        end_rank=max(len(p) for p in groups_dict.values())
+                        end_rank=max(
+                            len(players)
+                            for players in groups_dict.values()
+                        )
                     )
 
                     db_cons_bracket = BracketModel(
@@ -151,39 +262,83 @@ class Tournament:
                         name="Útěcha (Playoff B)",
                         bracket_type="elimination",
                         is_consolation=True,
-                        tree_data={"rounds": cons_playoff.rounds, "placement_rounds": getattr(cons_playoff, "placement_rounds", {})}
+                        tree_data={
+                            "rounds": cons_playoff.rounds,
+                            "placement_rounds": getattr(
+                                cons_playoff,
+                                "placement_rounds",
+                                {}
+                            )
+                        }
                     )
+
                     db.session.add(db_cons_bracket)
+
                     self.branches["consolation"] = cons_playoff
 
+                # =================================================
+                # MINI-SKUPINA
+                # =================================================
+
                 elif setup.group_elimination_action == "minigroup":
+
                     eliminated_seeds = []
+
                     for group_name, players in groups_dict.items():
+
                         if len(players) > advancing_count:
-                            for i in range(advancing_count, len(players)):
-                                eliminated_seeds.append(f"{i + 1}{group_name}")
+
+                            for index in range(
+                                    advancing_count,
+                                    len(players)
+                            ):
+                                eliminated_seeds.append(
+                                    f"{index + 1}{group_name}"
+                                )
 
                     minigroup_slots = []
+
                     match_players = list(eliminated_seeds)
+
                     if len(match_players) % 2 != 0:
                         match_players.append("BYE")
 
-                    n = len(match_players)
-                    for r in range(n - 1):
-                        for i in range(n // 2):
-                            p_a = match_players[i]
-                            p_b = match_players[n - 1 - i]
-                            if p_a != "BYE" and p_b != "BYE":
-                                minigroup_slots.append((p_a, p_b))
-                        match_players = [match_players[0]] + [match_players[-1]] + match_players[1:-1]
+                    number_of_players = len(match_players)
+
+                    for _ in range(number_of_players - 1):
+
+                        for index in range(
+                                number_of_players // 2
+                        ):
+                            player_a = match_players[index]
+                            player_b = match_players[
+                                number_of_players - 1 - index
+                                ]
+
+                            if (
+                                    player_a != "BYE"
+                                    and player_b != "BYE"
+                            ):
+                                minigroup_slots.append(
+                                    (player_a, player_b)
+                                )
+
+                        match_players = (
+                                [match_players[0]]
+                                + [match_players[-1]]
+                                + match_players[1:-1]
+                        )
 
                     db_cons_bracket = BracketModel(
                         tournament_id=self.id,
                         name="Útěcha-Minitabulka",
                         bracket_type="round_robin",
                         is_consolation=True,
-                        tree_data={"matches": minigroup_slots}
+                        tree_data={
+                            "matches": minigroup_slots
+                        }
                     )
+
                     db.session.add(db_cons_bracket)
 
                     self.branches["consolation"] = {
@@ -192,8 +347,14 @@ class Tournament:
                         "matches": minigroup_slots
                     }
 
-                # Útěcha byla úspěšně vytvořena -> povolíme ji v databázi pro zobrazení záložky v menu
-                db_tournament = TournamentModel.query.get(self.id)
+                # =================================================
+                # ÚTĚCHA BYLA VYTVOŘENA
+                # =================================================
+
+                db_tournament = TournamentModel.query.get(
+                    self.id
+                )
+
                 if db_tournament:
                     db_tournament.has_consolation = True
 

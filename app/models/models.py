@@ -11,6 +11,9 @@ class Tournament(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     date = db.Column(db.DateTime, default=datetime.now)
+    location = db.Column(db.String(150), nullable=True)
+    tournament_format = db.Column(db.String(50), nullable=False,default="groups",server_default="groups")
+    include_in_global_stats = db.Column(db.Boolean, nullable=False,default=True, server_default=db.true())
     group_match_format = db.Column(db.Integer)
     playoff_match_format= db.Column(db.Integer)
     advance_per_group = db.Column(db.Integer)  # Stačí nám číslo

@@ -7,16 +7,14 @@ from app.models.models import Tournament as TournamentModel, GlobalPlayer as Glo
 from app.services.tournament.tournament import Tournament as TournamentOrchestrator
 from app.services.utils.queries import get_available_players_from_tournament, get_recent_finished_tournaments
 
-@main_bp.route("/settings_groups", methods=["GET", "POST"])
-def settings_groups():
+@main_bp.route("/tournament_settings", methods=["GET", "POST"])
+def tournament_settings():
     wizard = SetupWizard()
     if "wizard_data" in session:
         wizard.import_from_dict(session["wizard_data"])
 
     if request.method == "POST":
         action = request.form.get("action")
-        print(f"DEBUG: Přišla akce: {action}")
-        print(f"DEBUG: Form data: {request.form}")
 
         wizard.process_form_action(form_data=request.form)
 
@@ -26,44 +24,149 @@ def settings_groups():
 
         if action == "next":
             session["wizard_data"] = wizard.import_to_dict()
-            return redirect("/settings_playoff")
+
+            if not wizard.check_readiness():
+                recent_tournaments = get_recent_finished_tournaments(limit=5)
+
+                all_global_players = [
+                    g.name
+                    for g in GlobalPlayerModel.query
+                    .order_by(GlobalPlayerModel.name.asc())
+                    .all()
+                ]
+
+                return render_template(
+                    "settings/tournament_settings.html",
+                    wizard=wizard,
+                    GROUPS_RULES=GROUPS_RULES,
+                    PLAYOFF_RULES=PLAYOFF_RULES,
+                    recent_tournaments=recent_tournaments,
+                    all_global_players=all_global_players,
+                    error="Turnaj není připraven"
+                )
+
+            new_tournament = TournamentOrchestrator(wizard)
+
+            session.pop("wizard_data", None)
+
+            return redirect(
+                f"/tournament/{new_tournament.id}/groups"
+            )
 
         session["wizard_data"] = wizard.import_to_dict()
 
         # Pokud požadavek přišel přes HTMX:
         if "HX-Request" in request.headers:
-            active_tournament_id = request.form.get("active_tournament_id")
 
-            # 1. Vyrenderujeme hlavní část wizardu (aktualizovaná cesta k partials ve složce settings)
+            if action == "update_base_settings":
+                base_html = render_template(
+                    "settings/partials/_base_settings.html",
+                    wizard=wizard,
+                    GROUPS_RULES=GROUPS_RULES
+                )
+
+                button_html = (
+                        '<div id="wizard-button-container" hx-swap-oob="true">'
+                        + render_template(
+                    "settings/partials/_wizard_button.html",
+                    wizard=wizard
+                )
+                        + "</div>"
+                )
+
+                return base_html + button_html
+
+            if action in (
+                    "update_group_settings",
+                    "update_playoff_settings"
+            ):
+                rules_html = render_template(
+                    "settings/partials/_rules_settings.html",
+                    wizard=wizard,
+                    GROUPS_RULES=GROUPS_RULES,
+                    PLAYOFF_RULES=PLAYOFF_RULES
+                )
+
+                button_html = (
+                        '<div id="wizard-button-container" hx-swap-oob="true">'
+                        + render_template(
+                    "settings/partials/_wizard_button.html",
+                    wizard=wizard
+                )
+                        + "</div>"
+                )
+
+                return rules_html + button_html
+
+            active_tournament_id = request.form.get(
+                "active_tournament_id"
+            )
+
             main_html = render_template(
                 "settings/partials/_wizard_content.html",
                 wizard=wizard,
                 GROUPS_RULES=GROUPS_RULES
             )
+            button_html = (
+                    '<div id="wizard-button-container" hx-swap-oob="true">'
+                    + render_template(
+                "settings/partials/_wizard_button.html",
+                wizard=wizard
+            )
+                    + "</div>"
+            )
 
-            # 2. Pokud byl vybraný nějaký turnaj, přibalíme aktualizované okénko hráčů (OOB swap)
-            if active_tournament_id and active_tournament_id.isdigit():
+            if (
+                    active_tournament_id
+                    and active_tournament_id.isdigit()
+            ):
                 t_id = int(active_tournament_id)
-                available_players = get_available_players_from_tournament(t_id, wizard)
-                selected_tournament = TournamentModel.query.get(t_id)
 
-                # PŘIDÁNO: Seřazení hráčů podle konečného ranku i po odeslání akce
+                available_players = (
+                    get_available_players_from_tournament(
+                        t_id,
+                        wizard
+                    )
+                )
+
+                selected_tournament = (
+                    TournamentModel.query.get(t_id)
+                )
+
                 def get_tournament_rank(player):
-                    if getattr(player, 'playoff_stats', None) and player.playoff_stats.final_rank is not None:
+                    if (
+                            getattr(player, "playoff_stats", None)
+                            and player.playoff_stats.final_rank is not None
+                    ):
                         return player.playoff_stats.final_rank
-                    if getattr(player, 'consolation_stats', None) and player.consolation_stats.final_rank is not None:
+
+                    if (
+                            getattr(player, "consolation_stats", None)
+                            and player.consolation_stats.final_rank is not None
+                    ):
                         return player.consolation_stats.final_rank
-                    return float('inf')
 
-                available_players.sort(key=get_tournament_rank)
+                    return float("inf")
 
-                oob_html = f'<div id="past-players-container" hx-swap-oob="true">' \
-                           f'{render_template("settings/partials/_past_tournament_players.html", available_players=available_players, selected_tournament=selected_tournament)}' \
-                           f'</div>'
+                available_players.sort(
+                    key=get_tournament_rank
+                )
 
-                return main_html + oob_html
+                oob_html = (
+                        '<div id="past-players-container" '
+                        'hx-swap-oob="true">'
+                        + render_template(
+                    "settings/partials/"
+                    "_past_tournament_players.html",
+                    available_players=available_players,
+                    selected_tournament=selected_tournament
+                )
+                        + "</div>"
+                )
 
-            return main_html
+                return main_html + oob_html + button_html
+
+            return main_html + button_html
 
     recent_tournaments = get_recent_finished_tournaments(limit=5)
 
@@ -71,9 +174,10 @@ def settings_groups():
     all_global_players = [g.name for g in GlobalPlayerModel.query.order_by(GlobalPlayerModel.name.asc()).all()]
 
     return render_template(
-        "settings/settings_groups.html",
+        "settings/tournament_settings.html",
         wizard=wizard,
         GROUPS_RULES=GROUPS_RULES,
+        PLAYOFF_RULES=PLAYOFF_RULES,
         recent_tournaments=recent_tournaments,
         all_global_players=all_global_players
     )
@@ -144,48 +248,7 @@ def get_past_tournament_players(tournament_id):
 
     return html_response + script
 
-
-@main_bp.route("/settings_playoff", methods=["GET", "POST"])
-def settings_playoff():
-    wizard = SetupWizard()
-    if "wizard_data" in session:
-        wizard.import_from_dict(session["wizard_data"])
-
-    if request.method == "POST":
-        action = request.form.get("action")
-        print(f"DEBUG: Přišla akce: {action}")
-        print(f"DEBUG: Form data: {request.form}")
-
-        if action == "next":
-            wizard.playoff_match_format = int(request.form.get("playoff_match_format"))
-            wizard.playoff_elimination_action = request.form.get("elimination_actions")
-
-            session["wizard_data"] = wizard.import_to_dict()
-
-            if not wizard.check_readiness():
-                return render_template(
-                    "settings/settings_playoff.html",
-                    wizard=wizard,
-                    PLAYOFF_RULES=PLAYOFF_RULES,
-                    error="Turnaj není připraven"
-                )
-
-            # ================
-            # DATABÁZE A PAMĚŤ
-            # ================
-            new_tournament = TournamentOrchestrator(wizard)
-
-            session.pop("wizard_data", None)
-
-            return redirect(f"/tournament/{new_tournament.id}/groups")
-
-    return render_template(
-        "settings/settings_playoff.html",
-        wizard=wizard,
-        PLAYOFF_RULES=PLAYOFF_RULES
-    )
-
 @main_bp.route("/reset_settings", methods=["POST"])
 def reset_settings():
     session.pop("wizard_data", None)
-    return redirect("/settings_groups")
+    return redirect("/tournamnet_settings")

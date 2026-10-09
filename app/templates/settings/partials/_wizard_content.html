@@ -1,94 +1,292 @@
 {% if request.headers.get('HX-Request') %}
 <div id="group-buttons-wrapper" hx-swap-oob="true" class="flex-gap6">
-    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-0">
-        <button type="submit" name="action" value="decrease_groups" {% if not wizard.has_empty_group %}disabled{% endif %}>-</button>
+    <form hx-post="{{ url_for('main.tournament_settings') }}" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-0">
+        <button
+            type="submit"
+            name="action"
+            value="decrease_groups"
+            {% if not wizard.has_empty_group %}disabled{% endif %}
+        >
+            -
+        </button>
     </form>
-    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-0">
-        <button type="submit" name="action" value="increase_groups" {% if wizard.total_groups >= wizard.max_groups %}disabled{% endif %}>+</button>
+
+    <form hx-post="{{ url_for('main.tournament_settings') }}" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-0">
+        <button
+            type="submit"
+            name="action"
+            value="increase_groups"
+            {% if wizard.total_groups >= wizard.max_groups %}disabled{% endif %}
+        >
+            +
+        </button>
     </form>
 </div>
 {% endif %}
+<div class="wizard-info-bar wizard-status-box">
+    <span>
+        Celkem hráčů:
+        <strong class="text-main">
+            {{ wizard.total_tournament_players }}
+        </strong>
+    </span>
 
-<!-- INFORMAČNÍ PANEL -->
-<div class="wizard-info-bar">
-    <span>Celkový počet hráčů: <strong class="text-main">{{ wizard.total_tournament_players }}</strong></span> |
-    <span>Počet nezařazených hráčů: <strong class="text-main">{{ wizard.non_classification_players }}</strong></span> |
-    <span>Počet skupin: <strong class="text-main">{{ wizard.total_groups }} / {{ wizard.max_groups }}</strong></span>
+    <span>
+        Nezařazení:
+        <strong class="text-main">
+            {{ wizard.non_classification_players }}
+        </strong>
+    </span>
+
+    <span>
+        Skupiny:
+        <strong class="text-main">
+            {{ wizard.total_groups }} / {{ wizard.max_groups }}
+        </strong>
+    </span>
 </div>
 
-<hr>
 
-<!-- SEZNAM HRÁČŮ -->
-<h3 class="text-main text-left">Seznam hráčů:</h3>
-<ul style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 20px; list-style: none; padding: 0; margin: 0;">
-    {% for player in wizard.players %}
-    <li class="wizard-player-row">
-        <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-0">
-            <input type="hidden" name="player_name" value="{{ player }}">
-            <button type="submit" name="action" value="remove_player" title="Smazat hráče">X</button>
-        </form>
+<fieldset class="text-left tournament-layout-box">
 
-        <!-- Zamezení zalamování jména pomocí white-space: nowrap -->
-        <span class="text-main" style="white-space: nowrap;">{{ player }}</span>
+    <legend>Aktuální rozložení turnaje</legend>
 
-        <div class="flex-grow"></div>
+    {% if wizard.players or wizard.groups %}
 
-        <div style="display: grid; grid-template-columns: repeat(4, auto); gap: 4px; align-items: center;">
-            {% for letter in wizard.groups.keys() %}
-            <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-0" style="display: inline-block;">
-                <input type="hidden" name="player_name" value="{{ player }}">
-                <input type="hidden" name="group_letter" value="{{ letter }}">
-                <button type="submit" name="action" value="assign_players">{{ letter }}</button>
-            </form>
-            {% endfor %}
-        </div>
-    </li>
-    {% endfor %}
-</ul>
+        <!-- ============================================== -->
+        <!-- NEZAŘAZENÍ HRÁČI -->
+        <!-- ============================================== -->
 
-<hr>
+        {% if wizard.players %}
 
-<!-- SKUPINY -->
-<div class="flex-between-mb15">
-    <h3 class="text-main mb-0">Skupiny:</h3>
+            <div class="tournament-layout-section">
 
-    {% if wizard.groups %}
-    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-0">
-        <button type="submit" name="action" value="reset_all_groups">Vyprázdnit všechny skupiny</button>
-    </form>
-    {% endif %}
-</div>
+                <h3 class="text-main text-left">
+                    Nezařazení hráči
+                </h3>
 
-<!-- KARTY SKUPIN V MŘÍŽCE -->
-<ul class="responsive-grid clean-list" style="gap: 15px;">
-    {% for letter, players in wizard.groups.items() %}
-        <li class="group-card">
-            <div class="group-card-header">
-                <h4 class="text-accent mb-0" style="margin-top: 0;">
-                    Skupina {{ letter }}
-                    <span class="text-muted font-sm" style="font-weight: normal;">
-                        ({{ wizard.total_players_in_group(letter) }} / {{ wizard.max_players_per_group }})
-                    </span>
-                </h4>
+                <ul class="wizard-player-grid">
 
-                <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display:inline; margin: 0;">
-                    <input type="hidden" name="group_letter" value="{{ letter }}">
-                    <input type="hidden" name="force" value="true">
-                    <button type="submit" name="action" value="remove_single_group" title="Smazat skupinu" class="btn-delete-group">🗑️</button>
-                </form>
+                    {% for player in wizard.players %}
+                        <li class="wizard-player-row">
+
+                            <form
+                                hx-post="{{ url_for('main.tournament_settings') }}"
+                                hx-target="#wizard-container"
+                                hx-swap="innerHTML"
+                                class="mb-0"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="player_name"
+                                    value="{{ player }}"
+                                >
+
+                                <button
+                                    type="submit"
+                                    name="action"
+                                    value="remove_player"
+                                    title="Smazat hráče"
+                                >
+                                    ×
+                                </button>
+                            </form>
+
+                            <span
+                                class="text-main"
+                                style="white-space: nowrap;"
+                            >
+                                {{ player }}
+                            </span>
+
+                            <div class="flex-grow"></div>
+
+                            <div class="wizard-group-actions">
+
+                                {% for letter in wizard.groups.keys() %}
+
+                                    <form
+                                        hx-post="{{ url_for('main.tournament_settings') }}"
+                                        hx-target="#wizard-container"
+                                        hx-swap="innerHTML"
+                                        class="mb-0"
+                                    >
+                                        <input
+                                            type="hidden"
+                                            name="player_name"
+                                            value="{{ player }}"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="group_letter"
+                                            value="{{ letter }}"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            name="action"
+                                            value="assign_players"
+                                        >
+                                            {{ letter }}
+                                        </button>
+                                    </form>
+
+                                {% endfor %}
+
+                            </div>
+
+                        </li>
+                    {% endfor %}
+
+                </ul>
+
             </div>
 
-            <div class="group-card-body">
-            {% for player in players %}
-                <span class="group-player-badge">
-                    {{ player }}
-                    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" style="display:inline; margin: 0;">
-                        <input type="hidden" name="player_name" value="{{ player }}">
-                        <button type="submit" name="action" value="remove_player" title="Odebrat ze skupiny">×</button>
+        {% endif %}
+
+
+        <!-- ============================================== -->
+        <!-- SKUPINY -->
+        <!-- ============================================== -->
+
+        {% if wizard.groups %}
+
+            <div class="tournament-layout-section">
+
+                <div class="flex-between-mb15">
+
+                    <h3 class="text-main mb-0">
+                        Skupiny
+                    </h3>
+
+                    <form
+                        hx-post="{{ url_for('main.tournament_settings') }}"
+                        hx-target="#wizard-container"
+                        hx-swap="innerHTML"
+                        class="mb-0"
+                    >
+                        <button
+                            type="submit"
+                            name="action"
+                            value="reset_all_groups"
+                        >
+                            Vyprázdnit všechny skupiny
+                        </button>
                     </form>
-                </span>
-            {% endfor %}
+
+                </div>
+
+                <ul class="responsive-grid clean-list" style="gap: 15px;">
+
+                    {% for letter, players in wizard.groups.items() %}
+
+                        <li class="group-card">
+
+                            <div class="group-card-header">
+
+                                <h4
+                                    class="text-accent mb-0"
+                                    style="margin-top: 0;"
+                                >
+                                    Skupina {{ letter }}
+
+                                    <span
+                                        class="text-muted font-sm"
+                                        style="font-weight: normal;"
+                                    >
+                                        (
+                                        {{ wizard.total_players_in_group(letter) }}
+                                        /
+                                        {{ wizard.max_players_per_group }}
+                                        )
+                                    </span>
+                                </h4>
+
+                                <form
+                                    hx-post="{{ url_for('main.tournament_settings') }}"
+                                    hx-target="#wizard-container"
+                                    hx-swap="innerHTML"
+                                    style="display:inline; margin: 0;"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="group_letter"
+                                        value="{{ letter }}"
+                                    >
+
+                                    <input
+                                        type="hidden"
+                                        name="force"
+                                        value="true"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        name="action"
+                                        value="remove_single_group"
+                                        title="Smazat skupinu"
+                                        class="btn-delete-group"
+                                    >
+                                        🗑️
+                                    </button>
+                                </form>
+
+                            </div>
+
+                            <div class="group-card-body">
+
+                                {% for player in players %}
+
+                                    <span class="group-player-badge">
+
+                                        {{ player }}
+
+                                        <form
+                                            hx-post="{{ url_for('main.tournament_settings') }}"
+                                            hx-target="#wizard-container"
+                                            hx-swap="innerHTML"
+                                            style="display:inline; margin: 0;"
+                                        >
+                                            <input
+                                                type="hidden"
+                                                name="player_name"
+                                                value="{{ player }}"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                name="action"
+                                                value="remove_player"
+                                                title="Odebrat ze skupiny"
+                                            >
+                                                ×
+                                            </button>
+                                        </form>
+
+                                    </span>
+
+                                {% endfor %}
+
+                            </div>
+
+                        </li>
+
+                    {% endfor %}
+
+                </ul>
+
             </div>
-        </li>
-    {% endfor %}
-</ul>
+
+        {% endif %}
+
+
+    {% else %}
+
+        <div class="wizard-empty-state">
+            Zatím nejsou přidaní žádní hráči ani skupiny.
+        </div>
+
+    {% endif %}
+
+</fieldset>

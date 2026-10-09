@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
-from config import GROUPS_RULES, PLAYOFF_RULES
-import math
+from config import TOURNAMENT_FORMAT,GROUPS_RULES, PLAYOFF_RULES
+from datetime import datetime
 import random
 from app.services.utils.queries import get_players_ranking_map
 
@@ -9,27 +9,65 @@ from app.services.utils.queries import get_players_ranking_map
 class SetupWizard:
 
     def __init__(self):
-        #základní informace
-        self.name = ""
+        # =========================================================
+        # ZÁKLADNÍ INFORMACE O TURNAJI
+        # =========================================================
 
-        #skupiny
+        self.name = ""
+        self.date = datetime.now().strftime("%Y-%m-%d")
+        self.location = ""
+
+        self.tournament_format = TOURNAMENT_FORMAT[0]
+        self.include_in_global_stats = True
+
+        # =========================================================
+        # HRÁČI
+        # =========================================================
+
+        self.players = []
+
+        # =========================================================
+        # SKUPINY
+        # =========================================================
+
         self.min_groups = GROUPS_RULES["min_group"]
         self.max_groups = GROUPS_RULES["max_group"]
-        self.group_creation_options = GROUPS_RULES["group_creation_options"][0]
-        self.min_advance_per_group = GROUPS_RULES["min_advance_per_group"]
-        self.max_advance_per_group = GROUPS_RULES["max_advance_per_group"]
+
         self.min_players_per_group = GROUPS_RULES["min_players_per_group"]
         self.max_players_per_group = GROUPS_RULES["max_players_per_group"]
-        self.group_match_format = GROUPS_RULES["group_match_format"][2]
+
+        self.group_match_format = 2
+
         self.advance_per_group = GROUPS_RULES["advance_per_group"][0]
-        self.group_elimination_action = GROUPS_RULES["elimination_actions"]["playoff_b"]
-        self.players = []
+
+        self.group_elimination_action = "playoff_b"
         self.groups = {}
 
-        #playoff
-        self.players_allowed_to_playoff = PLAYOFF_RULES["players_allowed_to_playoff"]
-        self.playoff_match_format = PLAYOFF_RULES["playoff_match_format"][3]
-        self.playoff_elimination_action = PLAYOFF_RULES["elimination_actions"]["consolation"]
+        # =========================================================
+        # JEDNA SKUPINA
+        # =========================================================
+
+        self.single_group_max_players = (
+            GROUPS_RULES["single_group"]["max_players"]
+        )
+
+        self.single_group_playoff_count = 0
+
+        self.single_group_playoff_players = (
+            GROUPS_RULES["single_group"]["playoff_players"]
+        )
+
+        # =========================================================
+        # PLAYOFF
+        # =========================================================
+
+        self.players_allowed_to_playoff = (
+            PLAYOFF_RULES["players_allowed_to_playoff"]
+        )
+
+        self.playoff_match_format = 3
+
+        self.playoff_elimination_action = "consolation"
 
 
     @property
@@ -37,9 +75,16 @@ class SetupWizard:
         return len(self.groups)
 
     @property
+    def is_single_group(self):
+        return self.total_groups == 1
+
+    @property
     def total_tournament_players(self):
         """ Vratí celkový počet všech hráčů (nezařazení + zařazení ve skupinách)."""
-        assigned_count = sum(len(group_players) for group_players in self.groups.values())
+        assigned_count = sum(
+            len(group_players)
+            for group_players in self.groups.values()
+        )
         return self.non_classification_players + assigned_count
 
     @property
@@ -48,25 +93,51 @@ class SetupWizard:
 
     @property
     def total_players_advance_to_playoff(self):
-        advance_players = sum(len(group_players[:self.advance_per_group]) for group_players in self.groups.values())
-        return advance_players
+        if self.is_single_group:
+            return self.single_group_playoff_count
+
+        return sum(
+            min(len(group_players), self.advance_per_group)
+            for group_players in self.groups.values()
+        )
 
 
     @property
     def has_empty_group(self):
         """Vrací True, pokud existuje alespoň jedna prázdná skupina."""
-        return any(len(players) == 0 for players in self.groups.values())
+        return any(
+            len(players) == 0
+            for players in self.groups.values())
+
+    @property
+    def current_group_player_limit(self):
+        if self.is_single_group:
+            return self.single_group_max_players
+
+        return self.max_players_per_group
+
 
     def total_players_in_group(self,letter):
         return len(self.groups.get(letter,[]))
 
-    def create_groups(self,count_to_add:int):
+    def create_groups(self,count_to_add:int) -> bool:
+        created = False
+        original_group_count = self.total_groups
+
         for _ in range(count_to_add):
-            if self.total_groups<self.max_groups:
-                letter = chr(65+self.total_groups)
-                self.groups[letter]=[]
-            else:
-                print("Maximální povolené množství skupin.")
+            if self.total_groups>= self.max_groups:
+                break
+
+            letter = chr(65+self.total_groups)
+            self.groups[letter]=[]
+            created = True
+
+        if original_group_count == 1 and self.total_groups == 2:
+            self._split_single_group()
+
+        return created
+
+
 
     def get_all_current_player_names(self):
         """
@@ -81,7 +152,7 @@ class SetupWizard:
 
     def add_players(self,names:str):
         players = names.replace("\n",",").split(",")
-        added_count = 0
+
 
         for player in players:
             clear_name = player.strip().title()
@@ -101,8 +172,6 @@ class SetupWizard:
 
              # Pokud nikde není, přidáme ho
             self.players.append(clear_name)
-
-        return added_count>0
 
     def scrapped_url(self, url):
         url = url.strip()
@@ -146,20 +215,16 @@ class SetupWizard:
 
     def assign_player_to_group(self,player_name, group_letter):
         if player_name not in self.players:
-            print(f"Hráč {player_name} není na volném seznamu hráčů.")
             return False
 
         if group_letter not in self.groups:
-            print(f"Skupina {group_letter} neexistuje.")
             return False
 
-        if len(self.groups[group_letter]) >= self.max_players_per_group:
-            print(f"Skupina {group_letter} je plná.")
+        if len(self.groups[group_letter]) >= self.current_group_player_limit:
             return False
 
         self.players.remove(player_name)
         self.groups[group_letter].append(player_name)
-        print(f"Hráč {player_name} byl přidán do skupiny {group_letter}.")
         return True
 
     def remove_player(self,player_name):
@@ -177,11 +242,9 @@ class SetupWizard:
 
     def remove_group(self,group_letter,force=False):
         if group_letter not in self.groups:
-            print(f"Skupina {group_letter} neexistuje.")
             return False
 
         if len(self.groups[group_letter])>0 and not force:
-            print(f"Skupina {group_letter} není prázdná!")
             return False
 
         if force:
@@ -198,7 +261,6 @@ class SetupWizard:
 
         self.groups = new_groups
 
-        print(f"Skupina {group_letter} byla smazána.")
         return True
 
     def clear_all_groups(self):
@@ -209,7 +271,7 @@ class SetupWizard:
                     self.players.append(player)
 
         self.groups = {}
-        print("Skupiny byly smazány.")
+
 
     def import_to_dict(self):
         return self.__dict__.copy()
@@ -220,26 +282,47 @@ class SetupWizard:
                 setattr(self,key,value)
 
     def check_readiness(self):
-        """
-        Kontrola zda je vše připraveno pro generování... Vrací true pokud jsou splněny všechny podmínky,jinak False.
-
-        """
-        # 2. Samotná kotrola:
         if not self.name:
             return False
 
         if self.total_tournament_players == 0:
             return False
 
-        if self.non_classification_players >0:
+        if self.total_groups < self.min_groups:
             return False
 
-        for letter,group_players in self.groups.items():
-            if len(group_players) == 0 and self.non_classification_players == 0:
-                continue
+        if self.non_classification_players > 0:
+            return False
 
-            if len(group_players) <self.min_players_per_group:
+        # Každá skupina musí splnit pouze základní minimum hráčů
+        for group_players in self.groups.values():
+            if len(group_players) < self.min_players_per_group:
                 return False
+
+        # =========================================================
+        # JEDNA SKUPINA
+        # =========================================================
+        if self.is_single_group:
+            player_count = len(next(iter(self.groups.values())))
+
+            # 0 = turnaj končí skupinou
+            if self.single_group_playoff_count == 0:
+                return True
+
+            if self.single_group_playoff_count not in self.single_group_playoff_players:
+                return False
+
+            if self.single_group_playoff_count > player_count:
+                return False
+
+            if self.single_group_playoff_count not in self.players_allowed_to_playoff:
+                return False
+
+            return True
+
+        # =========================================================
+        # VÍCE SKUPIN
+        # =========================================================
 
         if self.total_players_advance_to_playoff not in self.players_allowed_to_playoff:
             return False
@@ -260,104 +343,224 @@ class SetupWizard:
                 else:
                     break
 
-
     def get_readiness_errors(self):
-        """
-        Projde podmínky připravenosti a vratí seznam konkrétních chyb.
-        """
-        # generování seznamu chyb pro uživatele
         errors = []
 
         if not self.name:
             errors.append("Chybí název turnaje.")
 
-        if self.total_groups < self.min_groups:
-            errors.append(f"Nedostatečný počet skupin (minimum je {self.min_groups}).")
-
-        if self.non_classification_players  > 0:
-            errors.append(f"Máš {self.non_classification_players} nezařazených hráčů (všichni musí být ve skupině).")
-
         if self.total_tournament_players == 0:
-            errors.append(f"V turnaji nejsou žádní hráči.")
+            errors.append("V turnaji nejsou žádní hráči.")
 
-        if self.total_groups >1 and self.advance_per_group == 0:
-            errors.append("Nedostatek hráčů do playoff!")
+        if self.total_groups < self.min_groups:
+            errors.append(
+                f"Nedostatečný počet skupin (minimum je {self.min_groups})."
+            )
 
+        if self.non_classification_players > 0:
+            errors.append(
+                f"Máš {self.non_classification_players} nezařazených hráčů "
+                "(všichni musí být ve skupině)."
+            )
+
+        # Základní kontrola skupin
         for letter, group_players in self.groups.items():
             if len(group_players) < self.min_players_per_group:
+                errors.append(
+                    f"Skupina {letter} má málo hráčů "
+                    f"({len(group_players)}), minimum je "
+                    f"{self.min_players_per_group}."
+                )
 
-                # Pokud je ve sekupině méně lidí než je povolené množství,
-                # vypíše se klasická chyba o nedostatečném počtu hráčů.
-                errors.append(f" Skupina {letter} má málo hráčů ({len(group_players)}) (minimum pro skupinu je {self.min_players_per_group}).")
+        # =========================================================
+        # JEDNA SKUPINA
+        # =========================================================
+        if self.is_single_group:
+            player_count = len(next(iter(self.groups.values())))
 
-        if self.total_players_advance_to_playoff not in self.players_allowed_to_playoff:
-            errors.append(f"Počet postupujících ({self.total_players_advance_to_playoff}) nelze nasadit do pavouka.")
+            if (
+                    self.single_group_playoff_count
+                    not in self.single_group_playoff_players
+            ):
+                errors.append(
+                    "Zvolený počet hráčů do playoff není povolený."
+                )
+
+            elif self.single_group_playoff_count > player_count:
+                errors.append(
+                    f"Do playoff nemůže postoupit "
+                    f"{self.single_group_playoff_count} hráčů, "
+                    f"když je ve skupině pouze {player_count}."
+                )
+
+            elif (
+                    self.single_group_playoff_count > 0
+                    and self.single_group_playoff_count
+                    not in self.players_allowed_to_playoff
+            ):
+                errors.append(
+                    f"Počet postupujících "
+                    f"({self.single_group_playoff_count}) "
+                    "nelze nasadit do pavouka."
+                )
+
+            return errors
+
+        # =========================================================
+        # VÍCE SKUPIN
+        # =========================================================
+        if (
+                self.total_groups > 1
+                and self.total_players_advance_to_playoff
+                not in self.players_allowed_to_playoff
+        ):
+            errors.append(
+                f"Počet postupujících "
+                f"({self.total_players_advance_to_playoff}) "
+                "nelze nasadit do pavouka."
+            )
 
         return errors
 
-    def auto_seed_players(self, ranking_map, seed_scope="unassigned_only", group_mode="auto_create"):
-        # 1. Pokud je zvolen reset, vrátíme všechny hráče ze skupin zpět do nezařazených
-        if seed_scope == "reset_all":
-            all_names = list(self.get_all_current_player_names())
-            self.players = all_names
+    def auto_seed_players(
+            self,
+            ranking_map,
+            seed_criterion,
+            seed_mode="auto_groups",
+
+    ):
+        # =========================================================
+        # 1. PŘÍPRAVA HRÁČŮ A SKUPIN
+        # =========================================================
+
+        if seed_mode == "auto_groups":
+            # Vezmeme všechny hráče - jak nezařazené,
+            # tak ty, kteří už jsou ve skupinách.
+            all_players = list(self.get_all_current_player_names())
+
+            self.players = all_players
+            self.groups = {}
+
+            total_players = len(all_players)
+
+            # Počet skupin počítáme směrem dolů,
+            # aby nevznikaly skupiny s méně než minimem hráčů.
+            target_groups_count = (
+                    total_players // self.min_players_per_group
+            )
+
+            target_groups_count = max(
+                self.min_groups,
+                min(target_groups_count, self.max_groups)
+            )
+
+            self.create_groups(target_groups_count)
+
+        elif seed_mode == "reset_existing":
+            # Zachováme počet existujících skupin,
+            # ale všechny hráče vrátíme mezi nezařazené.
+            all_players = list(self.get_all_current_player_names())
+
+            self.players = all_players
+
             for letter in self.groups:
                 self.groups[letter] = []
 
-        unassigned_players = list(self.players)
-        if not unassigned_players:
+        elif seed_mode == "fill_existing":
+            # Existující rozdělení necháme být.
+            # Pracujeme pouze s hráči v self.players.
+            pass
+
+        else:
             return False
 
-        # 2. Úprava/dopočet skupin podle režimu
-        if group_mode == "auto_create":
-            total_players_count = self.total_tournament_players
-            target_groups_count = math.ceil(total_players_count / self.min_players_per_group)
-            target_groups_count = max(self.min_groups, min(target_groups_count, self.max_groups))
-
-            while self.total_groups < target_groups_count:
-                self.create_groups(1)
+        # =========================================================
+        # 2. KONTROLA SKUPIN A HRÁČŮ
+        # =========================================================
 
         if self.total_groups == 0:
             return False
 
-        # 3. Seřazení nezařazených hráčů podle rankingu
-        def get_rank(name):
-            return ranking_map.get(name, float("inf"))
+        unassigned_players = list(self.players)
 
-        sorted_unassigned = sorted(unassigned_players, key=get_rank)
+        if not unassigned_players:
+            return False
 
-        # 4. Při kompletním resetu nebo do prázdných skupin nasadíme Top hráče jako hlavy
-        empty_group_letters = [letter for letter, p_list in self.groups.items() if len(p_list) == 0]
-        num_top_needed = len(empty_group_letters)
+        # =========================================================
+        # 3. SEŘAZENÍ HRÁČŮ PODLE RANKINGU
+        # =========================================================
 
-        top_players = sorted_unassigned[:num_top_needed]
-        remaining_players = sorted_unassigned[num_top_needed:]
+        if seed_criterion == "random":
+            sorted_unassigned = list(unassigned_players)
+            random.shuffle(sorted_unassigned)
+        else:
+            def get_rank(name):
+                return ranking_map.get(name, float("inf"))
+
+            sorted_unassigned = sorted(
+                unassigned_players,
+                key=get_rank
+            )
+
+        # =========================================================
+        # 4. NASAZENÍ TOP HRÁČŮ
+        # =========================================================
+
+        # TOP hráče chceme dávat pouze do prázdných skupin.
+        # U fill_existing tedy nebudeme sahat na už obsazené skupiny.
+        empty_group_letters = [
+            letter
+            for letter, group_players in self.groups.items()
+            if len(group_players) == 0
+        ]
+
+        top_count = min(
+            len(empty_group_letters),
+            len(sorted_unassigned)
+        )
+
+        top_players = sorted_unassigned[:top_count]
+        remaining_players = sorted_unassigned[top_count:]
+
+        for index, player in enumerate(top_players):
+            target_group = empty_group_letters[index]
+
+            self.assign_player_to_group(
+                player_name=player,
+                group_letter=target_group
+            )
+
+        # =========================================================
+        # 5. NÁHODNÉ ROZDĚLENÍ ZBYTKU
+        # =========================================================
 
         random.shuffle(remaining_players)
 
-        # 5. Nasazení TOP hráčů do prázných skupin
-        for i, player in enumerate(top_players):
-            target_letter = empty_group_letters[i]
-            self.assign_player_to_group(player_name=player,group_letter=target_letter)
-
-        # 6. Postupné doplňování zbytku do nejméně zaplněných skupin
         for player in remaining_players:
             available_groups = [
-                (letter, len(p_list))
-                for letter, p_list in self.groups.items()
-                if len(p_list) < self.max_players_per_group
+                (letter, len(group_players))
+                for letter, group_players in self.groups.items()
+                if len(group_players) < self.current_group_player_limit
             ]
 
             if not available_groups:
                 break
 
-            available_groups.sort(key=lambda x: x[1])
-            target_letter = available_groups[0][0]
+            # Hráče vždy pošleme do aktuálně nejméně zaplněné skupiny.
+            available_groups.sort(
+                key=lambda item: item[1]
+            )
 
-            self.assign_player_to_group(player_name=player,group_letter=target_letter)
+            target_group = available_groups[0][0]
+
+            self.assign_player_to_group(
+                player_name=player,
+                group_letter=target_group
+            )
 
         return True
 
-    def process_form_action(self,form_data):
+    def process_form_action(self, form_data):
         action = form_data.get("action")
 
         if action == "add_players":
@@ -370,62 +573,168 @@ class SetupWizard:
 
         elif action == "decrease_groups":
             if self.groups:
-                # Najdeme od konce abecedy první skupinu, která je 100% prázdná
+                # Najdeme od konce abecedy první skupinu, která je prázdná
                 target_group = None
 
-                for letter in reversed(sorted(list(self.groups.keys()))):
+                for letter in reversed(sorted(self.groups.keys())):
                     if len(self.groups[letter]) == 0:
                         target_group = letter
                         break
 
-                # Smaže se POUZE v případě, že prázdná skupina existuje
                 if target_group:
-                    self.remove_group(group_letter=target_group, force=False)
+                    self.remove_group(
+                        group_letter=target_group,
+                        force=False
+                    )
 
         elif action == "seed_players":
-            criterion = form_data.get("seed_criterion","last_tournament")
-            seed_scope = form_data.get("seed_scope", "unassigned_only")
-            group_mode = form_data.get("group_mode", "auto_create")
+            criterion = form_data.get(
+                "seed_criterion",
+                "last_tournament"
+            )
 
-            ranking_map = get_players_ranking_map(criterion)
-            self.auto_seed_players(ranking_map=ranking_map,seed_scope=seed_scope,group_mode=group_mode)
+            seed_mode = form_data.get(
+                "seed_mode",
+                "auto_groups"
+            )
+
+            if criterion == "random":
+                ranking_map = {}
+            else:
+                ranking_map = get_players_ranking_map(criterion)
+
+            self.auto_seed_players(
+                ranking_map=ranking_map,
+                seed_mode=seed_mode,
+                seed_criterion=criterion
+            )
 
         elif action == "assign_players":
             player_name = form_data.get("player_name")
             group_letter = form_data.get("group_letter")
+
             if player_name and group_letter:
-                self.assign_player_to_group(player_name=player_name,group_letter=group_letter)
+                self.assign_player_to_group(
+                    player_name=player_name,
+                    group_letter=group_letter
+                )
 
         elif action == "remove_player":
             player_name = form_data.get("player_name")
+
             if player_name:
-                self.remove_player(player_name=player_name)
+                self.remove_player(
+                    player_name=player_name
+                )
 
         elif action == "remove_single_group":
             letter = form_data.get("group_letter")
             force = form_data.get("force") == "true"
-            self.remove_group(group_letter=letter, force=force)
+
+            self.remove_group(
+                group_letter=letter,
+                force=force
+            )
 
         elif action == "reset_all_groups":
             self.clear_all_groups()
 
         elif action == "scrap_players":
             url = form_data.get("scrap_url")
+
             if url:
-                self.scrapped_url(url=url)
+                self.scrapped_url(
+                    url=url
+                )
+
+        elif action == "update_base_settings":
+            name = form_data.get("name")
+            date = form_data.get("date")
+            location = form_data.get("location")
+            tournament_format = form_data.get("tournament_format")
+
+            if name is not None:
+                self.name = name.strip()
+
+            if date:
+                self.date = date
+
+            if location is not None:
+                self.location = location.strip()
+
+            if tournament_format in TOURNAMENT_FORMAT:
+                self.tournament_format = tournament_format
+
+            self.include_in_global_stats = (
+                    form_data.get("include_in_global_stats") == "true"
+            )
+
+        elif action == "update_group_settings":
+            group_match_format = form_data.get("group_match_format")
+
+            if group_match_format and group_match_format.isdigit():
+                self.group_match_format = int(group_match_format)
+
+            advance_value = form_data.get("advance_per_group")
+
+            if advance_value and advance_value.isdigit():
+                self.advance_per_group = int(advance_value)
+
+            single_value = form_data.get("single_group_playoff_count")
+
+            if single_value and single_value.isdigit():
+                self.single_group_playoff_count = int(single_value)
+
+            group_elimination_action = form_data.get(
+                "group_elimination_action"
+            )
+
+            if group_elimination_action:
+                self.group_elimination_action = group_elimination_action
+
+            # Jedna skupina + Bez playoff = turnaj končí skupinou.
+            if (
+                    self.is_single_group
+                    and self.single_group_playoff_count == 0
+            ):
+                self.group_elimination_action = "KO"
+
+        elif action == "update_playoff_settings":
+            playoff_match_format = form_data.get(
+                "playoff_match_format"
+            )
+
+            if (
+                    playoff_match_format
+                    and playoff_match_format.isdigit()
+            ):
+                self.playoff_match_format = int(
+                    playoff_match_format
+                )
+
+            playoff_elimination_action = form_data.get(
+                "playoff_elimination_action"
+            )
+
+            if playoff_elimination_action:
+                self.playoff_elimination_action = (
+                    playoff_elimination_action
+                )
+
 
         elif action == "next":
-            name = form_data.get("name")
-            if name:
-                self.name = form_data.get("name")
-
-            self.group_match_format = form_data.get("group_match_format")
-            value = form_data.get("advance_per_group")
-            if value and value.isdigit():
-                self.advance_per_group = int(value)
-
-            self.group_elimination_action = form_data.get("group_elimination_action")
             self.clean_empty_groups()
 
+    def _split_single_group(self):
+        if self.total_groups != 2:
+            return
+        group_a = self.groups.get("A", [])
+        group_b = self.groups.get("B", [])
 
+        if group_b:
+            return
 
+        split_index =(len(group_a)+1) // 2
+
+        self.groups["A"] = group_a[:split_index]
+        self.groups["B"] = group_a[split_index:]

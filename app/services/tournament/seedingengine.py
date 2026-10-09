@@ -93,10 +93,22 @@ class SeedingEngine:
         if not players:
             return []
 
-        if len(groups) < 2:
-            raise ValueError(
-                "Pro pavouk jsou potreba alespon 2 skupiny."
+        if len(groups) == 1:
+            player_names = [
+                player["name"]
+                for player in players
+            ]
+
+            matches = self._generate_atp_bracket(
+                player_names
             )
+
+            self._debug(
+                f"ATP PAVOUK RANK {start_rank}-{end_rank}",
+                matches,
+            )
+
+            return matches
 
         if len(groups) > self.MAX_GROUPS:
             raise ValueError(

@@ -7,10 +7,6 @@
 
     <!-- STŘEDNÍ ČÁST (Odkazy + Auth box uprostřed) -->
     <div class="unified-nav-center" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <a href="/settings_groups" class="{% if 'settings_groups' in request.path %}active-nav-link{% endif %}">Nastavení skupin</a>
-        <span class="nav-separator">|</span>
-        <a href="/settings_playoff" class="{% if 'settings_playoff' in request.path %}active-nav-link{% endif %}">Nastavení playoff</a>
-        <span class="nav-separator">|</span>
         {% include "partials/_auth_box.html" %}
     </div>
 
