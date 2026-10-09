@@ -44,8 +44,7 @@ class Tournament(db.Model):
 
         mapping = {
             "minigroup": "Skupina",
-            "playoff_b": "Playoff B",
-
+            "playoff_b": "Playoff B"
         }
         # Vrací mapovanou hodnotu, nebo fallback na původní hodnotu / "Nehraje se"
         return mapping.get(self.group_elimination_action, 'Nehraje se')

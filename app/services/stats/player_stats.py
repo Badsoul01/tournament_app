@@ -26,26 +26,32 @@ class PlayerStatsService:
         # Nyní předáváme player_id a stats_map do metody
         tournaments_data = PlayerStatsService._get_tournaments_data(local_player_ids, player.id, stats_map)
 
-        best_rank = None
-        for t in tournaments_data:
-            rank_str = str(t['rank'])
-            match = re.search(r'\d+', rank_str)
-            if match:
-                r_val = int(match.group())
-                if best_rank is None or r_val < best_rank:
-                    best_rank = r_val
+        best_ranks = PlayerStatsService._calculate_best_ranks(
+            tournaments_data,
+            days=90
+        )
 
         context = {
             "player": player,
             "current_rank": PlayerStatsService._calculate_current_rank(player),
             "win_rate": PlayerStatsService._calculate_win_rate(player),
-            "best_rank": best_rank,
+
+            **best_ranks,
+
             "tournaments_data": tournaments_data,
             **PlayerStatsService._get_rivalry_and_form(local_player_ids),
-            **PlayerStatsService._get_chart_data(player, stats_map, all_global_players),
+            **PlayerStatsService._get_chart_data(
+                player,
+                stats_map,
+                all_global_players
+            ),
             "matches_data": PlayerStatsService._get_matches_data(local_player_ids),
-            "h2h_data": PlayerStatsService._get_h2h_data(player, request_args, stats_map,
-                                                         all_global_players),
+            "h2h_data": PlayerStatsService._get_h2h_data(
+                player,
+                request_args,
+                stats_map,
+                all_global_players
+            ),
             "active_tab": active_tab,
         }
 
@@ -100,6 +106,45 @@ class PlayerStatsService:
             }
 
         return stats_map
+
+    @staticmethod
+    def _calculate_best_ranks(tournaments_data, days=90):
+        career_best_rank = None
+        recent_best_rank = None
+
+        cutoff_date = datetime.now().date() - timedelta(days=days)
+
+        for tournament in tournaments_data:
+            rank_str = str(tournament["rank"])
+            match = re.search(r"\d+", rank_str)
+
+            if not match:
+                continue
+
+            rank_value = int(match.group())
+
+            # Kariérní maximum
+            if career_best_rank is None or rank_value < career_best_rank:
+                career_best_rank = rank_value
+
+            # Nejlepší umístění za posledních X dní
+            tournament_date = tournament["tournament_date"]
+
+            if not tournament_date:
+                continue
+
+            if hasattr(tournament_date, "date"):
+                tournament_date = tournament_date.date()
+
+            if tournament_date >= cutoff_date:
+                if recent_best_rank is None or rank_value < recent_best_rank:
+                    recent_best_rank = rank_value
+
+        return {
+            "career_best_rank": career_best_rank,
+            "best_rank": recent_best_rank,
+        }
+
 
     @staticmethod
     def _calculate_current_rank(player):
@@ -314,16 +359,22 @@ class PlayerStatsService:
     @staticmethod
     def _get_h2h_data(player, request_args, stats_map, all_global_players):
         selected_opponent_id = request_args.get("opponent_id", type=int)
+
         if not selected_opponent_id:
             return None
 
         selected_opponent = GlobalPlayerModel.query.get(selected_opponent_id)
+
         if not selected_opponent:
             return None
 
-        base_h2h_stats = MatchStatsService.calculate_h2h_balance(player.id, selected_opponent_id)
+        base_h2h_stats = MatchStatsService.calculate_live_h2h_for_global_players(
+            player,
+            selected_opponent
+        )
 
         match_history = []
+
         for mh in base_h2h_stats["matches"]:
             match_history.append({
                 "tournament_name": mh["tournament_name"],
@@ -336,11 +387,22 @@ class PlayerStatsService:
         shared_tournaments = TournamentModel.query \
             .join(PlayerModel, TournamentModel.id == PlayerModel.tournament_id) \
             .filter(TournamentModel.is_finished == True) \
-            .filter(or_(PlayerModel.global_player_id == player.id,
-                        PlayerModel.global_player_id == selected_opponent_id)) \
+            .filter(
+            or_(
+                PlayerModel.global_player_id == player.id,
+                PlayerModel.global_player_id == selected_opponent_id
+            )
+        ) \
             .group_by(TournamentModel.id) \
-            .having(db.func.count(db.func.distinct(PlayerModel.global_player_id)) == 2) \
-            .order_by(TournamentModel.date.asc(), TournamentModel.id.asc()) \
+            .having(
+            db.func.count(
+                db.func.distinct(PlayerModel.global_player_id)
+            ) == 2
+        ) \
+            .order_by(
+            TournamentModel.date.asc(),
+            TournamentModel.id.asc()
+        ) \
             .all()
 
         h2h_labels = []
@@ -354,24 +416,35 @@ class PlayerStatsService:
 
         for st in shared_tournaments:
             h2h_labels.append(st.name)
+
             t_date = st.date
-            if hasattr(t_date, 'date'):
+
+            if hasattr(t_date, "date"):
                 t_date = t_date.date()
 
-            # Ranky z přednačtených dat (žádné dotazy uvnitř cyklu)
-            p_rank = player_stats.get(st.id, {}).get('rank')
+            p_rank = player_stats.get(st.id, {}).get("rank")
             h2h_player_ranks.append(p_rank)
 
-            opp_rank = opp_stats.get(st.id, {}).get('rank')
+            opp_rank = opp_stats.get(st.id, {}).get("rank")
             h2h_opp_ranks.append(opp_rank)
 
-            p_g_rank = PlayerStatsService._calculate_global_rank_at_date(player.id, t_date, all_global_players,
-                                                                         stats_map)
-            opp_g_rank = PlayerStatsService._calculate_global_rank_at_date(selected_opponent_id, t_date,
-                                                                           all_global_players, stats_map)
+            p_g_rank = PlayerStatsService._calculate_global_rank_at_date(
+                player.id,
+                t_date,
+                all_global_players,
+                stats_map
+            )
+
+            opp_g_rank = PlayerStatsService._calculate_global_rank_at_date(
+                selected_opponent_id,
+                t_date,
+                all_global_players,
+                stats_map
+            )
 
             h2h_player_global_ranks.append(p_g_rank)
             h2h_opp_global_ranks.append(opp_g_rank)
+
         return {
             "opponent": selected_opponent,
             "wins": base_h2h_stats["wins_a"],
@@ -386,7 +459,6 @@ class PlayerStatsService:
             "player_global_ranks": h2h_player_global_ranks,
             "opp_global_ranks": h2h_opp_global_ranks
         }
-
     @staticmethod
     def _apply_tab_filtering(context, request_args):
         # Tato metoda zůstává beze změny, stará se jen o filtrování v paměti pro HTMX

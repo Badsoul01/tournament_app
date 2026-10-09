@@ -51,13 +51,22 @@
             </p>
 
             <!-- Nejlepší umístění -->
-            <p style="color: var(--text-main); text-align: center;"><strong style="color: var(--text-main);">Nejlepší umístění v turnaji:</strong>
+            <p style="color: var(--text-main); text-align: center;"><strong style="color: var(--text-main);">Nejlepší umístění (90 dní):</strong>
                 {% if best_rank %}
                     <span style="color: var(--winner-color); font-weight: bold;">{{ best_rank }}. místo</span>
                 {% else %}
                     <span style="color: var(--text-muted);">-</span>
                 {% endif %}
             </p>
+
+            <p style="color: var(--text-muted); text-align: center; margin-top: 0; font-size: 0.9rem;">
+            Kariérní maximum:
+            {% if career_best_rank %}
+                <strong>{{ career_best_rank }}. místo</strong>
+            {% else %}
+                -
+            {% endif %}
+        </p>
 
         </div>
 

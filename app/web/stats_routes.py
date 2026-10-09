@@ -2,6 +2,7 @@ from flask import render_template, request, redirect
 from sqlalchemy import or_, func, cast, String
 from sqlalchemy.orm import joinedload
 from app.services.stats.player_stats import PlayerStatsService
+from app.services.stats.match_stats import MatchStatsService
 
 from . import main_bp
 from app.models.models import (
@@ -10,7 +11,7 @@ from app.models.models import (
     PlayoffStats as PlayoffStatsModel
 )
 from app.web.webmanager import WebManager
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def _render_tournament_stage(tournament_id, data_fetcher, template_name):
@@ -179,33 +180,86 @@ def stats_players_view():
     order = request.args.get("order", "desc")
     reverse_sort = (order == "desc")
 
-    # 1. Získáme všechny hráče z databáze
+    cutoff_date = datetime.now().date() - timedelta(days=365)
+
+    # 1. Načteme všechny globální hráče
     players = GlobalPlayerModel.query.all()
 
-    # 2. Spolehlivý výpočet celkového pořadí (ranku) přes Python property 'total_points'
-    all_players_sorted = sorted(players, key=lambda p: p.total_points or 0, reverse=True)
-    ranks_map = {p.id: idx + 1 for idx, p in enumerate(all_players_sorted)}
+    # 2. Vyfiltrujeme pouze aktivní hráče:
+    #    alespoň jeden dokončený turnaj za posledních 365 dní
+    active_players = []
 
-    # 3. Filtrování v Pythonu podle vyhledávání
+    for player in players:
+        has_recent_tournament = (
+            db.session.query(PlayerModel.id)
+            .join(
+                TournamentModel,
+                PlayerModel.tournament_id == TournamentModel.id
+            )
+            .filter(
+                PlayerModel.global_player_id == player.id,
+                TournamentModel.is_finished == True,
+                TournamentModel.date >= cutoff_date
+            )
+            .first()
+            is not None
+        )
+
+        if has_recent_tournament:
+            active_players.append(player)
+
+    players = active_players
+
+    # 3. Rank počítáme už jen z aktivních hráčů
+    all_players_sorted = sorted(
+        players,
+        key=lambda p: p.total_points or 0,
+        reverse=True
+    )
+
+    ranks_map = {
+        p.id: idx + 1
+        for idx, p in enumerate(all_players_sorted)
+    }
+
+    # 4. Vyhledávání
     if q:
-        players = [p for p in players if q.lower() in (p.name or "").lower()]
+        players = [
+            p for p in players
+            if q.lower() in (p.name or "").lower()
+        ]
 
-    # 4. Řazení v Pythonu podle zvoleného kritéria
+    # 5. Řazení
     if sort_by == "name":
-        players.sort(key=lambda p: p.name or "", reverse=reverse_sort)
+        players.sort(
+            key=lambda p: p.name or "",
+            reverse=reverse_sort
+        )
     else:
-        players.sort(key=lambda p: p.total_points or 0, reverse=reverse_sort)
+        players.sort(
+            key=lambda p: p.total_points or 0,
+            reverse=reverse_sort
+        )
 
-    # 5. Vrácení výsledku pro HTMX partial nebo celou stránku
+    # 6. HTMX partial
     if "HX-Request" in request.headers:
         return render_template(
             "stats/partials/_players_table.html",
-            players=players, ranks_map=ranks_map, q=q, sort_by=sort_by, order=order
-    )
+            players=players,
+            ranks_map=ranks_map,
+            q=q,
+            sort_by=sort_by,
+            order=order
+        )
 
+    # 7. Celá stránka
     return render_template(
         "stats/stats_players.html",
-        players=players, ranks_map=ranks_map, q=q, sort_by=sort_by, order=order
+        players=players,
+        ranks_map=ranks_map,
+        q=q,
+        sort_by=sort_by,
+        order=order
     )
 
 
@@ -264,6 +318,15 @@ def stats_matches_view():
     return render_template(
         "stats/stats_matches.html",
         matches=matches, q=q, sort_by=sort_by, order=order
+    )
+
+@main_bp.route("/stats/match/<int:match_id>")
+def stats_match_detail(match_id):
+    context = MatchStatsService.get_match_detail_context(match_id)
+
+    return render_template(
+        "stats/partials/_match_details_row.html",
+        **context
     )
 
 @main_bp.route("/stats/player/<int:player_id>")
