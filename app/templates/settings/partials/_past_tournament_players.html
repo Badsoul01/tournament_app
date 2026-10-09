@@ -3,7 +3,7 @@
 </strong>
 
 {% if available_players %}
-    <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-10">
+    <form hx-post="{{ url_for('main.tournament_settings') }}" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-10">
         <input type="hidden" name="players_text" value="{{ available_players|join(', ') }}">
         <input type="hidden" name="active_tournament_id" value="{{ selected_tournament.id }}">
         <button type="submit" name="action" value="add_players" class="btn-full-width">

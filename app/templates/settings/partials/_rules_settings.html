@@ -1,0 +1,210 @@
+<!-- ========================================================= -->
+<!-- NASTAVENÍ SKUPIN -->
+<!-- ========================================================= -->
+
+<div class="rules-grid">
+    <form
+        hx-post="/tournament_settings"
+        hx-trigger="change"
+        hx-target="#rules-settings-container"
+        hx-swap="innerHTML"
+    >
+            <input
+                type="hidden"
+                name="action"
+                value="update_group_settings"
+            >
+
+            <fieldset
+                class="text-left"
+                style="width: 100%; box-sizing: border-box;"
+            >
+                <legend>Nastavení pravidel skupin</legend>
+
+                <!-- Formát zápasu skupin -->
+                <div class="form-row">
+                    <label for="group_match_format">
+                        Formát zápasu skupin:
+                    </label>
+
+                    <select
+                        id="group_match_format"
+                        name="group_match_format"
+                    >
+                        {% for val, name in GROUPS_RULES.group_match_format.items() %}
+                            <option
+                                value="{{ val }}"
+                                {{ 'selected' if wizard.group_match_format|string == val|string else '' }}
+                            >
+                                {{ name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+
+            <!-- ========================================================= -->
+            <!-- JEDNA SKUPINA -->
+            <!-- ========================================================= -->
+
+            {% if wizard.is_single_group %}
+
+                <div class="form-row">
+                    <label for="single_group_playoff_count">
+                        Počet postupujících do playoff:
+                    </label>
+
+                    <select
+                        id="single_group_playoff_count"
+                        name="single_group_playoff_count"
+                    >
+                        {% for val in GROUPS_RULES.single_group.playoff_players %}
+                            <option
+                                value="{{ val }}"
+                                {{ 'selected' if wizard.single_group_playoff_count|string == val|string else '' }}
+                            >
+                                {% if val == 0 %}
+                                    Bez playoff
+                                {% else %}
+                                    {{ val }}
+                                {% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+
+            <!-- ========================================================= -->
+            <!-- VÍCE SKUPIN -->
+            <!-- ========================================================= -->
+
+            {% else %}
+
+                <div class="form-row">
+                    <label for="advance_per_group">
+                        Max. počet postupujících ze skupiny:
+                    </label>
+
+                    <select
+                        id="advance_per_group"
+                        name="advance_per_group"
+                    >
+                        {% for val in GROUPS_RULES.advance_per_group %}
+                            <option
+                                value="{{ val }}"
+                                {{ 'selected' if wizard.advance_per_group|string == val|string else '' }}
+                            >
+                                {{ val }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+            {% endif %}
+
+
+            <!-- Nepostupující se nezobrazují,
+                 pokud jedna skupina končí bez playoff -->
+            {% if not (
+                wizard.is_single_group
+                and wizard.single_group_playoff_count == 0
+            ) %}
+
+                <div class="form-row mb-0">
+                    <label for="group_elimination_action">
+                        Nepostupující ze skupiny:
+                    </label>
+
+                    <select
+                        id="group_elimination_action"
+                        name="group_elimination_action"
+                    >
+                        {% for key, name in GROUPS_RULES.elimination_actions.items() %}
+                            <option
+                                value="{{ key }}"
+                                {{ 'selected' if wizard.group_elimination_action == key else '' }}
+                            >
+                                {{ name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+            {% endif %}
+
+        </fieldset>
+    </form>
+
+
+<!-- ========================================================= -->
+<!-- NASTAVENÍ PLAYOFF -->
+<!-- ========================================================= -->
+
+    {% if not wizard.is_single_group or wizard.single_group_playoff_count > 0 %}
+
+        <form
+            hx-post="{{ url_for('main.tournament_settings') }}"
+            hx-trigger="change"
+            hx-target="#rules-settings-container"
+            hx-swap="innerHTML"
+        >
+            <input
+                type="hidden"
+                name="action"
+                value="update_playoff_settings"
+            >
+
+            <fieldset
+                class="text-left"
+                style="width: 100%; box-sizing: border-box;"
+            >
+                <legend>Nastavení playoff</legend>
+
+                <!-- Formát playoff zápasu -->
+                <div class="form-row">
+                    <label for="playoff_match_format">
+                        Formát zápasu playoff:
+                    </label>
+
+                    <select
+                        id="playoff_match_format"
+                        name="playoff_match_format"
+                    >
+                        {% for val, name in PLAYOFF_RULES.playoff_match_format.items() %}
+                            <option
+                                value="{{ val }}"
+                                {{ 'selected' if wizard.playoff_match_format|string == val|string else '' }}
+                            >
+                                {{ name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Co s vyřazenými -->
+                <div class="form-row mb-0">
+                    <label for="playoff_elimination_action">
+                        Vyřazení hráči:
+                    </label>
+
+                    <select
+                        id="playoff_elimination_action"
+                        name="playoff_elimination_action"
+                    >
+                        {% for key, name in PLAYOFF_RULES.elimination_actions.items() %}
+                            <option
+                                value="{{ key }}"
+                                {{ 'selected' if wizard.playoff_elimination_action == key else '' }}
+                            >
+                                {{ name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+            </fieldset>
+        </form>
+
+    {% endif %}
+
+</div>

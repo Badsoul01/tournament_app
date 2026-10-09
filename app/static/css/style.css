@@ -85,6 +85,7 @@ input[type="text"],
 input[type="url"],
 input[type="password"],
 input:not([type]),
+input[type="date"],
 select {
     background-color: var(--bg-main) !important;
     color: var(--text-main) !important;
@@ -94,17 +95,21 @@ select {
     font-family: inherit;
     font-size: 0.95em;
     margin-bottom: 10px;
+    text-align: center;
 }
 
 input[type="text"]:focus,
 input[type="url"]:focus,
 input[type="password"]:focus,
+input[type="date"]:focus,
 input:not([type]):focus,
+
 select:focus {
     background-color: var(--bg-main) !important;
     color: var(--text-main) !important;
     border-color: var(--accent-silver) !important;
     outline: none !important;
+
     box-shadow: 0 0 5px rgba(203, 213, 225, 0.2);
 }
 
@@ -174,7 +179,7 @@ p {
 hr {
     border: 0 !important;
     height: 1px;
-    margin: 35px 0 !important;
+    margin: 20px 0 !important;
     background: linear-gradient(to right, transparent, rgba(60, 82, 115, 0.85), transparent);
 }
 
@@ -280,7 +285,7 @@ hr {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
-    align-items: stretch;
+    align-items: start;
 }
 @media (max-width: 850px) {
     .grid-2col {
@@ -355,7 +360,10 @@ hr {
     width: 100%;
     border: 1px solid var(--border-color);
     flex: 1;
-    min-height: 420px;
+
+    min-height: 300px;
+    max-height: 360px;
+
     border-radius: 4px;
     overflow: hidden;
     box-sizing: border-box;
@@ -444,9 +452,14 @@ hr {
    14. WIZARD A SKUPINY
    ========================================== */
 .wizard-info-bar {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+
     color: var(--text-muted);
     font-size: 0.95em;
-    margin-bottom: 15px;
+
+    margin-bottom: 0;
 }
 .wizard-player-row {
     display: flex;
@@ -575,4 +588,117 @@ hr {
     border-left: 3px solid var(--accent-silver); /* Zvýraznění proužkem zleva */
     font-weight: bold;
     padding-left: 5px; /* Kompenzace za 3px border, aby se text neposunul moc, původně bylo 8px padding */
+}
+
+
+/* ==========================================
+   WIZARD - ROZVRŽENÍ NASTAVENÍ TURNAJE
+   ========================================== */
+
+.settings-section {
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.settings-top-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    align-items: start;
+}
+
+.rules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    align-items: start;
+    max-width: 850px;
+    margin: 0 auto;
+}
+
+.rules-grid form,
+.rules-grid fieldset {
+    width: 100%;
+}
+
+#Wizard-container,
+#wizard-container {
+    width: 100%;
+}
+
+#rules-settings-container {
+    margin-top: 20px;
+}
+
+#wizard-button-container {
+    margin-top: 20px;
+}
+
+#wizard-button-container > div {
+    margin-top: 0 !important;
+}
+
+@media (max-width: 850px) {
+    .settings-top-grid,
+    .rules-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.tournament-layout-box {
+    width: 100%;
+    max-width: 850px;
+    margin: 0 auto;
+}
+
+.tournament-layout-section {
+    margin-top: 18px;
+}
+
+.wizard-status-box {
+    width: 100%;
+    max-width: 850px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.wizard-player-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 20px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.wizard-group-actions {
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    gap: 4px;
+    align-items: center;
+}
+
+.wizard-empty-state {
+    padding: 28px 0;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+@media (max-width: 850px) {
+    .wizard-player-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.wizard-status-box {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+
+    padding: 10px 16px;
+    margin-bottom: 18px;
+
+    color: var(--text-muted);
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
 }

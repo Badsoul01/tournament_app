@@ -1,21 +1,47 @@
 <div style="margin-top: 40px; text-align: center; border-top: 1px solid var(--border-color); padding-top: 20px;">
-    <form action="" method="POST" id="wizard_form" class="mb-0">
-        {% if "settings_playoff" in request.path %}
-            {% if wizard.check_readiness() %}
-            <button type="submit" name="action" value="next" form="wizard_form">Generovat turnaj</button>
-            {% else %}
-                <button type="button" disabled>Turnaj není připraven</button>
-                <div class="font-md" style="margin-top: 15px; color: var(--danger-color);">
-                    <strong>Před vygenerováním turnaje je nutné:</strong>
-                    <ul style="list-style-position: inside; padding-left: 0; margin-top: 5px; color: var(--danger-color);">
-                        {% for error in wizard.get_readiness_errors() %}
-                            <li>{{ error }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% endif %}
+
+    <form action="/tournament_settings" method="POST" class="mb-0">
+
+        {% if wizard.check_readiness() %}
+
+            <button
+                type="submit"
+                name="action"
+                value="next"
+            >
+                Generovat turnaj
+            </button>
+
         {% else %}
-            <button type="submit" name="action" value="next" form="wizard_form">Uložit a pokračovat</button>
+
+            <button type="button" disabled>
+                Turnaj není připraven
+            </button>
+
+            <div
+                class="font-md"
+                style="margin-top: 15px; color: var(--danger-color);"
+            >
+                <strong>
+                    Před vygenerováním turnaje je nutné:
+                </strong>
+
+                <ul
+                    style="
+                        list-style-position: inside;
+                        padding-left: 0;
+                        margin-top: 5px;
+                        color: var(--danger-color);
+                    "
+                >
+                    {% for error in wizard.get_readiness_errors() %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
         {% endif %}
+
     </form>
+
 </div>

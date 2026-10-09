@@ -1,0 +1,100 @@
+<form
+    hx-post="{{ url_for('main.tournament_settings') }}"
+    hx-trigger="change"
+    hx-target="#base-settings-container"
+    hx-swap="innerHTML"
+>
+    <input
+        type="hidden"
+        name="action"
+        value="update_base_settings"
+    >
+
+    <fieldset
+        class="text-left"
+        style="width: 100%; box-sizing: border-box;"
+    >
+        <legend>Základní nastavení turnaje</legend>
+
+        <div class="form-row">
+            <label for="tournament_name">
+                Název turnaje:
+            </label>
+
+            <input
+                type="text"
+                id="tournament_name"
+                name="name"
+                value="{{ wizard.name }}"
+                placeholder="Název turnaje"
+            >
+        </div>
+
+        <div class="form-row">
+            <label for="tournament_date">
+                Datum turnaje:
+            </label>
+
+            <input
+                type="date"
+                id="tournament_date"
+                name="date"
+                value="{{ wizard.date }}"
+            >
+        </div>
+
+        <div class="form-row">
+            <label for="tournament_location">
+                Místo konání:
+            </label>
+
+            <input
+                type="text"
+                id="tournament_location"
+                name="location"
+                value="{{ wizard.location }}"
+                placeholder="Např. Praha, Sportcentrum..."
+            >
+        </div>
+
+        <div class="form-row">
+            <label for="tournament_format">
+                Formát turnaje:
+            </label>
+
+            <select
+                id="tournament_format"
+                name="tournament_format"
+            >
+                <option
+                    value="groups"
+                    {{ 'selected' if wizard.tournament_format == 'groups' else '' }}
+                >
+                    Skupiny
+                </option>
+
+                <option
+                    value="playoff_only"
+                    {{ 'selected' if wizard.tournament_format == 'playoff_only' else '' }}
+                >
+                    Pouze playoff
+                </option>
+            </select>
+        </div>
+
+        <div class="form-row mb-0">
+            <label for="include_in_global_stats">
+                Započítat do globálních statistik:
+            </label>
+
+            <input
+                type="checkbox"
+                id="include_in_global_stats"
+                name="include_in_global_stats"
+                value="true"
+                {{ 'checked' if wizard.include_in_global_stats else '' }}
+            >
+        </div>
+
+    </fieldset>
+</form>
