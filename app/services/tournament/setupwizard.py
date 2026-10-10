@@ -1,3 +1,4 @@
+import html5lib
 from bs4 import BeautifulSoup
 import requests
 from config import TOURNAMENT_FORMAT,GROUPS_RULES, PLAYOFF_RULES
@@ -177,21 +178,92 @@ class SetupWizard:
         url = url.strip()
 
         # Vynutíme českou verzi URL (odstraníme anglickou mutaci)
-        url = url.replace("/en/", "/")
+        url = url.replace("/en/event", "/udalost")
 
         if url.endswith("/"):
             url = url[:-1]
 
-        if not url.endswith("/ucastnici"):
-            url = f"{url}/ucastnici"
+        event_url = url
+        participants_url = f"{event_url}/ucastnici"
 
-        players = []
+
+        imported = {
+            "name": None,
+            "location": None,
+            "date": None,
+            "players_added": 0,
+        }
+
         try:
             # Přidáme hlavičku prohlížeče, aby server neodmítl Python bota
             headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-            r = requests.get(url, headers=headers, timeout=10)
+
+            # Hlavní stránka události
+            event_response = requests.get(
+                event_url,
+                headers=headers,
+                timeout=10
+            )
+            event_response.raise_for_status()
+
+            event_soup = BeautifulSoup(
+                event_response.content,
+                features="html5lib"
+            )
+
+            # místo konání
+            location_icon = event_soup.find(
+                "img",
+                alt="Místo konání"
+            )
+            if location_icon:
+                location_item = location_icon.find_parent("li")
+
+                if location_item:
+                    location_link = location_item.find("a")
+
+                    if location_link:
+                        location = location_link.get_text(strip=True)
+
+                        self.location = location
+                        imported["location"]= location
+
+            # název akce
+            title = event_soup.find("h1")
+
+            if title:
+                name = title.get_text(strip=True)
+                name = name.replace("ve stolním tenise", "")
+                name = " ".join(name.split())
+
+                self.name = name
+                imported["name"] = name
+
+            # datum konání
+            start_label = event_soup.find(
+                "th",
+                string=lambda value: value and value.strip() == "Začátek akce"
+            )
+            if start_label:
+                start_value = start_label.find_next_sibling("td")
+
+                if start_value:
+                    raw_date = start_value.get_text(strip=True)
+
+                    event_datetime = datetime.strptime(
+                        raw_date,
+                        "%d.%m.%Y %H:%M"
+                    )
+                    date = event_datetime.strftime("%Y-%m-%d")
+
+                    self.date = date
+                    imported["date"] = date
+
+            # Účastníci
+            r = requests.get(participants_url, headers=headers, timeout=10)
             r.raise_for_status()
             soup = BeautifulSoup(r.content, features="html5lib")
+
 
             header = soup.find("h3", id=lambda x: x and x.startswith("participants-") and x != "participants-0")
 
@@ -200,12 +272,19 @@ class SetupWizard:
 
                 if container_div:
                     players = [span.text.strip() for span in container_div.find_all("span")]
+
+                    before_count = self.total_tournament_players
+
                     self.add_players(", ".join(players))
-                    print(f"DEBUG: Scraping úspěšný, přidáno {len(players)} hráčů.")
-                else:
-                    print("DEBUG: Scraping selhal - nenašel se div s hráči.")
-            else:
-                print("DEBUG: Scraping selhal - nenašla se hlavička účastníků.")
+
+                    after_count = self.total_tournament_players
+
+                    imported["players_added"] = (
+                        after_count - before_count
+                    )
+
+                return imported
+
 
         except Exception as e:
             # Zabráníme tichému selhání
@@ -643,7 +722,7 @@ class SetupWizard:
             url = form_data.get("scrap_url")
 
             if url:
-                self.scrapped_url(
+                 return self.scrapped_url(
                     url=url
                 )
 

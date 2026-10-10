@@ -1,16 +1,29 @@
 from urllib.parse import quote
-from flask import render_template, request, redirect, send_file, make_response
+from flask import render_template, session, request, redirect, send_file, make_response
 from app.services.tournament.tournament import Tournament as TournamentOrchestrator
 from app.web.webmanager import WebManager
 from . import main_bp
 from app.services.utils.permission import can_edit_tournament
 from app.services.utils.export import TournamentExportService
 from app.models.models import  Match as MatchModel
+from app.services.tournament.tournament_management import TournamentManagementService
+
+def can_reconfigure_tournament(tournamnet_id: int) -> bool:
+    management = TournamentManagementService(
+        tournament_id=tournamnet_id,
+        organizer_id=session.get("organizer_id")
+    )
+
+    return management.can_reconfigure()
+
+
 
 @main_bp.route("/tournament/<int:tournament_id>/groups", methods=["GET", "POST"])
 def groups_view(tournament_id):
     web_manager = WebManager(tournament_id)
+
     editable = can_edit_tournament(web_manager.tournament)
+    can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
 
     if request.method == "POST" and editable:
         web_manager.process_match_action(request.form, is_playoff=False)
@@ -42,6 +55,7 @@ def groups_view(tournament_id):
         tournament=web_manager.tournament,
         group_data=group_data,
         editable=editable,
+        can_reconfigure=can_reconfigure,
         prefix=f"/tournament/{tournament_id}",
         base_template="tournament/base_tournament.html"
     )
@@ -51,6 +65,8 @@ def groups_view(tournament_id):
 def playoff_view(tournament_id):
     web_manager = WebManager(tournament_id)
     editable = can_edit_tournament(web_manager.tournament)
+    can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
+
 
     if request.method == "POST" and editable:
         web_manager.process_match_action(request.form, is_playoff=True, is_consolation=False)
@@ -62,6 +78,7 @@ def playoff_view(tournament_id):
                 tournament=web_manager.tournament,
                 p_data=p_data,
                 editable=editable,
+                can_reconfigure=can_reconfigure,
                 prefix=f"/tournament/{tournament_id}",
                 base_template="tournament/base_tournament.html"
             ))
@@ -80,6 +97,7 @@ def playoff_view(tournament_id):
         tournament=web_manager.tournament,
         p_data=p_data,
         editable=editable,
+        can_reconfigure=can_reconfigure,
         prefix=f"/tournament/{tournament_id}",
         base_template="tournament/base_tournament.html"
     )
@@ -89,6 +107,7 @@ def playoff_view(tournament_id):
 def consolation_minigroup_view(tournament_id):
     web_manager = WebManager(tournament_id)
     editable = can_edit_tournament(web_manager.tournament)
+    can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
 
     if request.method == "POST" and editable:
         web_manager.process_match_action(request.form, is_playoff=False)
@@ -103,6 +122,7 @@ def consolation_minigroup_view(tournament_id):
                 tournament=web_manager.tournament,
                 is_consolation=True,
                 editable=editable,
+                can_reconfigure=can_reconfigure,
                 prefix=f"/tournament/{tournament_id}",
                 base_template="tournament/base_tournament.html"
             ))
@@ -122,6 +142,7 @@ def consolation_minigroup_view(tournament_id):
         group_data=group_data,
         is_consolation=True,
         editable=editable,
+        can_reconfigure=can_reconfigure,
         prefix=f"/tournament/{tournament_id}",
         base_template="tournament/base_tournament.html"
     )
@@ -131,6 +152,8 @@ def consolation_minigroup_view(tournament_id):
 def consolation_playoff_view(tournament_id):
     web_manager = WebManager(tournament_id)
     editable = can_edit_tournament(web_manager.tournament)
+    can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
+
 
     if request.method == "POST" and editable:
         web_manager.process_match_action(request.form, is_playoff=True, is_consolation=True)
@@ -142,6 +165,7 @@ def consolation_playoff_view(tournament_id):
                 tournament=web_manager.tournament,
                 p_data=p_data,
                 editable=editable,
+                can_reconfigure=can_reconfigure,
                 prefix=f"/tournament/{tournament_id}",
                 base_template="tournament/base_tournament.html"
             ))
@@ -159,6 +183,7 @@ def consolation_playoff_view(tournament_id):
         tournament=web_manager.tournament,
         p_data=p_data,
         editable=editable,
+        can_reconfigure=can_reconfigure,
         prefix=f"/tournament/{tournament_id}",
         base_template="tournament/base_tournament.html"
     )
@@ -168,6 +193,8 @@ def consolation_playoff_view(tournament_id):
 def results_view(tournament_id):
     web_manager = WebManager(tournament_id)
     editable = can_edit_tournament(web_manager.tournament)
+    can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
+
 
     if request.method == "POST":
         action = request.form.get("action")
@@ -204,6 +231,7 @@ def results_view(tournament_id):
         results=results_data,
         can_finish=can_finish,
         editable=editable,
+        can_reconfigure=can_reconfigure,
         is_management=True,
         prefix=f"/tournament/{tournament_id}",
         base_template="tournament/base_tournament.html"

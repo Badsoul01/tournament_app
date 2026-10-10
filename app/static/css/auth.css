@@ -35,7 +35,22 @@
     box-shadow: 0 10px 30px rgba(0,0,0,0.9);
     z-index: 99999;
 }
-.auth-popup-logout { width: 200px; text-align: center; }
+.auth-popup-logout {
+    width: 200px;
+    text-align: center;
+}
+
+.auth-popup-logout > form {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.auth-popup-logout > form > button {
+    width: 100%;
+    box-sizing: border-box;
+}
+
 .auth-popup-login { width: 250px; }
 .auth-form-stack { display: flex; flex-direction: column; gap: 10px; }
 .auth-input-field {
@@ -57,13 +72,50 @@
     border-radius: 4px;
     cursor: pointer;
 }
-.auth-logout-btn {
+
+.auth-action-form {
     width: 100%;
+    margin: 0 0 8px 0;
+}
+
+.auth-action-form:last-child {
+    margin-bottom: 0;
+}
+
+.auth-action-btn,
+.auth-delete-btn,
+.auth-logout-btn {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.auth-logout-btn {
     background-color: var(--bg-card);
     color: var(--accent-silver);
     border: 1px solid var(--border-color);
-    font-weight: bold;
-    padding: 8px;
-    border-radius: 4px;
-    cursor: pointer;
+    margin-top: 10px;
+}
+
+.auth-action-btn {
+    background-color: var(--bg-card);
+    color: var(--accent-silver);
+    border: 1px solid var(--border-color);
+}
+
+
+.auth-delete-btn {
+    background-color: var(--bg-card);
+    color: #d46a6a;
+    border: 1px solid #7a3a3a;
+    margin-top: 2px;
+
+}
+
+.auth-delete-btn:hover {
+    background-color: #2a1515;
+    border-color: #b95656;
 }

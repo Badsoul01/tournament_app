@@ -18,6 +18,35 @@
                 Přihlášen jako:<br>
                 <strong class="text-main" style="font-size: 1.05em;">{{ session.get('organizer_name') }}</strong>
             </div>
+
+            {% if can_reconfigure and tournament %}
+
+                <form
+                    action="{{ url_for('main.edit_tournament', tournament_id=tournament.id) }}"
+                    method="GET"
+                    class="auth-action-form"
+                >
+                    <button type="submit" class="auth-action-btn">
+                        ⚙ Upravit turnaj
+                    </button>
+                </form>
+                <form
+                    action="{{ url_for('main.delete_tournament', tournament_id=tournament.id) }}"                    method="POST"
+                    class="auth-action-form"
+                    onsubmit="return confirm('Opravdu chcete tento turnaj trvale smazat?');"
+                >
+                    <button
+                        type="submit"
+                        class="auth-delete-btn"
+                    >
+                        🗑 Smazat turnaj
+                    </button>
+                </form>
+
+            {% endif %}
+
+
+
             <form action="/logout" method="POST" class="mb-0">
                 <button type="submit" class="auth-logout-btn w-100">
                     Odhlásit se

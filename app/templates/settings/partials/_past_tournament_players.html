@@ -15,7 +15,7 @@
         {% for player_name in available_players %}
         <li class="player-list-item">
             <span>{{ player_name }}</span>
-            <form hx-post="/settings_groups" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-0">
+            <form hx-post="{{ url_for('main.tournament_settings') }}" hx-target="#wizard-container" hx-swap="innerHTML" class="mb-0">
                 <input type="hidden" name="players_text" value="{{ player_name }}">
                 <input type="hidden" name="active_tournament_id" value="{{ selected_tournament.id }}">
                 <button type="submit" name="action" value="add_players" title="Přidat hráče" class="btn-icon-small">+</button>
