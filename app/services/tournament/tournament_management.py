@@ -6,7 +6,7 @@ from app.models.models import (
     Bracket as BracketModel
 )
 from app.services.tournament.tournament import Tournament as TournamentOrchestrator
-from services.tournament.setupwizard import SetupWizard
+from app.services.tournament.setupwizard import SetupWizard
 
 
 class TournamentManagementService:
