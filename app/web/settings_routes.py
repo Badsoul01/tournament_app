@@ -2,7 +2,7 @@ from flask import make_response, render_template, request, redirect, session
 from urllib.parse import quote
 import json
 
-from services.tournament.tournament_management import TournamentManagementService
+from app.services.tournament.tournament_management import TournamentManagementService
 from .blueprint import main_bp
 from config import GROUPS_RULES, PLAYOFF_RULES
 from app.services.tournament.setupwizard import SetupWizard

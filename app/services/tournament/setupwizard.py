@@ -1,4 +1,3 @@
-import html5lib
 from bs4 import BeautifulSoup
 import requests
 from config import TOURNAMENT_FORMAT,GROUPS_RULES, PLAYOFF_RULES
