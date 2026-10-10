@@ -14,7 +14,7 @@ class Tournament:
     Třída zodpovědná za celkovou orchestraci turnaje a zápis do databáze.
     """
 
-    def __init__(self, setup: SetupWizard) -> None:
+    def __init__(self, setup: SetupWizard, tournament_id: int | None= None) -> None:
 
         # =========================================================
         # POČET POSTUPUJÍCÍCH
@@ -32,35 +32,69 @@ class Tournament:
         # TURNAJ
         # =========================================================
 
-        db_tournament = TournamentModel(
-            name=setup.name,
+        if tournament_id is None:
 
-            date=datetime.strptime(
+            db_tournament = TournamentModel(
+                name=setup.name,
+
+                date=datetime.strptime(
+                    setup.date,
+                    "%Y-%m-%d"
+                ),
+
+                location=setup.location or None,
+                tournament_format=setup.tournament_format,
+                include_in_global_stats=setup.include_in_global_stats,
+                group_match_format=setup.group_match_format,
+                playoff_match_format=setup.playoff_match_format,
+                advance_per_group=advancing_count,
+                group_elimination_action=setup.group_elimination_action,
+                playoff_elimination_action=setup.playoff_elimination_action,
+                total_players=setup.total_tournament_players,
+                total_players_in_playoff=setup.total_players_advance_to_playoff,
+                has_playoff=has_playoff_flag,
+                has_consolation=False,
+
+                consolation_format=setup.group_elimination_action
+            )
+
+        else:
+            db_tournament = TournamentModel.query.get(tournament_id)
+
+            if not db_tournament:
+                raise ValueError("Turnaj neexistuje.")
+
+            db_tournament.name = setup.name
+            db_tournament.date = datetime.strptime(
                 setup.date,
                 "%Y-%m-%d"
-            ),
+            )
 
-            location=setup.location or None,
-            tournament_format=setup.tournament_format,
-            include_in_global_stats=setup.include_in_global_stats,
-            group_match_format=setup.group_match_format,
-            playoff_match_format=setup.playoff_match_format,
-            advance_per_group=advancing_count,
-            group_elimination_action=setup.group_elimination_action,
-            playoff_elimination_action=setup.playoff_elimination_action,
-            total_players=setup.total_tournament_players,
-            total_players_in_playoff=setup.total_players_advance_to_playoff,
-            has_playoff=has_playoff_flag,
-            has_consolation=False,
+            db_tournament.location = setup.location or None
+            db_tournament.tournament_format = setup.tournament_format
+            db_tournament.include_in_global_stats = setup.include_in_global_stats
 
-            consolation_format=setup.group_elimination_action
-        )
+            db_tournament.group_match_format = setup.group_match_format
+            db_tournament.playoff_match_format = setup.playoff_match_format
+            db_tournament.advance_per_group = advancing_count
+
+            db_tournament.group_elimination_action = setup.group_elimination_action
+            db_tournament.playoff_elimination_action = setup.playoff_elimination_action
+
+            db_tournament.total_players = setup.total_tournament_players
+            db_tournament.total_players_in_playoff = (
+                setup.total_players_advance_to_playoff
+            )
+
+            db_tournament.has_playoff = has_playoff_flag
+            db_tournament.has_consolation = False
+            db_tournament.consolation_format = setup.group_elimination_action
 
         # =========================================================
         # ORGANIZÁTOR
         # =========================================================
 
-        if 'organizer_id' in session:
+        if tournament_id is None and 'organizer_id' in session:
             db_tournament.organizer_id = session['organizer_id']
 
         db.session.add(db_tournament)
@@ -72,7 +106,7 @@ class Tournament:
         # HOSTOVSKÝ TURNAJ
         # =========================================================
 
-        if 'organizer_id' not in session:
+        if tournament_id is None and 'organizer_id' not in session:
             if 'guest_tournaments' not in session:
                 session['guest_tournaments'] = []
 

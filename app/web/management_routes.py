@@ -3,6 +3,49 @@ from datetime import datetime
 
 from .blueprint import main_bp
 from app.models.models import db, Tournament as TournamentModel, Organizer as OrganizerModel
+from app.services.tournament.tournament_management import TournamentManagementService
+
+
+def get_tournament_management(tournament_id: int) -> TournamentManagementService:
+    return TournamentManagementService(
+        tournament_id=tournament_id,
+        organizer_id=session.get("organizer_id")
+    )
+
+@main_bp.route("/tournament/<int:tournament_id>/management/check", methods=["GET"])
+def tournament_management_check(tournament_id):
+    management = get_tournament_management(tournament_id)
+
+    if not management.can_reconfigure():
+        return "forbidden", 403
+
+    return "ok", 200
+
+
+@main_bp.route("/tournament/<int:tournament_id>/edit")
+def edit_tournament(tournament_id):
+   management = get_tournament_management(tournament_id)
+
+   wizard = management.load_into_wizard()
+
+   if wizard is None:
+       return "Nemáte oprávnění upravovat tento turnaj.", 403
+
+   session["wizard_data"] = wizard.import_to_dict()
+   session["editing_tournament_id"] = tournament_id
+
+   return  redirect("/tournament_settings")
+
+@main_bp.route(
+    "/tournament/<int:tournament_id>/delete",
+    methods=["POST"]
+)
+def delete_tournament(tournament_id):
+    management = get_tournament_management(tournament_id)
+    if not management.delete_tournament():
+        return "Nemáte opravnění tento turnaj smazat.", 403
+
+    return  redirect("/")
 
 @main_bp.route("/auth", methods=["POST"])
 def auth_route():
@@ -60,7 +103,7 @@ def auth_route():
     if tournament_id and tournament_id.isdigit():
         response.headers["HX-Redirect"] = f"/tournament/{tournament_id}/groups"
     else:
-        response.headers["HX-Redirect"] = "/settings_groups"
+        response.headers["HX-Redirect"] = "/tournament_settings"
 
     return response
 
@@ -77,4 +120,4 @@ def logout_route():
         return redirect(referrer)
 
     # Fallback, pokud by referrer chyběl
-    return redirect("/settings_groups")
+    return redirect("/tournament_settings")

@@ -370,6 +370,7 @@ hr {
 }
 .past-tournaments-left {
     width: 50%;
+    min-width: 0;
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
@@ -378,12 +379,27 @@ hr {
 }
 .past-tournaments-right {
     width: 50%;
+    min-width: 0;
+
     display: flex;
     flex-direction: column;
+
     padding: 8px;
+
     overflow-y: auto;
-    white-space: nowrap;
+    overflow-x: hidden;
+
+    white-space: normal;
 }
+
+.past-tournaments-left,
+.past-tournaments-right {
+    flex: 0 0 50%;
+    width: auto;
+    min-width: 0;
+}
+
+
 .scrollable-list {
     white-space: nowrap;
     overflow-y: auto;
@@ -601,6 +617,7 @@ hr {
 }
 
 .settings-top-grid {
+    min-width: 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;

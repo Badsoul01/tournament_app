@@ -1,4 +1,8 @@
-from flask import render_template, request, redirect, session
+from flask import make_response, render_template, request, redirect, session
+from urllib.parse import quote
+import json
+
+from services.tournament.tournament_management import TournamentManagementService
 from .blueprint import main_bp
 from config import GROUPS_RULES, PLAYOFF_RULES
 from app.services.tournament.setupwizard import SetupWizard
@@ -16,7 +20,18 @@ def tournament_settings():
     if request.method == "POST":
         action = request.form.get("action")
 
-        wizard.process_form_action(form_data=request.form)
+        action_result =  wizard.process_form_action(
+            form_data=request.form
+        )
+
+        group_structure_actions = (
+            "increase_groups",
+            "decrease_groups",
+            "remove_single_group",
+            "reset_all_groups",
+        )
+
+
 
         if action == "cancel":
             session.pop("wizard_data", None)
@@ -45,12 +60,30 @@ def tournament_settings():
                     error="Turnaj není připraven"
                 )
 
-            new_tournament = TournamentOrchestrator(wizard)
+            editing_tournament_id = session.get("editing_tournament_id")
+
+            if editing_tournament_id:
+                management = TournamentManagementService(
+                    tournament_id=editing_tournament_id,
+                    organizer_id=session.get("organizer_id")
+                )
+
+                if not management.rebuild_tournamnet(wizard):
+                    return "Turnaj nelze upravit.", 403
+
+                tournament_id = editing_tournament_id
+
+            else:
+                new_tournament = TournamentOrchestrator(wizard)
+                tournament_id = new_tournament.id
+
+
 
             session.pop("wizard_data", None)
+            session.pop("editing_tournament_id", None)
 
             return redirect(
-                f"/tournament/{new_tournament.id}/groups"
+                f"/tournament/{tournament_id}/groups"
             )
 
         session["wizard_data"] = wizard.import_to_dict()
@@ -116,6 +149,60 @@ def tournament_settings():
                     + "</div>"
             )
 
+            if action == "scrap_players":
+
+                message_parts = []
+                if action_result:
+                    if action_result["name"]:
+                        message_parts.append(
+                            f"Název: {action_result['name']}"
+                        )
+
+                    if action_result["location"]:
+                        message_parts.append(
+                            f"Lokace: {action_result['location']}"
+                        )
+
+                    message_parts.append(
+                         f"Hráči: +{action_result['players_added']}"
+                    )
+
+
+                base_html = (
+                        '<div id="base-settings-container" hx-swap-oob="true">'
+                        + render_template(
+                    "settings/partials/_base_settings.html",
+                    wizard=wizard,
+                    GROUPS_RULES=GROUPS_RULES
+                )
+                        + "</div>"
+                )
+
+                response = make_response(
+                    main_html + base_html + button_html
+                )
+
+                response.headers["HX-Trigger"] = json.dumps({
+                    "showToast": quote(" • ".join(message_parts))
+                })
+
+                return response
+
+            if action in group_structure_actions:
+                rules_html = (
+                        '<div id="rules-settings-container" hx-swap-oob="true">'
+                        + render_template(
+                    "settings/partials/_rules_settings.html",
+                    wizard=wizard,
+                    GROUPS_RULES=GROUPS_RULES,
+                    PLAYOFF_RULES=PLAYOFF_RULES
+                )
+                        + "</div>"
+                )
+
+                return main_html + rules_html + button_html
+
+
             if (
                     active_tournament_id
                     and active_tournament_id.isdigit()
@@ -165,6 +252,8 @@ def tournament_settings():
                 )
 
                 return main_html + oob_html + button_html
+
+
 
             return main_html + button_html
 
@@ -251,4 +340,6 @@ def get_past_tournament_players(tournament_id):
 @main_bp.route("/reset_settings", methods=["POST"])
 def reset_settings():
     session.pop("wizard_data", None)
-    return redirect("/tournamnet_settings")
+    session.pop("editing_tournament_id", None)
+
+    return redirect("/tournament_settings")
