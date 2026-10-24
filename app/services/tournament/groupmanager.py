@@ -3,6 +3,8 @@ from app.models.models import db, Group as GroupModel,Player as PlayerModel, Mat
 from app.services.utils.player import PlayerHelper
 from app.services.tournament.playoff import Playoff
 
+from app.services.utils.transaction import commit_or_flush
+
 class GroupManager:
     """
     Třída zodpovědná za generování a správu zápasů ve skupinách
@@ -59,7 +61,7 @@ class GroupManager:
                 match_players = [match_players[0]] + [match_players[-1]] + match_players[1:-1]
 
         # Uložíme všechny vygenerované zápasy naráz do databáze jedním příkazem
-        db.session.commit()
+        commit_or_flush()
         print(
             f"DEBUG: Zápasy ve skupinách pro turnaj ID {self.tournament_id} byly úspěšně vygenerovány a uloženy do DB.")
 
@@ -89,7 +91,7 @@ class GroupManager:
         if db_match.player_a_id: PlayerHelper.recalculate_player_stats(db_match.player_a_id, "Group")
         if db_match.player_b_id: PlayerHelper.recalculate_player_stats(db_match.player_b_id, "Group")
 
-        db.session.commit()
+        commit_or_flush()
 
         group = GroupModel.query.get(db_match.group_id)
 
@@ -101,7 +103,7 @@ class GroupManager:
             return
 
         group.is_finished = True
-        db.session.commit()
+        commit_or_flush()
 
         ranked = self.rank_players(group.id, "Group")
         main_bracket = BracketModel.query.filter_by(tournament_id=self.tournament_id, name="Hlavní Playoff").first()
@@ -111,7 +113,7 @@ class GroupManager:
             # Není playoff a je to jediná skupina turnaje -> rovnou zapíšeme finální pořadí
             for idx, p in enumerate(ranked):
                 PlayerHelper.set_final_rank(p.id, idx + 1, stage_name="Group")
-            db.session.commit()
+            commit_or_flush()
             return
 
 
@@ -122,7 +124,7 @@ class GroupManager:
         letter = group.name.replace("Skupina ", "").strip()
         for idx, p in enumerate(advancing): p.group_seed = f"{idx + 1}{letter}"
         for idx, p in enumerate(eliminated): p.group_seed = f"{idx + 1 + adv_count}{letter}"
-        db.session.commit()
+        commit_or_flush()
 
         # Posun do Hlavního Playoff
         main_bracket = BracketModel.query.filter_by(tournament_id=self.tournament_id, name="Hlavní Playoff").first()
@@ -186,9 +188,9 @@ class GroupManager:
                                 is_finished=False
                             )
                             db.session.add(db_match)
-                            db.session.commit()
+                            commit_or_flush()
 
-                db.session.commit()
+                commit_or_flush()
 
     def _get_locked_group_positions(self, group_id: int) -> dict[int, PlayerModel]:
         """
@@ -313,6 +315,21 @@ class GroupManager:
 
         changed = False
 
+        # Ovlivněné větve otestujeme a vyčistíme před přesazením hráčů.
+        # Nezávislá již odehraná část hlavního pavouka zůstane zachována.
+        seeds_will_change = any(
+            player.group_seed != (
+                f"{player_to_locked_rank[player.id]}{letter}"
+                if player.id in player_to_locked_rank else None
+            )
+            for player in players
+        )
+        if seeds_will_change:
+            if main_engine:
+                main_engine.prepare_group_reseed(letter)
+            if cons_engine:
+                cons_engine.prepare_group_reseed(letter)
+
         # 1) Nejdřív odstraníme stará přiřazení, která po opravě výsledku
         #    už neplatí.
         for player in players:
@@ -331,15 +348,17 @@ class GroupManager:
 
                 if old_rank is not None:
                     if old_rank <= adv_count and main_engine:
-                        main_engine.remove_player_from_first_round(player.id, old_seed)
+                        if not main_engine.remove_player_from_first_round(player.id, old_seed):
+                            raise ValueError("Nelze změnit nasazení: původní zápas už je odehraný.")
                     elif old_rank > adv_count and cons_engine:
-                        cons_engine.remove_player_from_first_round(player.id, old_seed)
+                        if not cons_engine.remove_player_from_first_round(player.id, old_seed):
+                            raise ValueError("Nelze změnit nasazení útěchy: zápas už je odehraný.")
 
             player.group_seed = new_seed
             changed = True
 
         if changed:
-            db.session.commit()
+            commit_or_flush()
 
         # 2) Potom vložíme všechny aktuálně jisté pozice na správné místo.
         for rank, player in sorted(locked_positions.items()):
@@ -357,10 +376,14 @@ class GroupManager:
                     start_rank=rank - 1
                 )
 
+        # BYE již mohlo původního vítěze poslat do 2. kola. Nestačí
+        # přepsat první kolo: odvozované sloty musíme spočítat znovu.
         if main_engine is not None:
+            main_engine.check_and_proceed()
             main_engine.save_to_db()
 
         if cons_engine is not None:
+            cons_engine.check_and_proceed()
             cons_engine.save_to_db()
 
         # Round-robin útěchu při změně seedů znovu synchronizujeme.
@@ -428,7 +451,7 @@ class GroupManager:
                 )
                 db.session.add(db_match)
 
-        db.session.commit()
+        commit_or_flush()
 
     def _process_minigroup_finish(self, db_match, current_tournament) -> None:
         """Privátní metoda: Vyhodnotí zápas v minitabulce a rozdělí konečná umístění."""

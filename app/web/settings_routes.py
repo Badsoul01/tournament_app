@@ -2,7 +2,7 @@ from flask import make_response, render_template, request, redirect, session
 from urllib.parse import quote
 import json
 
-from app.services.tournament.tournament_management import TournamentManagementService
+from app.services.tournament.account_management import AccountManagementService
 from .blueprint import main_bp
 from config import GROUPS_RULES, PLAYOFF_RULES
 from app.services.tournament.setupwizard import SetupWizard
@@ -63,7 +63,7 @@ def tournament_settings():
             editing_tournament_id = session.get("editing_tournament_id")
 
             if editing_tournament_id:
-                management = TournamentManagementService(
+                management = AccountManagementService(
                     tournament_id=editing_tournament_id,
                     organizer_id=session.get("organizer_id")
                 )

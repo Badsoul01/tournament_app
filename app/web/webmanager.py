@@ -5,6 +5,8 @@ from app.services.utils.player import PlayerHelper
 from app.services.tournament.groupmanager import GroupManager
 from app.services.tournament.playoff import Playoff
 from app.services.utils.match import evaluate,toggle_match_progress, unlock_match
+from app.models.models import db
+from app.services.utils.transaction import atomic_result_update
 
 
 class WebManager:
@@ -32,6 +34,45 @@ class WebManager:
             }
         return group_data
 
+    def _check_group_edit_safe(self, match_id: int) -> None:
+        """Ochrana opravy skupiny podle skutecne dotcenych hracu.
+
+        Oprava skupiny nesmi zmenit jiz odehrane playoff/utechu, ktere
+        se ucastnil nektery hrac teze skupiny. Neodehrane zapasy a BYE
+        uprave nebrani. Upozorneni: jde o predbeznou pojistku, nikoli
+        o atomickou aktualizaci celeho pavouka.
+        """
+        match = MatchModel.query.get_or_404(match_id)
+        if match.tournament_id != self.tournament_id:
+            raise ValueError("Zápas nepatří do tohoto turnaje.")
+        if not match.group_id:
+            return
+
+        group = GroupModel.query.get_or_404(match.group_id)
+        group_player_ids = {player.id for player in group.players}
+        if not group_player_ids:
+            return
+
+        for candidate in MatchModel.query.filter_by(
+                tournament_id=self.tournament_id,
+                is_finished=True
+        ).all():
+            if candidate.group_id:
+                continue
+            # Automaticky dokoncene BYE neni odehrany zapas.
+            if candidate.player_a_id is None or candidate.player_b_id is None:
+                continue
+            if not (candidate.player_a_id in group_player_ids or
+                    candidate.player_b_id in group_player_ids):
+                continue
+            if (candidate.winner_id is not None or
+                    candidate.score_a is not None or
+                    candidate.score_b is not None):
+                raise ValueError(
+                    "Oprava skupiny je zablokovaná: hráč této skupiny už "
+                    "odehrál zápas v playoff nebo útěše. Nic jsme neměnili."
+                )
+
     def process_match_action(self, form_data, is_playoff=False, is_consolation=False):
         """Univerzální zpracování zápasových akcí (toggle, unlock, submit_result)."""
         match_id = int(form_data.get("match_id", 0))
@@ -40,23 +81,35 @@ class WebManager:
         if not match_id or not action:
             return
 
+        # Kontrola před JAKOUKOLIV databázovou změnou skupinového zápasu.
+        # Včetně "edit_match", který jinak okamžitě commitne is_finished=False.
+        # Na úrovni skupiny neblokujeme jiné odehrané větve.
+        # Ochranu provede Playoff.prepare_group_reseed() při přepočtu.
+        if action in ("edit_match", "submit_result"):
+            match = MatchModel.query.get_or_404(match_id)
+            if match.tournament_id != self.tournament_id:
+                raise ValueError("Zápas nepatří do tohoto turnaje.")
+
         if action == "toggle_progress":
             toggle_match_progress(match_id)
         elif action == "edit_match":
             unlock_match(match_id=match_id)
         elif action == "submit_result":
-            # Vyhodnocení samotného zápasu (sety)
-            evaluate(
-                match_id=match_id,
-                player_a_games=form_data.getlist("game_a[]"),
-                player_b_games=form_data.getlist("game_b[]")
-            )
+            # Skóre, statistiky, seedy i pavouk = jedna transakce.
+            # Všechny pomocné metody během ní jen flushují.
+            with atomic_result_update():
+                finished = evaluate(
+                    match_id=match_id,
+                    player_a_games=form_data.getlist("game_a[]"),
+                    player_b_games=form_data.getlist("game_b[]")
+                )
+                if not finished:
+                    raise ValueError("Výsledek neobsahuje platné sety.")
+                if is_playoff:
+                    self.handle_playoff_completion(is_consolation=is_consolation)
+                else:
+                    self.group_manager.handle_match_completion(match_id, self.tournament)
 
-            # Dokončení podle typu turnaje (skupina vs playoff)
-            if is_playoff:
-                self.handle_playoff_completion(is_consolation=is_consolation)
-            else:
-                self.group_manager.handle_match_completion(match_id, self.tournament)
 
     def get_minigroup_page_data(self) -> dict:
         """Připraví data pro minitabulku útěchy (consolation_minigroup.html)."""

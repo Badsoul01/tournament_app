@@ -2,6 +2,8 @@ from app.models.models import db, Match as MatchModel, MatchResults as MatchResu
 from app.services.utils.player import PlayerHelper
 
 
+from app.services.utils.transaction import commit_or_flush
+
 def evaluate(match_id, player_a_games: list, player_b_games: list) -> bool:
     """
     Vyhodnotí zápas na základě odehraných setů:
@@ -65,7 +67,7 @@ def evaluate(match_id, player_a_games: list, player_b_games: list) -> bool:
     db_match.is_finished = True
 
     # Uložení změn do databáze
-    db.session.commit()
+    commit_or_flush()
 
     # Přepočet statistik pro oba hráče
     stage = "Group" if db_match.group_id else "Playoff"
@@ -80,11 +82,11 @@ def toggle_match_progress(match_id: int):
     """Přepne stav rozbalení/zavření zápasu na webu."""
     db_match = MatchModel.query.get_or_404(match_id)
     db_match.is_in_progress = not getattr(db_match, "is_in_progress", False)
-    db.session.commit()
+    commit_or_flush()
 
 def unlock_match(match_id: int):
     """Odemkne již ukončený zápas pro úpravu výsledku."""
     db_match = MatchModel.query.get_or_404(match_id)
     db_match.is_finished = False
     db_match.is_in_progress = True
-    db.session.commit()
+    commit_or_flush()

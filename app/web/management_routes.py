@@ -3,11 +3,11 @@ from datetime import datetime
 
 from .blueprint import main_bp
 from app.models.models import db, Tournament as TournamentModel, Organizer as OrganizerModel
-from app.services.tournament.tournament_management import TournamentManagementService
+from app.services.tournament.account_management import AccountManagementService
 
 
-def get_tournament_management(tournament_id: int) -> TournamentManagementService:
-    return TournamentManagementService(
+def get_tournament_management(tournament_id: int) -> AccountManagementService:
+    return AccountManagementService(
         tournament_id=tournament_id,
         organizer_id=session.get("organizer_id")
     )

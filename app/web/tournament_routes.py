@@ -3,13 +3,12 @@ from flask import render_template, session, request, redirect, send_file, make_r
 from app.services.tournament.tournament import Tournament as TournamentOrchestrator
 from app.web.webmanager import WebManager
 from . import main_bp
-from app.services.utils.permission import can_edit_tournament
 from app.services.utils.export import TournamentExportService
 from app.models.models import  Match as MatchModel
-from app.services.tournament.tournament_management import TournamentManagementService
+from app.services.tournament.account_management import AccountManagementService
 
 def can_reconfigure_tournament(tournamnet_id: int) -> bool:
-    management = TournamentManagementService(
+    management = AccountManagementService(
         tournament_id=tournamnet_id,
         organizer_id=session.get("organizer_id")
     )
@@ -22,7 +21,9 @@ def can_reconfigure_tournament(tournamnet_id: int) -> bool:
 def groups_view(tournament_id):
     web_manager = WebManager(tournament_id)
 
-    editable = can_edit_tournament(web_manager.tournament)
+    editable = AccountManagementService.can_edit_tournament(
+        web_manager.tournament
+    )
     can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
 
     if request.method == "POST" and editable:
@@ -64,7 +65,9 @@ def groups_view(tournament_id):
 @main_bp.route("/tournament/<int:tournament_id>/playoff", methods=["GET", "POST"])
 def playoff_view(tournament_id):
     web_manager = WebManager(tournament_id)
-    editable = can_edit_tournament(web_manager.tournament)
+    editable = AccountManagementService.can_edit_tournament(
+        web_manager.tournament
+    )
     can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
 
 
@@ -106,7 +109,9 @@ def playoff_view(tournament_id):
 @main_bp.route("/tournament/<int:tournament_id>/consolation_minigroup", methods=["GET", "POST"])
 def consolation_minigroup_view(tournament_id):
     web_manager = WebManager(tournament_id)
-    editable = can_edit_tournament(web_manager.tournament)
+    editable = AccountManagementService.can_edit_tournament(
+        web_manager.tournament
+    )
     can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
 
     if request.method == "POST" and editable:
@@ -151,7 +156,9 @@ def consolation_minigroup_view(tournament_id):
 @main_bp.route("/tournament/<int:tournament_id>/consolation_playoff", methods=["POST", "GET"])
 def consolation_playoff_view(tournament_id):
     web_manager = WebManager(tournament_id)
-    editable = can_edit_tournament(web_manager.tournament)
+    editable = AccountManagementService.can_edit_tournament(
+        web_manager.tournament
+    )
     can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
 
 
@@ -192,7 +199,9 @@ def consolation_playoff_view(tournament_id):
 @main_bp.route("/tournament/<int:tournament_id>/results", methods=["GET", "POST"])
 def results_view(tournament_id):
     web_manager = WebManager(tournament_id)
-    editable = can_edit_tournament(web_manager.tournament)
+    editable = AccountManagementService.can_edit_tournament(
+        web_manager.tournament
+    )
     can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
 
 

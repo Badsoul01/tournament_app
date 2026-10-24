@@ -2,6 +2,8 @@ from app.models.models import db, Match as MatchModel,GroupStats as GroupStatsMo
     Player as PlayerModel, Bracket as BracketModel
 from sqlalchemy import or_
 
+from app.services.utils.transaction import commit_or_flush
+
 class PlayerHelper:
     """
     Pomocná třída pro správu statistik a výpočtů nad databázovým modelem hráče.
@@ -15,7 +17,7 @@ class PlayerHelper:
             stats = GroupStatsModel(player_id=player_id, points=0, games_win=0, games_lost=0,
                                balls_win=0, balls_lost=0)
             db.session.add(stats)
-            db.session.commit()
+            commit_or_flush()
         return stats
 
     @staticmethod
@@ -25,7 +27,7 @@ class PlayerHelper:
         if not stats:
             stats = PlayoffStatsModel(player_id=player_id)
             db.session.add(stats)
-            db.session.commit()
+            commit_or_flush()
         return stats
 
     @staticmethod
@@ -36,7 +38,7 @@ class PlayerHelper:
             stats = ConsolationStatsModel(player_id=player_id, points=0, games_win=0, games_lost=0,
                                      balls_win=0, balls_lost=0)
             db.session.add(stats)
-            db.session.commit()
+            commit_or_flush()
         return stats
 
     @staticmethod
@@ -72,7 +74,7 @@ class PlayerHelper:
             stats = PlayerHelper.get_or_create_consolation_stats(player_id)
             stats.final_rank = rank
 
-        db.session.commit()
+        commit_or_flush()
 
     @staticmethod
     def difference_of_score(player_id: int, tournament_stage: str) -> dict[str, int]:
@@ -144,7 +146,7 @@ class PlayerHelper:
             stats.games_lost = 0
             stats.balls_win = 0
             stats.balls_lost = 0
-            db.session.commit()
+            commit_or_flush()
             return
 
         points = 0
@@ -191,5 +193,5 @@ class PlayerHelper:
         stats.balls_win = balls_win
         stats.balls_lost = balls_lost
 
-        db.session.commit()
+        commit_or_flush()
         print(f"DEBUG: Statistiky pro hráče ID {player_id} ({stage_name}) byly přepočítány.")

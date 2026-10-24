@@ -2,6 +2,8 @@ from app.models.models import db, Match as MatchModel, Player as PlayerModel, Br
 from app.services.utils.player import PlayerHelper
 import math
 
+from app.services.utils.transaction import commit_or_flush
+
 class Playoff:
     """
     Třída zodpovědná za správu a logiku playoff, včetně generování kol,
@@ -62,7 +64,7 @@ class Playoff:
                 "rounds": self.rounds,
                 "placement_rounds": self.placement_rounds
             }
-            db.session.commit()
+            commit_or_flush()
 
     def generate_full_bracket_structure(self, groups: dict, seeding_engine, start_rank: int = 1, end_rank: int = 0) -> None:
         """
@@ -275,7 +277,7 @@ class Playoff:
                             changed = True
 
                     if changed:
-                        db.session.commit()
+                        commit_or_flush()
 
                 updated_round.append(item)
             else:
@@ -327,7 +329,12 @@ class Playoff:
 
                 # Pokud byl zápas skutečně odehrán, jeho změna by vyžadovala
                 # zrušení výsledku a navazujících kol.
-                if db_match.is_finished and db_match.winner_id is not None:
+                # Automatické BYE není skutečně odehraný zápas.
+                # Odlišujeme jej podle chybějícího soupeře.
+                is_automatic_bye = (
+                    (db_match.player_a_id is None) != (db_match.player_b_id is None)
+                )
+                if db_match.is_finished and db_match.winner_id is not None and not is_automatic_bye:
                     return False
 
                 # Zápas ještě nezačal: vrátíme ho zpět na slotovou dvojici,
@@ -356,6 +363,84 @@ class Playoff:
 
         return True
 
+    @staticmethod
+    def _real_result(match):
+        """Automatický BYE ani BYE×BYE se nepovažují za odehraný zápas."""
+        return (match is not None and match.is_finished
+                and match.player_a_id is not None
+                and match.player_b_id is not None)
+
+    def prepare_group_reseed(self, group_letter: str) -> bool:
+        """Před změnou nasazení uvolní pouze navazující větev dotčené skupiny.
+
+        Ostatní odehraná kola a první kolo zůstávají zachována.
+        U dohrávek zatím používáme konzervativní bezpečnostní zákaz,
+        pokud v nich byl odehrán skutečný zápas.
+        """
+        if 1 not in self.rounds:
+            return False
+        affected = set()
+        for index, item in enumerate(self.rounds[1]):
+            if isinstance(item, (list, tuple)):
+                if any(isinstance(slot, str) and slot[:-1].isdigit()
+                       and slot.endswith(group_letter) for slot in item):
+                    affected.add(index)
+            elif isinstance(item, int):
+                match = MatchModel.query.get(item)
+                if match and any(isinstance(seed, str) and seed[:-1].isdigit()
+                                 and seed.endswith(group_letter)
+                                 for seed in (match.seed_a, match.seed_b)):
+                    affected.add(index)
+        if not affected:
+            return False
+
+        # Nejdřív kompletní validace, teprve potom jakékoli mazání.
+        positions = set(affected)
+        for round_number in sorted(self.rounds):
+            if round_number > 1:
+                positions = {index // 2 for index in positions}
+            for index in positions:
+                item = self.rounds[round_number][index]
+                if isinstance(item, int) and self._real_result(MatchModel.query.get(item)):
+                    raise ValueError(
+                        "Oprava nasazení zablokována: navazující zápas je již odehrán."
+                    )
+
+        for data in self.placement_rounds.values():
+            for item in data.get("matches", []):
+                if isinstance(item, int) and self._real_result(MatchModel.query.get(item)):
+                    raise ValueError(
+                        "Oprava nasazení zablokována: dohrávky již mají odehraný výsledek."
+                    )
+
+        # Vyčisti potomky pouze dotčených prvokolových pozic.
+        positions = set(affected)
+        for round_number in sorted(self.rounds):
+            if round_number == 1:
+                continue
+            positions = {index // 2 for index in positions}
+            for index in positions:
+                item = self.rounds[round_number][index]
+                if isinstance(item, int):
+                    match = MatchModel.query.get(item)
+                    if match is not None:
+                        db.session.delete(match)
+                self.rounds[round_number][index] = ("Čeká se..", "Čeká se..")
+
+        # Je-li aktivní pavouk o umístění, obnovíme jeho neodehrané sloty
+        # ze všech zachovaných skutečných výsledků při check_and_proceed().
+        for data in self.placement_rounds.values():
+            matches = data.get("matches", [])
+            for item in matches:
+                if isinstance(item, int):
+                    match = MatchModel.query.get(item)
+                    if match is not None:
+                        db.session.delete(match)
+            data["matches"] = [("Čeká se..", "Čeká se..") for _ in matches]
+
+        db.session.flush()
+        return True
+
     def check_and_proceed(self) -> None:
         """
         Hlavní motor pavouka. Zkontroluje aktuální stav všech vygenerovaných
@@ -376,7 +461,7 @@ class Playoff:
             em.is_finished = True
             em.winner_id = None
         if empty_matches:
-            db.session.commit()
+            commit_or_flush()
 
 
         main_rounds = sorted([r for r in self.rounds.keys() if isinstance(r, int)])
@@ -543,7 +628,7 @@ class Playoff:
                 db_match.winner_id = None
 
             db.session.add(db_match)
-            db.session.commit()
+            commit_or_flush()
 
             return db_match.id
 
@@ -579,7 +664,7 @@ class Playoff:
                     db_match.player_a_id = player_id
                 else:
                     db_match.player_b_id = player_id
-                db.session.commit()
+                commit_or_flush()
 
     def get_ui_data(self) -> dict:
         """Vygeneruje data o pavouku ve formátu vhodném pro HTML šablonu."""
