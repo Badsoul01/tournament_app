@@ -1,0 +1,265 @@
+<!doctype html>
+
+
+<html lang="cs">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Správa turnajů – offline režim</title>
+<link href="./style.css" rel="stylesheet"/>
+<!-- Převzaté styly hlavního webu (z dodaného css.zip) -->
+<link href="./live_style.css?v=1" rel="stylesheet"/>
+<link href="./live_perchanment.css?v=1" rel="stylesheet"/>
+<link href="./live_nav.css?v=1" rel="stylesheet"/>
+<link href="./live_tournament.css?v=1" rel="stylesheet"/>
+<!-- Malý adaptér offline formulářů a navigace -->
+<link href="./offline_live_adapter.css?v=1" rel="stylesheet"/>
+<style>
+    /* Offline UI layout only. The original parchment CSS stays untouched. */
+    body.offline-live-theme .offline-workspace > h2 { margin-bottom:.65rem; }
+    body.offline-live-theme .offline-workspace > #status,
+    body.offline-live-theme .offline-workspace > #saved { text-align:center; overflow-wrap:anywhere; }
+    body.offline-live-theme .offline-data-management {
+      margin:1.15rem auto 0; max-width:900px;
+      border:1px solid var(--border-color, #33465f);
+      border-radius:6px; background:rgba(9,18,31,.45); padding:.7rem 1rem;
+    }
+    body.offline-live-theme .offline-data-management > summary {
+      cursor:pointer; text-align:left; color:var(--accent-silver, #c4d4e8);
+      font-family:Georgia,serif; font-weight:bold;
+    }
+    body.offline-live-theme .offline-data-management-body { text-align:left; padding-top:1rem; }
+    body.offline-live-theme .offline-data-management-body > label,
+    body.offline-live-theme .offline-data-management-body > input { display:inline-block; max-width:100%; }
+    body.offline-live-theme #advancedQueueTools > section { padding:.6rem 0; margin:0; border:0; box-shadow:none; background:transparent; }
+    body.offline-live-theme #advancedQueueTools > button { margin-right:.6rem; }
+    body.offline-live-theme #stageSyncSection { padding:1rem; }
+    @media(max-width:680px) { body.offline-live-theme .offline-data-management { padding:.65rem; } }
+    /* Skupiny: původní diagnostické sekce nevykreslovat ani během
+       asynchronního načítání WebManageru; nové skupiny se zobrazí po dokončení. */
+    body.offline-live-theme:has(.offline-nav a[data-offline-page="groups"][aria-current="page"])
+      #output > section:not(.offline-live-groups) {
+      display: none !important;
+    }
+    /* Don't show legacy diagnostics during the first paint of playoff / consolation. */
+    body.offline-live-theme:has(.offline-nav a[data-offline-page="playoff"][aria-current="page"])
+      #output > section:not(.offline-live-main),
+    body.offline-live-theme:has(.offline-nav a[data-offline-page="consolation"][aria-current="page"])
+      #output > section:not(.offline-live-consolation) {
+      display: none !important;
+    }
+    /* Results are read from WebManager, not the old diagnostic listing. */
+    body.offline-live-theme:has(.offline-nav a[data-offline-page="results"][aria-current="page"])
+      #output > section:not(.offline-live-results) {
+      display: none !important;
+    }
+    body.offline-live-theme:has(.offline-nav a[data-offline-page="playoff"][aria-current="page"])
+      section.offline-lab-match-hidden,
+    body.offline-live-theme:has(.offline-nav a[data-offline-page="consolation"][aria-current="page"])
+      section.offline-lab-match-hidden {
+      display: none !important;
+    }
+  </style>
+<link href="./offline_player_catalog.css?v=1" rel="stylesheet"/>
+<link href="./offline_group_draft.css?v=1" rel="stylesheet"/>
+<link href="./offline_groups_live.css?v=2" rel="stylesheet"/>
+<link href="./offline_playoff_live.css?v=2" rel="stylesheet"/>
+<link href="./offline_results_live.css?v=1" rel="stylesheet"/>
+<script defer="" src="./app.js?v=auto-start-ui-v1"></script>
+<script defer="" src="./sync_stage.js?v=3"></script>
+<style id="offline-live-setup-css">
+/* Offline SetupWizard: layout adapted from settings/tournament_settings.html.
+   Preserve all functional IDs, original JS and the parchment theme. */
+body.offline-live-theme .live-setup-page { text-align:left; }
+body.offline-live-theme .live-setup-page > h2, body.offline-live-theme .live-setup-subtitle { text-align:center; }
+body.offline-live-theme .live-setup-page .offline-setup-fieldset { max-width:none; width:100%; min-width:0; box-sizing:border-box; margin:0; }
+body.offline-live-theme .live-setup-section { margin:0 0 20px; }
+body.offline-live-theme .live-setup-top-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; align-items:stretch; margin-bottom:20px; }
+body.offline-live-theme .live-setup-left { display:flex; flex-direction:column; gap:18px; min-width:0; }
+body.offline-live-theme .live-setup-seeding { flex:1; }
+body.offline-live-theme .live-setup-seeding button { width:100%; margin-top:12px; }
+body.offline-live-theme .live-setup-player-input textarea { min-height:170px; margin-bottom:8px; }
+body.offline-live-theme .live-setup-past { display:flex; flex-direction:column; }
+body.offline-live-theme .live-setup-past .offline-player-catalog { width:100%; max-width:none; box-sizing:border-box; min-width:0; padding:0; margin:0; border:0; background:transparent; box-shadow:none; }
+body.offline-live-theme .live-setup-past .offline-player-catalog h3 { display:none; }
+body.offline-live-theme .live-setup-past .offline-catalog-columns { min-width:0; }
+body.offline-live-theme .live-setup-draft .offline-group-draft { border:1px solid var(--border-color, #33465f); background:rgba(8,20,35,.30); border-radius:6px; padding:16px; margin:0; }
+body.offline-live-theme .live-setup-rules-grid { display:grid; grid-template-columns:minmax(0,2fr) minmax(220px,1fr); gap:20px; margin-bottom:20px; align-items:start; }
+body.offline-live-theme .live-setup-consolation .small { margin-top:12px; }
+body.offline-live-theme .live-setup-submit { border-top:1px solid var(--border-color,#33465f); padding-top:18px; text-align:center; }
+body.offline-live-theme .live-setup-submit .controls { justify-content:center; }
+body.offline-live-theme .live-setup-submit #createOfflineTournament { font-weight:bold; min-height:44px; padding-inline:22px; }
+body.offline-live-theme .live-setup-submit #createOfflineStatus { text-align:center; overflow-wrap:anywhere; }
+@media(max-width:850px) {
+ body.offline-live-theme .live-setup-top-grid, body.offline-live-theme .live-setup-rules-grid { grid-template-columns:minmax(0,1fr); }
+ body.offline-live-theme .live-setup-seeding { flex:auto; }
+}
+@media(max-width:620px) {
+ body.offline-live-theme .live-setup-page .offline-setup-fieldset { padding:12px; }
+ body.offline-live-theme .live-setup-page .offline-setup-fieldset .form-row { grid-template-columns:minmax(0,1fr); gap:6px; }
+ body.offline-live-theme .live-setup-page .offline-setting-grid { grid-template-columns:minmax(0,1fr); }
+}
+</style></head>
+<body class="offline-live-theme">
+<div class="scroll-parchment">
+<div aria-hidden="true" class="parchment-side parchment-left"></div>
+<div aria-hidden="true" class="parchment-side parchment-right"></div>
+<main class="offline-main">
+<h1 class="unified-nav-title">Správa turnajů – offline režim</h1>
+<p>Vytvoř nebo načti turnaj, zapisuj výsledky bez internetu a po dokončení turnaj přenes na server. Rozehraná data zůstávají uložená v tomto zařízení.</p>
+<section aria-label="Stav offline turnaje" class="offline-workspace" id="offlineWorkspace">
+<h2>Stav turnaje</h2>
+<p id="status" role="status">Načítám lokální data…</p>
+<p id="saved"></p>
+<div id="error" role="alert"></div>
+<details class="offline-data-management" id="dataManagement">
+<summary>Správa dat a pokročilé možnosti</summary>
+<div class="offline-data-management-body">
+<label for="dbfile"><strong>Importovat turnaj ze SQLite:</strong></label>
+<input accept=".sqlite,.db,.sqlite3" id="dbfile" type="file"/>
+<div class="controls">
+<button id="loadSaved" type="button">Načíst uložený turnaj znovu</button>
+<button id="prepare" type="button">Připravit offline ručně</button>
+<button id="remove" type="button">Smazat uloženou kopii</button>
+</div>
+<p class="small">Automatické spuštění používá poslední lokální turnaj. Před smazáním si stáhni zálohu SQLite a případně fronty výsledků. Zápisy se samy neposílají.</p>
+<div id="advancedQueueTools"></div>
+</div>
+</details>
+</section>
+<section class="offline-settings-section live-setup-page" id="newTournamentPanel">
+<h2>Nový offline turnaj</h2>
+<p class="small live-setup-subtitle">Připrav hráče a skupiny stejně jako na hlavním webu. Turnaj se vytvoří až po potvrzení rozdělení.</p>
+<div class="live-setup-section"><fieldset class="offline-setup-fieldset">
+<legend>Základní nastavení turnaje</legend>
+<div class="form-row"><label for="newTournamentName">Název turnaje:</label><input id="newTournamentName" maxlength="100" placeholder="Název turnaje" value=""/></div>
+<div class="form-row"><label for="newTournamentDate">Datum turnaje:</label><input id="newTournamentDate" type="date"/></div>
+<div class="form-row"><label for="newTournamentLocation">Místo konání:</label><input id="newTournamentLocation" placeholder="Např. Praha, Sportcentrum..." value=""/></div>
+</fieldset></div>
+<div class="live-setup-top-grid">
+<div class="live-setup-left">
+<fieldset class="offline-setup-fieldset live-setup-player-input"><legend>Skupiny a hráči</legend>
+<div class="offline-players-manual">
+<label for="newTournamentPlayers">Přidaní hráči / ruční přidání:</label>
+<textarea id="newTournamentPlayers" placeholder="Každého hráče napiš na samostatný řádek" rows="10"></textarea>
+<p class="small">Hráče můžeš psát ručně nebo přidat z minulého turnaje vpravo.</p>
+</div>
+</fieldset>
+<fieldset class="offline-setup-fieldset live-setup-seeding"><legend>Automatické nasazení (Seeding)</legend>
+<p class="small">Náhodně rozdělí hráče do skupin. Rozložení můžeš před vytvořením turnaje upravit ručně.</p>
+<p class="small">Nasazení podle žebříčku zatím offline není dostupné.</p>
+<button id="liveSeedShortcut" type="button">🎲 Rozlosovat a nasadit hráče</button>
+</fieldset>
+</div>
+<fieldset class="offline-setup-fieldset live-setup-past"><legend>Minulé turnaje</legend>
+<div aria-labelledby="playerCatalogTitle" class="offline-player-catalog" id="playerCatalogPanel">
+<h3 id="playerCatalogTitle">Minulé turnaje</h3>
+<p aria-live="polite" class="small" id="playerCatalogStatus" role="status">Načítám uložené hráče…</p>
+<label for="playerCatalogSearch">Hledat turnaj:</label>
+<input id="playerCatalogSearch" placeholder="Název turnaje" type="search"/>
+<div class="offline-catalog-columns">
+<div>
+<h4>Turnaje</h4>
+<div class="offline-catalog-list" id="playerCatalogTournaments"></div>
+</div>
+<div>
+<h4>Dostupní hráči</h4>
+<button class="offline-catalog-add-all" hidden="" id="playerCatalogAddAll" type="button">+ Přidat všechny</button>
+<div aria-live="polite" class="offline-catalog-list" id="playerCatalogPlayers">Vyber turnaj vlevo.</div>
+</div>
+</div>
+<button class="offline-catalog-refresh" id="playerCatalogRefresh" type="button">Aktualizovat hráče (online)</button>
+</div>
+</fieldset>
+</div>
+<div class="live-setup-section live-setup-draft"><div aria-labelledby="offlineGroupDraftTitle" class="offline-group-draft" id="offlineGroupDraft">
+<h3 id="offlineGroupDraftTitle">Příprava skupin</h3>
+<p class="small">Klepni na jméno hráče, potom na název cílové skupiny. Ikona koše hráče odstraní z připravovaného turnaje.</p>
+<div class="offline-draft-toolbar">
+<button id="draftAutoSeed" type="button">Rozlosovat hráče</button>
+<button id="draftClearGroups" type="button">Vrátit všechny mezi nezařazené</button>
+<button aria-label="Smazat označeného hráče" disabled="" id="draftRemovePlayer" title="Smazat označeného hráče" type="button">🗑️ Smazat hráče</button>
+</div>
+<p aria-live="polite" id="draftSelection" role="status">Zatím není vybraný žádný hráč.</p>
+<div class="offline-draft-unassigned">
+<h4>Nezařazení hráči <span id="draftUnassignedCount"></span></h4>
+<div class="offline-draft-player-list" id="draftUnassigned"></div>
+</div>
+<div class="offline-draft-groups" id="draftGroups"></div>
+<p aria-live="polite" id="draftStatus" role="status"></p>
+</div></div>
+<div class="live-setup-rules-grid">
+<fieldset class="offline-setup-fieldset"><legend>Nastavení pravidel turnaje</legend>
+<div class="offline-setting-grid">
+<div class="form-row"><label for="newTournamentGroups">Počet skupin:</label><select id="newTournamentGroups"><option selected="" value="4">4</option><option value="2">2</option><option value="3">3</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select></div>
+<div class="form-row"><label for="newTournamentAdvance">Postup ze skupiny:</label><select id="newTournamentAdvance"><option selected="" value="2">2</option><option value="1">1</option><option value="3">3</option><option value="4">4</option></select></div>
+<div class="form-row"><label for="newGroupFormat">Sety ve skupinách:</label><select id="newGroupFormat"><option selected="" value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></div>
+<div class="form-row"><label for="newPlayoffFormat">Sety v playoff:</label><select id="newPlayoffFormat"><option selected="" value="3">3</option><option value="2">2</option><option value="4">4</option><option value="5">5</option></select></div>
+</div>
+</fieldset>
+<fieldset class="offline-setup-fieldset live-setup-consolation"><legend>Útěcha</legend>
+<label class="offline-checkline"><input checked="" id="newConsolation" type="checkbox"/> Vytvořit útěchu (playoff B)</label>
+<p class="small">Zatím je podporováno playoff B. Minitabulku doplníme později.</p>
+</fieldset>
+</div>
+<div class="live-setup-submit"><div class="controls"><button id="createOfflineTournament" type="button">Potvrdit skupiny a vytvořit turnaj</button></div><p id="createOfflineStatus" role="status">Připraveno. Před vytvořením nového turnaje zazálohuj nebo dokonči aktuálně uložený turnaj.</p></div>
+</section>
+<section hidden="">
+<h2>Zápis výsledků – skupiny, playoff a útěcha</h2>
+<p class="small">Zapisuj výsledky skupin, hlavního playoff i útěchy. Nasazování dalších zápasů se aktualizuje automaticky. Opravy již odehraných zápasů zatím nejsou v této verzi dostupné.</p>
+<label for="matchSelect">Zápas</label>
+<select id="matchSelect"><option value="">Nejdřív načti turnaj</option></select>
+<div class="score-grid" id="scoreInputs">
+<div class="score-header">Set</div><div class="score-header">Hráč A</div><div class="score-header">Hráč B</div>
+<label for="setA1">1.</label><input id="setA1" inputmode="numeric" max="99" min="0" type="number" value="11"/><input id="setB1" inputmode="numeric" max="99" min="0" type="number" value="5"/>
+<label for="setA2">2.</label><input id="setA2" inputmode="numeric" max="99" min="0" type="number" value="11"/><input id="setB2" inputmode="numeric" max="99" min="0" type="number" value="8"/>
+<label for="setA3">3. (volitelný)</label><input id="setA3" inputmode="numeric" max="99" min="0" placeholder="—" type="number"/><input id="setB3" inputmode="numeric" max="99" min="0" placeholder="—" type="number"/>
+<label for="setA4">4. (volitelný)</label><input id="setA4" inputmode="numeric" max="99" min="0" placeholder="—" type="number"/><input id="setB4" inputmode="numeric" max="99" min="0" placeholder="—" type="number"/>
+<label for="setA5">5. (volitelný)</label><input id="setA5" inputmode="numeric" max="99" min="0" placeholder="—" type="number"/><input id="setB5" inputmode="numeric" max="99" min="0" placeholder="—" type="number"/>
+</div>
+<div class="controls"><button id="submitRealMatch" type="button">Zapsat výsledek offline</button></div>
+<p id="realMatchStatus">Čeká na načtení turnaje</p><pre id="realMatchReport"></pre>
+</section>
+<div hidden="" id="output"></div>
+<section aria-labelledby="finishLocalHeading" hidden="" id="finishLocalSection">
+<h2 id="finishLocalHeading">Ukončení turnaje</h2>
+<p class="small">Po dohrání všech zápasů přenese nově vytvořený offline turnaj do TESTOVACÍ databáze a ukončí ho. Vyžaduje internet a přihlášení na testovacím webu. Produkční web se nemění.</p>
+<button id="finishLocalTournament" type="button">Ukončit turnaj</button>
+<p aria-live="polite" id="finishLocalStatus" role="status">Připraveno.</p>
+</section>
+<section aria-labelledby="stageSyncHeading" id="stageSyncSection">
+<details class="offline-data-management">
+<summary>Pokročilá testovací synchronizace existujících turnajů</summary>
+<h2 id="stageSyncHeading">Synchronizace existujícího turnaje (testovací režim)</h2>
+<p class="small">Pro turnaje původně načtené z webu. Čekající výsledky se odešlou pouze do testovací databáze. Produkční turnaje se nemění.</p>
+<button id="stageSyncButton" type="button">Synchronizovat turnaj (staging)</button>
+<p aria-live="polite" id="stageSyncStatus" role="status">Připraveno k ověření. Zatím nic neodesláno.</p>
+<div class="controls" style="margin-top:1rem">
+<label for="stageBatchFile">Nahrát dávku z Androidu (JSON):</label>
+<input accept=".json,application/json" id="stageBatchFile" type="file"/>
+<button id="stageBatchSend" type="button">Odeslat dávku z Androidu (staging)</button>
+</div>
+<p class="small">Tento přenos je oddělený od lokální fronty v prohlížeči. Po potvrzení serverem nemaže žádné lokální výsledky.</p>
+<p aria-live="polite" id="stageBatchStatus" role="status">Vyber připravenou dávku JSON.</p>
+</details>
+</section>
+</main>
+</div>
+<script defer="" src="./offline_create.js?v=navstate1"></script>
+<script defer="" src="./engine_dry_run.js?v=flask-staging-v1"></script>
+<script defer="" src="./real_match.js?v=offline77-placement3"></script>
+<script defer="" src="./local_finish_stage.js?v=3"></script>
+<script defer="" src="./offline_nav.js?v=navstate1"></script>
+<script defer="" src="./offline_player_catalog.js?v=1"></script>
+<script defer="" src="./offline_group_draft.js?v=1"></script>
+<script defer="" src="./offline_groups_live.js?v=playoff1"></script>
+<script defer="" src="./offline_playoff_live.js?v=results1"></script>
+<script defer="" src="./offline_results_live.js?v=1"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const shortcut = document.getElementById('liveSeedShortcut');
+    const original = document.getElementById('draftAutoSeed');
+    if (shortcut && original) shortcut.addEventListener('click', function () { original.click(); });
+  });
+</script></body>
+</html>

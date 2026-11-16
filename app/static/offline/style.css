@@ -1,0 +1,22 @@
+
+:root { font-family: system-ui, sans-serif; color-scheme: light dark; }
+body { max-width: 1150px; margin: auto; padding: 24px; line-height: 1.45; }
+h1 { margin-bottom: .25em; }
+p { color: gray; }
+button, input { font: inherit; padding: 8px; }
+button { cursor: pointer; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+section { border: 1px solid #8885; border-radius: 10px; padding: 16px; margin: 18px 0; }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+th, td { padding: 7px; border-bottom: 1px solid #8884; text-align: left; }
+th { background: #8882; }
+pre { overflow: auto; white-space: pre-wrap; word-break: break-word; background: #8882; padding: 12px; border-radius: 6px; }
+#error { color: #e35c5c; white-space: pre-wrap; }
+.small { font-size: .85rem; color: gray; }
+details { margin: 9px 0; }
+h2 { margin-top: 0; }
+
+.score-grid { display:grid;grid-template-columns: minmax(95px,1fr) minmax(55px,1fr) minmax(55px,1fr);gap:8px;max-width:490px;margin-top:15px;align-items:center;}
+.score-grid input {min-width:0;width:100%;box-sizing:border-box;}
+.score-header {font-weight:600;}
+select {font:inherit;padding:8px;max-width:100%;}

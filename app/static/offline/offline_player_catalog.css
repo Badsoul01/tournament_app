@@ -1,0 +1,20 @@
+/* Local catalog: appearance follows the live parchment theme, scoped to this panel. */
+body.offline-live-theme .offline-players-layout {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:1.2rem;align-items:start}
+body.offline-live-theme .offline-players-manual, body.offline-live-theme .offline-player-catalog {min-width:0;text-align:left}
+body.offline-live-theme .offline-players-manual textarea {box-sizing:border-box;width:100%;min-height:15rem}
+body.offline-live-theme .offline-player-catalog {border:1px solid #50657d;border-radius:8px;background:rgba(10,23,38,.52);padding:1rem}
+body.offline-live-theme .offline-player-catalog h3 {margin:.1rem 0 .6rem;text-align:center;font-family:Georgia,serif}
+body.offline-live-theme .offline-player-catalog h4 {font-size:1rem;margin:.5rem 0;text-align:left}
+body.offline-live-theme #playerCatalogSearch {box-sizing:border-box;width:100%;margin:.25rem 0 .6rem}
+body.offline-live-theme .offline-catalog-columns {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:.65rem}
+body.offline-live-theme .offline-catalog-list {max-height:18rem;overflow-y:auto;overflow-x:hidden;padding:.3rem;border:1px solid rgba(129,155,186,.28);border-radius:5px;min-height:5rem}
+body.offline-live-theme .offline-catalog-tournament,body.offline-live-theme .offline-catalog-player {display:flex;align-items:center;gap:.4rem;justify-content:space-between;padding:.35rem .3rem;border-bottom:1px solid rgba(140,162,190,.18)}
+body.offline-live-theme .offline-catalog-tournament button {width:100%;text-align:left;background:transparent;border:0;color:inherit;padding:.3rem;cursor:pointer;white-space:normal;overflow-wrap:anywhere}
+body.offline-live-theme .offline-catalog-tournament button[aria-pressed="true"] {background:rgba(110,143,181,.25);outline:1px solid #8195b2;border-radius:4px}
+body.offline-live-theme .offline-catalog-player span {font-size:.92rem;overflow-wrap:anywhere}
+body.offline-live-theme .offline-catalog-player button {width:2rem;min-width:2rem;padding:.2rem;border-radius:5px;cursor:pointer}
+body.offline-live-theme .offline-catalog-player button:disabled {opacity:.5;cursor:default}
+body.offline-live-theme .offline-catalog-add-all,body.offline-live-theme .offline-catalog-refresh {font-size:.85rem;max-width:100%;margin:.45rem 0}
+body.offline-live-theme #playerCatalogStatus {overflow-wrap:anywhere}
+@media(max-width:1000px){body.offline-live-theme .offline-players-layout{grid-template-columns:1fr}}
+@media(max-width:560px){body.offline-live-theme .offline-catalog-columns{grid-template-columns:1fr}body.offline-live-theme .offline-catalog-list{max-height:11rem}}
