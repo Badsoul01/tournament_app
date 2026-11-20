@@ -84,7 +84,13 @@ st_results_json
         try {
           const py = await getRuntime();
           await py.loadPackage(["sqlalchemy", "micropip"]);
-          await py.runPythonAsync("import micropip\nawait micropip.install(['flask', 'flask-sqlalchemy'])");
+          try {
+              py.runPython("import flask, flask_sqlalchemy");
+          } catch (error) {
+              await py.runPythonAsync(
+                    "import micropip\nawait micropip.install(['flask', 'flask-sqlalchemy'])"
+              );
+          }
           await ensureEngineFiles(py);
           const json = await py.runPythonAsync(presenter);
           if (revision === expected) {

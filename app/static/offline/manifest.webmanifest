@@ -1,0 +1,25 @@
+
+{
+  "id": "/offline/",
+  "name": "Správa turnajů – Offline",
+  "short_name": "Turnaje",
+  "description": "Offline správa turnajů",
+  "start_url": "/offline/",
+  "scope": "/offline/",
+  "display": "standalone",
+  "background_color": "#f5f0e6",
+  "theme_color": "#654321",
+  "icons": [
+    {
+      "src": "/offline/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/offline/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

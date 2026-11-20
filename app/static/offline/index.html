@@ -7,13 +7,17 @@
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>Správa turnajů – offline režim</title>
 <link href="./style.css" rel="stylesheet"/>
-<!-- Převzaté styly hlavního webu (z dodaného css.zip) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/offline/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Turnaje">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link href="./live_style.css?v=1" rel="stylesheet"/>
 <link href="./live_perchanment.css?v=1" rel="stylesheet"/>
 <link href="./live_nav.css?v=1" rel="stylesheet"/>
 <link href="./live_tournament.css?v=1" rel="stylesheet"/>
-<!-- Malý adaptér offline formulářů a navigace -->
 <link href="./offline_live_adapter.css?v=1" rel="stylesheet"/>
+  <link rel="manifest" href="/offline/manifest.webmanifest">
+<meta name="theme-color" content="#654321">
 <style>
     /* Offline UI layout only. The original parchment CSS stays untouched. */
     body.offline-live-theme .offline-workspace > h2 { margin-bottom:.65rem; }
@@ -65,7 +69,7 @@
 <link href="./offline_groups_live.css?v=2" rel="stylesheet"/>
 <link href="./offline_playoff_live.css?v=2" rel="stylesheet"/>
 <link href="./offline_results_live.css?v=1" rel="stylesheet"/>
-<script defer="" src="./app.js?v=auto-start-ui-v1"></script>
+<script defer src="./app.js?v=sw-auto-update1"></script>
 <script defer="" src="./sync_stage.js?v=3"></script>
 <style id="offline-live-setup-css">
 /* Offline SetupWizard: layout adapted from settings/tournament_settings.html.
@@ -112,14 +116,14 @@ body.offline-live-theme .live-setup-submit #createOfflineStatus { text-align:cen
 <p id="status" role="status">Načítám lokální data…</p>
 <p id="saved"></p>
 <div id="error" role="alert"></div>
-<details class="offline-data-management" id="dataManagement">
-<summary>Správa dat a pokročilé možnosti</summary>
+<details class="offline-data-management" id="dataManagement" hidden>
+<summary >Správa dat a pokročilé možnosti</summary>
 <div class="offline-data-management-body">
 <label for="dbfile"><strong>Importovat turnaj ze SQLite:</strong></label>
 <input accept=".sqlite,.db,.sqlite3" id="dbfile" type="file"/>
 <div class="controls">
 <button id="loadSaved" type="button">Načíst uložený turnaj znovu</button>
-<button id="prepare" type="button">Připravit offline ručně</button>
+<button id="prepare" type="button" hidden>Připravit offline ručně</button>
 <button id="remove" type="button">Smazat uloženou kopii</button>
 </div>
 <p class="small">Automatické spuštění používá poslední lokální turnaj. Před smazáním si stáhni zálohu SQLite a případně fronty výsledků. Zápisy se samy neposílají.</p>
@@ -223,12 +227,11 @@ body.offline-live-theme .live-setup-submit #createOfflineStatus { text-align:cen
 <div hidden="" id="output"></div>
 <section aria-labelledby="finishLocalHeading" hidden="" id="finishLocalSection">
 <h2 id="finishLocalHeading">Ukončení turnaje</h2>
-<p class="small">Po dohrání všech zápasů přenese nově vytvořený offline turnaj do TESTOVACÍ databáze a ukončí ho. Vyžaduje internet a přihlášení na testovacím webu. Produkční web se nemění.</p>
 <button id="finishLocalTournament" type="button">Ukončit turnaj</button>
 <p aria-live="polite" id="finishLocalStatus" role="status">Připraveno.</p>
 </section>
 <section aria-labelledby="stageSyncHeading" id="stageSyncSection">
-<details class="offline-data-management">
+<details class="offline-data-management" hidden>
 <summary>Pokročilá testovací synchronizace existujících turnajů</summary>
 <h2 id="stageSyncHeading">Synchronizace existujícího turnaje (testovací režim)</h2>
 <p class="small">Pro turnaje původně načtené z webu. Čekající výsledky se odešlou pouze do testovací databáze. Produkční turnaje se nemění.</p>
@@ -245,16 +248,16 @@ body.offline-live-theme .live-setup-submit #createOfflineStatus { text-align:cen
 </section>
 </main>
 </div>
-<script defer="" src="./offline_create.js?v=navstate1"></script>
-<script defer="" src="./engine_dry_run.js?v=flask-staging-v1"></script>
-<script defer="" src="./real_match.js?v=offline77-placement3"></script>
-<script defer="" src="./local_finish_stage.js?v=3"></script>
+<script defer src="./offline_create.js?v=performance1"></script>
+<script defer src="./engine_dry_run.js?v=engine-v2"></script>
+<script defer src="./real_match.js?v=performance1"></script>
+<script defer src="./local_finish_stage.js?v=bye-fix1"></script>
 <script defer="" src="./offline_nav.js?v=navstate1"></script>
 <script defer="" src="./offline_player_catalog.js?v=1"></script>
 <script defer="" src="./offline_group_draft.js?v=1"></script>
-<script defer="" src="./offline_groups_live.js?v=playoff1"></script>
-<script defer="" src="./offline_playoff_live.js?v=results1"></script>
-<script defer="" src="./offline_results_live.js?v=1"></script>
+<script defer src="./offline_groups_live.js?v=performance2"></script>
+<script defer src="./offline_playoff_live.js?v=bye-ui1"></script>
+<script defer src="./offline_results_live.js?v=performance2"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     const shortcut = document.getElementById('liveSeedShortcut');

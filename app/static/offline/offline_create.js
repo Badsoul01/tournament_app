@@ -39,7 +39,13 @@
       log.textContent = 'Vytvářím skupiny a pavouky původním Python enginem…';
       const py = await getRuntime();
       await py.loadPackage(['sqlalchemy','micropip']);
-      await py.runPythonAsync("import micropip\nawait micropip.install(['flask','flask-sqlalchemy'])");
+      try {
+            py.runPython("import flask, flask_sqlalchemy");
+      } catch (error) {
+          await py.runPythonAsync(
+              "import micropip\nawait micropip.install(['flask', 'flask-sqlalchemy'])"
+          );
+      }
       await ensureEngineFiles(py);
       const code = await cachedPythonSource('real_tournament/offline_create.py');
       py.globals.set('_offline_config_json',JSON.stringify(config));

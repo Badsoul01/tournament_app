@@ -57,6 +57,7 @@ st_groups_json
   let lastData = null;
   let groupsData = null;
   let expandedMatch = null;
+  let editingMatch = null;
   let requestedVersion = 0;
   let running = false;
   let lastActionText = "";
@@ -95,6 +96,24 @@ st_groups_json
     const sets = match.played_sets || [];
     return sets.map(([a, b]) => `${a}:${b}`).join(", ");
   }
+  function groupMatchHasPlayedDownstream(groupMatch) {
+    // Only real finished matches in a bracket lock a group match. A BYE is
+    // automatic progression, not a played match (no match_results sets).
+    // When data is unavailable, show the gear and let the Python engine decide.
+    const allMatches = lastData?.matches;
+    const allResults = lastData?.match_results;
+    if (!Array.isArray(allMatches) || !Array.isArray(allResults)) return false;
+    const source = allMatches.find(m => Number(m.id) === Number(groupMatch.match_id));
+    if (!source?.player_a_id || !source?.player_b_id) return false;
+    const participants = new Set([Number(source.player_a_id), Number(source.player_b_id)]);
+    const playedMatchIds = new Set(allResults.map(r => Number(r.match_id)));
+    return allMatches.some(m =>
+      m.bracket_id != null && Boolean(m.is_finished) &&
+      m.player_a_id != null && m.player_b_id != null &&
+      playedMatchIds.has(Number(m.id)) &&
+      (participants.has(Number(m.player_a_id)) || participants.has(Number(m.player_b_id)))
+    );
+  }
   function draw() {
     hideOldGroupSections();
     out.querySelector(":scope > section.offline-live-groups")?.remove();
@@ -107,12 +126,11 @@ st_groups_json
       details.open = true;
       details.append(elt("summary", `Skupina ${groupName}`, "group-summary-title"));
       const container = elt("div", null, "group-container-mt");
-      const layout = elt("table", null, "group-layout-table");
-      const layoutRow = elt("tr");
-      const left = elt("td", null, "group-left-col");
-      const right = elt("td", null, "group-right-col");
-      layoutRow.append(left, right);
-      layout.append(layoutRow);
+      // Presentation wrapper, not a data table: stack columns reliably on phones.
+      const layout = elt("div", null, "group-layout-table");
+      const left = elt("div", null, "group-left-col");
+      const right = elt("div", null, "group-right-col");
+      layout.append(left, right);
       container.append(layout);
 
       // Same statistics and rank order as the live group's _group_content.html.
@@ -141,7 +159,37 @@ st_groups_json
         const b = elt("span", match.player_b_name, match.winner_name === match.player_b_name ? "text-winner" : "text-main");
         players.append(a, elt("span", " – ", "text-muted"), b);
         row.append(players, elt("td", fmtScore(match), "matches-table-score-col"));
+        const actions = elt("td", null, "offline-group-edit-actions");
+        const downstreamPlayed = groupMatchHasPlayedDownstream(match);
+        if (!downstreamPlayed) {
+          const gear = elt("button", "⚙️", "offline-group-edit-toggle");
+          gear.type = "button";
+          gear.title = `Opravit zápas: ${match.player_a_name} – ${match.player_b_name}`;
+          gear.setAttribute("aria-label", gear.title);
+          gear.setAttribute("aria-expanded", String(editingMatch === match.match_id));
+          gear.disabled = running;
+          gear.addEventListener("click", () => {
+            if (running) return;
+            editingMatch = editingMatch === match.match_id ? null : match.match_id;
+            if (editingMatch !== null) expandedMatch = null;
+            draw();
+          });
+          actions.append(gear);
+        } else {
+          row.title = "Oprava uzamčena: hráč již odehrál zápas v playoff nebo útěše.";
+          if (editingMatch === match.match_id) editingMatch = null;
+        }
+        row.append(actions);
         finishedTable.append(row);
+        if (!downstreamPlayed && editingMatch === match.match_id) {
+          const editRow = elt("tr", null, "offline-group-edit-row");
+          const editCell = elt("td");
+          editCell.colSpan = 3;
+          editCell.append(elt("p", `Oprava: ${match.player_a_name} – ${match.player_b_name}`, "offline-group-edit-label"));
+          editCell.append(makeForm(match, true));
+          editRow.append(editCell);
+          finishedTable.append(editRow);
+        }
       }
       if (!finishedTable.children.length) {
         const r = elt("tr"); cell(r, "td", "Zatím žádné odehrané zápasy."); finishedTable.append(r);
@@ -167,9 +215,10 @@ st_groups_json
     out.prepend(section);
     // The existing navigation MutationObserver selects sections by heading.
   }
-  function makeForm(match) {
+  function makeForm(match, editing = false) {
     const form = elt("form", null, "match-form-column offline-group-match-form");
-    const lineCount = Math.min(5, Math.max(1, Number(match.match_format || lastData?.tournaments?.[0]?.group_match_format || 3) + 1));
+    const playedSets = Array.isArray(match.played_sets) ? match.played_sets : [];
+    const lineCount = Math.min(5, Math.max(1, Number(match.match_format || lastData?.tournaments?.[0]?.group_match_format || 3) + 1, editing ? playedSets.length : 0));
     for (let i = 1; i <= lineCount; i++) {
       const row = elt("label", null, "offline-set-row");
       row.append(elt("span", `${i}. set:`));
@@ -182,10 +231,14 @@ st_groups_json
         input.autocomplete = "off";
       }
       a.dataset.side = "a"; b.dataset.side = "b";
+      if (editing && playedSets[i - 1]) {
+        a.value = String(playedSets[i - 1][0]);
+        b.value = String(playedSets[i - 1][1]);
+      }
       row.append(a, elt("span", ":"), b);
       form.append(row);
     }
-    const button = elt("button", "Uložit výsledek", "offline-save-group-match");
+    const button = elt("button", editing ? "Uložit opravu" : "Uložit výsledek", "offline-save-group-match");
     button.type = "submit";
     form.append(button);
     form.addEventListener("submit", async event => {
@@ -203,16 +256,30 @@ st_groups_json
       }
       if (!count) { lastActionText = "❌ Vyplň alespoň jeden set."; draw(); return; }
       const select = $("matchSelect"), originalButton = $("submitRealMatch");
-      if (!select || !originalButton || ![...select.options].some(o => Number(o.value) === match.match_id)) {
-        lastActionText = "❌ Zápas není ve výběru offline enginu."; draw(); return;
+      const mode = $("realMatchMode");
+      if (!select || !originalButton || !mode) {
+        lastActionText = "❌ Chybí propojení s offline opravami."; draw(); return;
+      }
+      // Real match editor filters available matches according to the active mode.
+      // Switch BEFORE looking up the match, then choose the exact match ID.
+      mode.value = editing ? "edit" : "new";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+      if (![...select.options].some(o => o.value === String(match.match_id))) {
+        lastActionText = editing
+          ? "❌ Zápas není dostupný pro opravu v offline enginu."
+          : "❌ Zápas není ve výběru offline enginu.";
+        mode.value = "new";
+        mode.dispatchEvent(new Event("change", { bubbles: true }));
+        draw(); return;
       }
       select.value = String(match.match_id);
+      select.dispatchEvent(new Event("change", { bubbles: true }));
       for (let i = 1; i <= 5; i++) {
         $("setA" + i).value = values[i - 1]?.[0] || "";
         $("setB" + i).value = values[i - 1]?.[1] || "";
       }
       running = true; button.disabled = true;
-      lastActionText = "Zapisování výsledku do lokální SQLite…";
+      lastActionText = editing ? "Opravuji výsledek v lokální SQLite…" : "Zapisování výsledku do lokální SQLite…";
       try {
         originalButton.click();
         // real_match.js emits offline:tournament-data after the SQLite and queue commit.
@@ -237,11 +304,15 @@ st_groups_json
           // No timeout needed for correctness; button remains disabled while the writer works.
         });
         expandedMatch = null;
-        lastActionText = "✅ Výsledek uložen do zařízení.";
+        editingMatch = null;
+        lastActionText = editing ? "✅ Oprava uložena do zařízení." : "✅ Výsledek uložen do zařízení.";
       } catch (error) {
         lastActionText = "❌ " + String(error.message || error);
       } finally {
         running = false;
+        // New-result mode must be restored before the next group match.
+        mode.value = "new";
+        mode.dispatchEvent(new Event("change", { bubbles: true }));
         draw();
       }
     });
@@ -251,7 +322,13 @@ st_groups_json
     try {
       const py = await getRuntime();
       await py.loadPackage(["sqlalchemy", "micropip"]);
-      await py.runPythonAsync("import micropip\nawait micropip.install(['flask', 'flask-sqlalchemy'])");
+      try {
+            py.runPython("import flask, flask_sqlalchemy");
+      } catch (error) {
+            await py.runPythonAsync(
+                "import micropip\nawait micropip.install(['flask', 'flask-sqlalchemy'])"
+            );
+      }
       await ensureEngineFiles(py);
       const raw = await py.runPythonAsync(pythonPresenter);
       if (version !== requestedVersion) return;

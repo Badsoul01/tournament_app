@@ -1,7 +1,15 @@
 /* Adapt only the offline presenter, while preserving original tournament.css. */
 #output > section.offline-legacy-group-hidden { display: none !important; }
 .offline-live-groups-page section.offline-lab-match-hidden { display: none !important; }
-.offline-live-groups .group-layout-table { width: 100%; }
+/* Group sections use a layout grid; only ranking/matches use real tables. */
+.offline-live-groups .group-layout-table {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .85fr);
+  gap: 1rem;
+  width: 100%;
+}
+.offline-live-groups .group-left-col,
+.offline-live-groups .group-right-col { min-width: 0; }
 .offline-live-groups .group-details-box { margin: 1rem 0 1.5rem; }
 .offline-live-groups .group-container-mt { overflow-x: auto; }
 .offline-live-groups .offline-groups-toggle { width: 100%; text-align: left; border: 0; background: transparent; color: inherit; padding: .65rem; font: inherit; cursor: pointer; }
@@ -14,8 +22,7 @@
 /* Odstranění vnějšího šedého rámečku tabulek skupin */
 
 @media (max-width: 780px) {
-  .offline-live-groups .group-layout-table, .offline-live-groups .group-layout-table > tbody, .offline-live-groups .group-layout-table > tbody > tr,
-  .offline-live-groups .group-layout-table > tbody > tr > td { display: block; width: 100%; box-sizing: border-box; }
+  .offline-live-groups .group-layout-table { grid-template-columns: minmax(0, 1fr); }
   .offline-live-groups .group-left-col, .offline-live-groups .group-right-col { padding: .5rem !important; }
   .offline-live-groups .group-table { width: 100%; }
 }
@@ -39,3 +46,28 @@ body.offline-live-theme #output > section.offline-live-groups {
 body.offline-live-theme:has(.offline-nav a[data-offline-page="groups"][aria-current="page"]) section:has(#matchSelect) {
   display: none !important;
 }
+
+/* Edit finished group matches in place, matching the live site's gear control. */
+.offline-live-groups .offline-group-edit-actions {
+  width: 2.5rem;
+  padding: .15rem .3rem;
+  text-align: center;
+  vertical-align: middle;
+}
+.offline-live-groups .offline-group-edit-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: .2rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1.15rem;
+  cursor: pointer;
+}
+.offline-live-groups .offline-group-edit-toggle:focus-visible { outline: 2px solid #91b6db; border-radius: 4px; }
+.offline-live-groups .offline-group-edit-toggle:disabled { opacity: .5; cursor: wait; }
+.offline-live-groups .offline-group-edit-row > td { padding: .6rem; }
+.offline-live-groups .offline-group-edit-label { margin: 0 0 .5rem; font-weight: bold; }

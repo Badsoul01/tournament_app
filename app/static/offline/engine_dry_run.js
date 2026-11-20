@@ -15,7 +15,7 @@ const ENGINE_FILES = [
 
 // Keep a separate, explicit copy of engine sources in Cache Storage.
 // This avoids relying on browser HTTP cache or on a network fetch while offline.
-const ENGINE_SOURCE_CACHE = "st-offline-flask-engine-v1";
+const ENGINE_SOURCE_CACHE = "st-offline-flask-engine-v2";
 
 async function cachedPythonSource(file) {
  const path = file.startsWith("real_tournament/")

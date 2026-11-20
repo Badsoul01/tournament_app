@@ -55,6 +55,7 @@ st_playoff_json
   let lastData = null;
   let playoffData = null;
   let expanded = null; // match ID, stays shared between both views
+  let editingMatch = false;
   let version = 0;
   let busy = false;
   let feedback = "";
@@ -79,12 +80,16 @@ st_playoff_json
     const available = real && !finished &&
       m.player_a_name !== "BYE" && m.player_b_name !== "BYE" &&
       Number.isSafeInteger(Number(m.match_id)) && Number(m.match_id) > 0;
+    const opened = expanded === m.match_id;
     const card = elt("div", null, "match-card match-center-layout offline-playoff-card" +
-      (available && expanded === m.match_id ? " active-match" : ""));
+      (opened ? " active-match" : ""));
     const aName = real ? m.player_a_name : m.slot_a;
     const bName = real ? m.player_b_name : m.slot_b;
     const aSeed = real ? m.player_a_seed : m.slot_a_seed;
     const bSeed = real ? m.player_b_seed : m.slot_b_seed;
+    // Only actual played matches between two players may be corrected.
+    const editable = finished && aName !== "BYE" && bName !== "BYE" &&
+      Number.isSafeInteger(Number(m.match_id)) && Number(m.match_id) > 0;
     const head = available ? elt("button", null, "offline-playoff-toggle") : elt("div", null, "offline-playoff-static");
     if (available) {
       head.type = "button";
@@ -100,13 +105,34 @@ st_playoff_json
     if (bSeed) head.append(elt("small", `(${bSeed})`, "text-muted"));
     if (available) head.append(elt("span", expanded === m.match_id ? "✕" : "📜", "offline-playoff-indicator"));
     card.append(head);
-    if (finished) card.append(elt("div", "Dohráno", "offline-playoff-finished"));
-    if (available && expanded === m.match_id) card.append(buildForm(m));
+    if (editable) {
+      const finishedLine = elt("div", null, "offline-playoff-finished");
+      const gear = elt("button", "⚙️", "offline-playoff-edit-gear");
+      gear.type = "button";
+      gear.title = "Opravit odehraný zápas";
+      gear.setAttribute("aria-label", `Opravit zápas ${aName} – ${bName}`);
+      gear.setAttribute("aria-expanded", String(opened && editingMatch));
+      gear.style.cssText = "margin-left:.65rem;background:transparent;border:0;color:inherit;cursor:pointer;font-size:1.1em;min-width:32px;min-height:32px";
+      gear.addEventListener("click", () => {
+        if (busy) return;
+        if (opened && editingMatch) { expanded = null; editingMatch = false; }
+        else { expanded = m.match_id; editingMatch = true; }
+        draw();
+      });
+      finishedLine.append(gear);
+      card.append(finishedLine);
+    }
+    if (available && opened && !editingMatch) card.append(buildForm(m, false));
+    if (editable && opened && editingMatch) card.append(buildForm(m, true));
     return card;
   }
 
-  function buildForm(match) {
+  function buildForm(match, editing = false) {
     const form = elt("form", null, "match-form-column offline-playoff-form");
+    if (editing) form.append(elt("p", `Oprava: ${match.player_a_name} – ${match.player_b_name}`, "offline-playoff-edit-label"));
+    const originalSets = editing ? (lastData?.match_results || [])
+      .filter(row => Number(row.match_id) === Number(match.match_id))
+      .sort((a, b) => Number(a.set_number) - Number(b.set_number)) : [];
     const fmt = Number(match.match_format || lastData?.tournaments?.[0]?.playoff_match_format || 3);
     const lines = Math.min(5, Math.max(1, fmt + 1));
     for (let i = 1; i <= lines; i++) {
@@ -119,10 +145,14 @@ st_playoff_json
       }
       a.dataset.side = "a";
       b.dataset.side = "b";
+      if (editing) {
+        a.value = originalSets[i - 1]?.score_a ?? "";
+        b.value = originalSets[i - 1]?.score_b ?? "";
+      }
       row.append(a, elt("span", ":"), b);
       form.append(row);
     }
-    const submit = elt("button", "Uložit výsledek", "offline-playoff-save");
+    const submit = elt("button", editing ? "Uložit opravu" : "Uložit výsledek", "offline-playoff-save");
     submit.type = "submit";
     form.append(submit);
     form.addEventListener("submit", async event => {
@@ -142,18 +172,26 @@ st_playoff_json
         count++;
       }
       if (!count) { feedback = "❌ Vyplň alespoň jeden set."; draw(); return; }
-      const select = $("matchSelect"), writer = $("submitRealMatch");
-      if (!select || !writer || ![...select.options].some(opt => Number(opt.value) === match.match_id)) {
-        feedback = "❌ Zápas není dostupný v offline enginu."; draw(); return;
+      const select = $("matchSelect"), writer = $("submitRealMatch"), mode = $("realMatchMode");
+      if (!select || !writer || !mode) {
+        feedback = "❌ Chybí formulář offline enginu."; draw(); return;
+      }
+      // Refresh the hidden writer's available matches for the requested mode.
+      mode.value = editing ? "edit" : "new";
+      mode.dispatchEvent(new Event("change"));
+      if (![...select.options].some(opt => Number(opt.value) === Number(match.match_id))) {
+        feedback = "❌ Zápas není dostupný v režimu " + (editing ? "oprav" : "zápisu") + ".";
+        draw(); return;
       }
       select.value = String(match.match_id);
+      select.dispatchEvent(new Event("change"));
       for (let i = 1; i <= 5; i++) {
         $("setA" + i).value = values[i-1]?.[0] || "";
         $("setB" + i).value = values[i-1]?.[1] || "";
       }
       busy = true;
       submit.disabled = true;
-      feedback = "Zapisování výsledku do lokální SQLite…";
+      feedback = editing ? "Opravuji zápas v lokální SQLite…" : "Zapisování výsledku do lokální SQLite…";
       try {
         // Attach both listeners BEFORE clicking; a quick writer can resolve immediately.
         await new Promise((resolve, reject) => {
@@ -175,7 +213,8 @@ st_playoff_json
           writer.click();
         });
         expanded = null;
-        feedback = "✅ Výsledek uložen do zařízení.";
+        editingMatch = false;
+        feedback = editing ? "✅ Oprava uložena do zařízení." : "✅ Výsledek uložen do zařízení.";
       } catch (error) {
         feedback = "❌ " + String(error.message || error);
       } finally {
@@ -226,12 +265,64 @@ st_playoff_json
   }
 
   function draw() {
-    out.querySelectorAll(":scope > section.offline-live-playoff").forEach(section => section.remove());
+    // Zapamatovat pozici stránky i všech rodičovských posuvníků.
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    const containers = [];
+    for (let node = out; node; node = node.parentElement) {
+        containers.push({
+            element: node,
+            left: node.scrollLeft,
+            top: node.scrollTop
+        });
+    }
+
+    // Zapamatovat pozici jednotlivých pavouků.
+    const bracketPositions = [
+        ...out.querySelectorAll(".offline-playoff-bracket")
+    ].map(node => ({
+        left: node.scrollLeft,
+        top: node.scrollTop
+    }));
+
+    out.querySelectorAll(":scope > section.offline-live-playoff")
+        .forEach(section => section.remove());
+
     if (!playoffData || !lastData) return;
+
     out.append(view("main", "Hlavní playoff", playoffData.main));
-    if (playoffData.consolation) out.append(view("consolation", "Útěcha – playoff B", playoffData.consolation));
+
+    if (playoffData.consolation) {
+        out.append(view(
+            "consolation",
+            "Útěcha – playoff B",
+            playoffData.consolation
+        ));
+    }
+
     syncPageClass();
-  }
+
+    // Vrátit posuvníky na původní pozice.
+    const restoreScroll = () => {
+        containers.forEach(({ element, left, top }) => {
+            element.scrollLeft = left;
+            element.scrollTop = top;
+        });
+
+        out.querySelectorAll(".offline-playoff-bracket")
+            .forEach((node, index) => {
+                if (!bracketPositions[index]) return;
+                node.scrollLeft = bracketPositions[index].left;
+                node.scrollTop = bracketPositions[index].top;
+            });
+
+        window.scrollTo(scrollX, scrollY);
+    };
+
+    restoreScroll();
+    requestAnimationFrame(restoreScroll);
+}
 
   async function rebuild(expected) {
     if (rebuildInProgress) return; // The last finished run will restart for newer data.
@@ -242,7 +333,13 @@ st_playoff_json
         try {
           const py = await getRuntime();
           await py.loadPackage(["sqlalchemy", "micropip"]);
-          await py.runPythonAsync("import micropip\nawait micropip.install(['flask', 'flask-sqlalchemy'])");
+          try {
+              py.runPython("import flask, flask_sqlalchemy");
+          } catch (error) {
+              await py.runPythonAsync(
+                  "import micropip\nawait micropip.install(['flask', 'flask-sqlalchemy'])"
+              );
+          }
           await ensureEngineFiles(py);
           const raw = await py.runPythonAsync(pyPresenter);
           if (current === version) {
@@ -279,13 +376,14 @@ st_playoff_json
   window.addEventListener("offline:tournament-data", event => {
     lastData = event.detail?.data || null;
     expanded = null;
+    editingMatch = false;
     version++;
   });
   window.addEventListener("offline:groups-presented", () => {
     if (lastData) rebuild(version);
   });
   window.addEventListener("offline:tournament-removed", () => {
-    lastData = null; playoffData = null; version++; expanded = null;
+    lastData = null; playoffData = null; version++; expanded = null; editingMatch = false;
     out.querySelectorAll(":scope > section.offline-live-playoff").forEach(s => s.remove());
   });
 })();

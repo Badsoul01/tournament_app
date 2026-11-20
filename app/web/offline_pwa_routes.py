@@ -64,14 +64,15 @@ def offline_asset(filename):
         'index.html', 'app.js', 'style.css', 'sw.js',
         'engine_dry_run.js', 'engine_dry_run.py',
         'offline_create.js', 'offline_create.py',
-        'real_match.js', 'real_match.py',
+        'real_match.js', 'real_match.py', 'real_match_edit.py',
         'local_finish_stage.js', 'sync_stage.js', 'offline_nav.js', 'live_style.css',
         'live_perchanment.css', 'live_nav.css', 'live_tournament.css', 'offline_live_adapter.css',
         'offline_player_catalog.js', 'offline_player_catalog.css', 'offline_group_draft.js',
         'offline_group_draft.css', 'offline_groups_live.js',
         'offline_groups_live.css', 'offline_playoff_live.js',
         'offline_playoff_live.css', 'offline_results_live.js',
-        'offline_results_live.css',
+        'offline_results_live.css', 'manifest.webmanifest',
+        'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
     }:
         abort(404)
     response = send_from_directory(_asset_dir(), filename)

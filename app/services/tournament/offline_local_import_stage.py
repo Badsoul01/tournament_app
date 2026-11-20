@@ -114,8 +114,22 @@ def _check_snapshot(tables, preview):
     _require(all(r['tournament_id'] == local_t['id'] for name in ('groups','players','matches','brackets') for r in tables[name]), 'Cizí turnaj v SQLite.')
     _require(all(p['group_id'] in groups for p in players.values()), 'Hráč bez skupiny.')
     _require(all((m['group_id'] in groups) != (m['bracket_id'] in brackets) for m in matches.values()), 'Zápas nemá právě jednu skupinu nebo pavouka.')
-    _require(all(m['player_a_id'] in players and m['player_b_id'] in players and m['player_a_id'] != m['player_b_id'] and m['winner_id'] in players and m['is_finished'] == 1 for m in matches.values()), 'Neodehraný nebo neplatný zápas.')
-    _require(all(m['winner_id'] in (m['player_a_id'], m['player_b_id']) for m in matches.values()), 'Vítěz nepatří do zápasu.')
+    # A BYE is an automatically finished playoff slot, not a played match.
+    # Never classify unfinished/unresolved slots as BYE merely because an ID is NULL.
+    real_matches = {}
+    for mid, m in matches.items():
+        a, b, winner = m['player_a_id'], m['player_b_id'], m['winner_id']
+        _require(m['is_finished'] == 1, 'Turnaj obsahuje nedokončený zápas.')
+        _require(a is None or a in players, 'Neplatný hráč A.')
+        _require(b is None or b in players, 'Neplatný hráč B.')
+        if a is not None and b is not None:
+            _require(a != b and winner in (a, b), 'Neplatný vítěz skutečného zápasu.')
+            real_matches[mid] = m
+        else:
+            _require(m['bracket_id'] in brackets and m['group_id'] is None,
+                     'Volný los je povolen pouze v playoff.')
+            expected_winner = a if b is None else b
+            _require(winner == expected_winner, 'Nesprávně vyhodnocený volný los.')
     sets_by_match = {}
     for r in tables['match_results']:
         _require(r['match_id'] in matches and r['set_number'] >= 1 and r['score_a'] != r['score_b'], 'Neplatný set.')
@@ -127,19 +141,20 @@ def _check_snapshot(tables, preview):
         wins_b = sum(s['score_b'] > s['score_a'] for s in sets)
         expected = matches[mid]['player_a_id'] if wins_a > wins_b else matches[mid]['player_b_id']
         _require(wins_a != wins_b and matches[mid]['winner_id'] == expected, 'Nesouhlasí vítěz zápasu.')
-    _require(set(sets_by_match) == set(matches), 'Některému zápasu chybí sety.')
+    _require(set(sets_by_match) == set(real_matches), 'Sety musí být právě u skutečných zápasů.')
     _require(isinstance(preview, dict) and preview.get('format') == 'spravaturnaje-pending-operations-preview-v1' and preview.get('tournament_id') == local_t['id'], 'Neplatný export fronty.')
     ops = preview.get('operations')
-    _require(isinstance(ops, list) and preview.get('count') == len(ops) == len(matches), 'Počet operací se neshoduje.')
+    _require(isinstance(ops, list) and preview.get('count') == len(ops) == len(real_matches), 'Počet operací se neshoduje.')
     seen_ids, seen_matches = set(), set()
     for op in ops:
         try: rid = str(UUID(op['request_id']))
         except (TypeError, KeyError, ValueError, AttributeError): raise LocalImportError('Neplatné request_id.')
         mid = op.get('match_id')
-        _require(rid not in seen_ids and mid in matches and mid not in seen_matches and op.get('action') == 'submit_result' and op.get('tournament_id') == local_t['id'], 'Neplatná nebo duplicitní operace.')
+        _require(rid not in seen_ids and mid in real_matches and mid not in seen_matches and op.get('action') == 'submit_result' and op.get('tournament_id') == local_t['id'], 'Neplatná nebo duplicitní operace.')
         seen_ids.add(rid); seen_matches.add(mid)
         expected = [[s['score_a'], s['score_b']] for s in sets_by_match[mid]]
         _require(op.get('sets') == expected, 'Výsledek ve frontě se neshoduje se SQLite.')
+    _require(seen_matches == set(real_matches), 'Pro některý skutečný zápas chybí operace.')
     # Validate the bracket JSON tree: every referenced match ID must belong to its bracket.
     for b in brackets.values():
         tree = json.loads(b['tree_data']) if isinstance(b['tree_data'], str) else b['tree_data']
@@ -213,8 +228,8 @@ def _copy(tables, t, uid, uuid, digest):
                     is_finished=bool(row['is_finished']), is_in_progress=bool(row['is_in_progress']),
                     seed_a=row['seed_a'], seed_b=row['seed_b'], tournament_id=new_t.id,
                     group_id=group_map.get(row['group_id']), bracket_id=bracket_map.get(row['bracket_id']),
-                    player_a_id=player_map[row['player_a_id']], player_b_id=player_map[row['player_b_id']],
-                    winner_id=player_map[row['winner_id']])
+                    player_a_id=player_map.get(row['player_a_id']), player_b_id=player_map.get(row['player_b_id']),
+                    winner_id=player_map.get(row['winner_id']))
         db.session.add(obj); db.session.flush(); match_map[row['id']] = obj.id
     for row in tables['brackets']:
         obj = db.session.get(Bracket, bracket_map[row['id']]); obj.tree_data = _remap_tree(row['tree_data'], match_map)

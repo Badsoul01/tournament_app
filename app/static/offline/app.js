@@ -129,6 +129,72 @@ async function saveCopyAndQueue(nextCopy, previousCopy, operation) {
   }
 }
 
+// Offline edit support: replace the existing submit_result in-place.
+// SQLite + queue are committed in ONE IndexedDB transaction.
+// This is intentionally NOT a new operation: the completed-local-tournament
+// importer expects exactly one submit_result per match.
+async function replaceQueuedMatchResult(nextCopy, previousCopy, operation) {
+  if (!operation || operation.action !== "submit_result" ||
+      !Number.isSafeInteger(operation.match_id) || operation.match_id <= 0 ||
+      !Array.isArray(operation.sets) || !operation.sets.length ||
+      operation.sets.some(row => !Array.isArray(row) || row.length !== 2 ||
+        row.some(v => !Number.isInteger(v) || v < 0 || v > 99) || row[0] === row[1])) {
+    throw new Error("Neplatný opravovaný výsledek.");
+  }
+  if (!nextCopy || !previousCopy || nextCopy.sourceKind !== "local" ||
+      nextCopy.localImportedTournamentId || previousCopy.localImportedTournamentId ||
+      nextCopy.sourceId !== previousCopy.sourceId) {
+    throw new Error("Opravu fronty podporujeme zatím jen před odesláním lokálního turnaje.");
+  }
+  const idb = await openDB();
+  try {
+    let replaced;
+    await new Promise((resolve, reject) => {
+      const tx = idb.transaction([STORE, OP_STORE], "readwrite");
+      const copies = tx.objectStore(STORE);
+      const operations = tx.objectStore(OP_STORE);
+      const currentRequest = copies.get(COPY_KEY);
+      const operationsRequest = operations.getAll();
+      let currentReady = false, operationsReady = false;
+      let current, all;
+      const abort = () => { try { tx.abort(); } catch (_) {} };
+      const verifyAndWrite = () => {
+        if (!currentReady || !operationsReady) return;
+        if (!current || current.sourceId !== previousCopy.sourceId ||
+            current.sourceKind !== "local" || current.localImportedTournamentId ||
+            current.savedAt !== previousCopy.savedAt ||
+            current.byteLength !== previousCopy.byteLength) {
+          abort(); return;
+        }
+        const matches = all.filter(item => item.status === "pending" &&
+          item.tournament_id === previousCopy.sourceId &&
+          item.match_id === operation.match_id && item.action === "submit_result");
+        if (matches.length !== 1 ||
+            all.some(item => item.tournament_id === previousCopy.sourceId &&
+              item.match_id === operation.match_id && item.status !== "pending")) {
+          abort(); return;
+        }
+        // Keep request_id, created_at and queue ordering stable.
+        replaced = { ...matches[0], sets: operation.sets.map(row => [...row]) };
+        copies.put(nextCopy, COPY_KEY);
+        operations.put(replaced);
+      };
+      currentRequest.onsuccess = () => {
+        current = currentRequest.result; currentReady = true; verifyAndWrite();
+      };
+      operationsRequest.onsuccess = () => {
+        all = operationsRequest.result; operationsReady = true; verifyAndWrite();
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error("Chyba IndexedDB při opravě zápasu."));
+      tx.onabort = () => reject(new Error("Oprava nebyla uložena: změnila se SQLite nebo chybí jednoznačná původní operace."));
+    });
+    return replaced;
+  } finally {
+    idb.close();
+  }
+}
+
 async function getPendingOperations() {
   const idb = await openDB();
   try {
@@ -431,18 +497,19 @@ $("prepare").addEventListener("click", async () => {
     }
     await ensureEngineFiles(py);
     await cachedPythonSource("real_tournament/real_match.py");
+    await cachedPythonSource("real_tournament/real_match_edit.py");
     await cachedPythonSource("real_tournament/offline_create.py");
     const sourceCache = await caches.open(ENGINE_SOURCE_CACHE);
     const sourceCount = (await sourceCache.keys()).length;
-    if (sourceCount < ENGINE_FILES.length + 2) {
-      throw new Error(`Offline cache Python enginu není kompletní (${sourceCount}/${ENGINE_FILES.length + 2}).`);
+    if (sourceCount < ENGINE_FILES.length + 3) {
+      throw new Error(`Offline cache Python enginu není kompletní (${sourceCount}/${ENGINE_FILES.length + 3}).`);
     }
     const cache = await caches.open(RUNTIME_CACHE);
     const resources = await cache.keys();
     if (!resources.length) {
       throw new Error(`Cache ${RUNTIME_CACHE} je prázdná. Stránku ještě neovládá aktuální Service Worker; obnov F5 a spusť přípravu znovu.`);
     }
-    $("status").textContent = `✅ Online příprava dokončena; v ${RUNTIME_CACHE} je ${resources.length} požadavků; Python zdroje ${sourceCount}/${ENGINE_FILES.length + 2}. Nyní zkus offline zápis.`;
+    $("status").textContent = `✅ Online příprava dokončena; v ${RUNTIME_CACHE} je ${resources.length} požadavků; Python zdroje ${sourceCount}/${ENGINE_FILES.length + 3}. Nyní zkus offline zápis.`;
     await updateSavedLabel();
   } catch (err) { $("status").textContent = "Offline příprava selhala"; errorMessage(err); }
 });
@@ -623,13 +690,15 @@ async function prepareOfflineIfNeeded() {
     const runtime = await caches.open(RUNTIME_CACHE);
     const sourceName = typeof ENGINE_SOURCE_CACHE === "string" ? ENGINE_SOURCE_CACHE : null;
     const source = sourceName ? await caches.open(sourceName) : null;
-    const requiredSources = typeof ENGINE_FILES !== "undefined" ? ENGINE_FILES.length + 2 : null;
+    const requiredSources = typeof ENGINE_FILES !== "undefined" ? ENGINE_FILES.length + 3 : null;
     const runtimeReady = (await runtime.keys()).length > 0;
     const engineReady = source && requiredSources && (await source.keys()).length >= requiredSources;
+    // Aktualizaci Service Workeru kontrolujeme vždy při online spuštění.
+    await registerServiceWorker();
+
     if (runtimeReady && engineReady) return;
     // Let the existing, tested preparation handler own the download logic.
     // The SW may be installed but not yet control the very first page load.
-    await registerServiceWorker();
     if (navigator.serviceWorker.controller &&
         new URL(navigator.serviceWorker.controller.scriptURL).pathname === new URL("./sw.js", location.href).pathname) {
       $("prepare").click();
