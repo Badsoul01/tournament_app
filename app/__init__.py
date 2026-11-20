@@ -11,7 +11,7 @@ def create_app():
     load_dotenv()
     app = Flask(__name__)
 
-    app.secret_key = os.environ.get("SECRET_KEY", "zalozni_tajny_kod")
+    app.secret_key = os.environ["SECRET_KEY"]
     db_url = os.environ.get("DATABASE_URL")
 
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
