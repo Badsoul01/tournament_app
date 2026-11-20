@@ -8,6 +8,6 @@ __pycache__/
 
 
 .venv/
-.env/
-
-test.py
+.env
+.env.*
+!.env.example
