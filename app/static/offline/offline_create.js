@@ -4,6 +4,74 @@
   const create = $local('createOfflineTournament');
   if (!create) return;
   const log = $local('createOfflineStatus');
+
+  // Připrav Python jednou, jakmile organizátor začne pracovat s formulářem.
+  // Nevytváří žádný turnaj ani SQLite soubor.
+  let preparedPromise = null;
+  async function prepareCreateRuntime() {
+    if (preparedPromise) return preparedPromise;
+    preparedPromise = (async () => {
+      const start = performance.now();
+      const py = await getRuntime();
+      await py.loadPackage(['sqlalchemy', 'micropip']);
+      try {
+        py.runPython('import flask, flask_sqlalchemy');
+      } catch (error) {
+        await py.runPythonAsync(
+          "import micropip\nawait micropip.install(['flask', 'flask-sqlalchemy'])"
+        );
+      }
+      await ensureEngineFiles(py);
+      // Zdroje načteme dopředu, aby při kliknutí nezdržovalo jejich vyhledávání.
+      const code = await cachedPythonSource('real_tournament/offline_create.py');
+      // Stejný importní kontext jako v offline_create.py, ale bez vytváření turnaje.
+      await py.runPythonAsync(`
+import sys, types
+for name in ('app', 'app.models', 'app.services', 'app.services.utils', 'app.services.tournament'):
+    if name not in sys.modules:
+        module = types.ModuleType(name)
+        module.__path__ = ['/home/pyodide/' + name.replace('.', '/')]
+        sys.modules[name] = module
+module_name = 'app.services.tournament.setupwizard'
+if module_name not in sys.modules:
+    module = types.ModuleType(module_name)
+    module.SetupWizard = type('SetupWizard', (), {})
+    sys.modules[module_name] = module
+from app.models.models import db
+from app.services.tournament.tournament import Tournament
+`);
+      console.log(`[PWA PREWARM] Python připraven: ${Math.round(performance.now() - start)} ms`);
+      return {py, code};
+    })().catch(err => {
+      preparedPromise = null; // po chybě lze přípravu při kliknutí zkusit znovu
+      throw err;
+    });
+    return preparedPromise;
+  }
+
+  const startPrewarm = () => {
+    // Předejdeme unhandled rejection: při selhání se vytvoření může pokusit znovu.
+    void prepareCreateRuntime().catch(err => console.warn('[PWA PREWARM] Nepodařilo se připravit prostředí:', err));
+  };
+  // Viditelný formulář nebo první práce s jeho poli; žádný warm-up na každém
+  // startu PWA, kdy může být organizátor uprostřed rozehraného turnaje.
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        observer.disconnect();
+        startPrewarm();
+      }
+    });
+    observer.observe(create);
+  }
+  const createFieldIds = new Set([
+    'newTournamentName', 'newTournamentDate', 'newTournamentLocation',
+    'newTournamentGroups', 'newTournamentAdvance', 'newTournamentPlayers',
+    'newGroupFormat', 'newPlayoffFormat', 'newConsolation'
+  ]);
+  document.addEventListener('focusin', event => {
+    if (createFieldIds.has(event.target?.id)) startPrewarm();
+  });
   create.addEventListener('click', async () => {
     create.disabled = true;
     const startedAt = performance.now();
@@ -46,22 +114,10 @@
       timing('Validace formuláře a příprava skupin');
       const localUuid = crypto.randomUUID();
       log.textContent = 'Vytvářím skupiny a pavouky původním Python enginem…';
-      const py = await getRuntime();
-      timing('getRuntime (Pyodide)');
-      await py.loadPackage(['sqlalchemy','micropip']);
-      timing('loadPackage (SQLAlchemy + micropip)');
-      try {
-            py.runPython("import flask, flask_sqlalchemy");
-      } catch (error) {
-          await py.runPythonAsync(
-              "import micropip\nawait micropip.install(['flask', 'flask-sqlalchemy'])"
-          );
-      }
-      timing('Import Flask + Flask-SQLAlchemy');
-      await ensureEngineFiles(py);
-      timing('ensureEngineFiles');
-      const code = await cachedPythonSource('real_tournament/offline_create.py');
-      timing('Načtení offline_create.py');
+      // Použij stejnou přípravu, která mohla proběhnout už během vyplňování.
+      // Když uživatel klikne dřív, počkáme na ni; nikdy nespouštíme dvě kopie.
+      const {py, code} = await prepareCreateRuntime();
+      timing('Připravený Python runtime + importy (čekání)');
       py.globals.set('_offline_config_json',JSON.stringify(config));
       py.globals.set('_offline_uuid',localUuid);
       let rawReport;
