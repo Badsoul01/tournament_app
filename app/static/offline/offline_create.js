@@ -6,11 +6,19 @@
   const log = $local('createOfflineStatus');
   create.addEventListener('click', async () => {
     create.disabled = true;
+    const startedAt = performance.now();
+    let checkpoint = startedAt;
+    const timing = (phase) => {
+      const now = performance.now();
+      console.log(`[PWA CREATE] ${phase}: +${Math.round(now - checkpoint)} ms | celkem ${Math.round(now - startedAt)} ms`);
+      checkpoint = now;
+    };
     try {
       // The existing single-copy prototype must never silently overwrite a tournament.
       const current = await getCopy();
       if (current) throw new Error(`V prohlížeči je stále turnaj ${current.sourceId}. Nejdřív ho zálohuj a bezpečně odstraň původním tlačítkem „Smazat uloženou kopii“.`);
       await ensureNoPendingOperations();
+      timing('Kontrola uloženého turnaje a čekajících operací');
       if (!globalThis.crypto?.randomUUID) throw new Error('Je nutné HTTPS nebo localhost.');
       const name = $local('newTournamentName').value.trim();
       const date = $local('newTournamentDate').value;
@@ -35,10 +43,13 @@
         group_elimination_action:$local('newConsolation').checked?'playoff_b':'KO',
         playoff_elimination_action:'consolation',groups
       };
+      timing('Validace formuláře a příprava skupin');
       const localUuid = crypto.randomUUID();
       log.textContent = 'Vytvářím skupiny a pavouky původním Python enginem…';
       const py = await getRuntime();
+      timing('getRuntime (Pyodide)');
       await py.loadPackage(['sqlalchemy','micropip']);
+      timing('loadPackage (SQLAlchemy + micropip)');
       try {
             py.runPython("import flask, flask_sqlalchemy");
       } catch (error) {
@@ -46,13 +57,17 @@
               "import micropip\nawait micropip.install(['flask', 'flask-sqlalchemy'])"
           );
       }
+      timing('Import Flask + Flask-SQLAlchemy');
       await ensureEngineFiles(py);
+      timing('ensureEngineFiles');
       const code = await cachedPythonSource('real_tournament/offline_create.py');
+      timing('Načtení offline_create.py');
       py.globals.set('_offline_config_json',JSON.stringify(config));
       py.globals.set('_offline_uuid',localUuid);
       let rawReport;
       try { rawReport = await py.runPythonAsync(code); }
       finally { py.globals.delete('_offline_config_json'); py.globals.delete('_offline_uuid'); }
+      timing('Python vytvoření turnaje + SQLite');
       const report = JSON.parse(rawReport);
       if (report.status !== 'LOCAL_CREATED' || report.local_uuid !== localUuid) throw new Error('Python nepotvrdil vytvoření turnaje.');
       const sqliteBytes = py.FS.readFile('/tmp/new_offline.sqlite');
@@ -60,15 +75,22 @@
       const bytes = sqliteBytes.slice().buffer;
       // Validate BEFORE saving, then recheck existing copy before committing.
       const snapshot = await readAndDisplay(bytes);
+      timing('readAndDisplay (obnova a vykreslení)');
       if (snapshot.source.source_kind !== 'local' || snapshot.tournaments.length !== 1 || snapshot.players.length !== raw.length) throw new Error('Nový turnaj neprošel ověřením.');
       if (await getCopy()) throw new Error('Mezitím byl načten jiný turnaj. Nic nepřepisuji.');
       await saveCopy({bytes,sourceId:1,sourceKind:'local',localUuid,byteLength:bytes.byteLength,savedAt:new Date().toISOString()});
+      timing('saveCopy (IndexedDB)');
       await updateSavedLabel();
+      timing('updateSavedLabel');
       window.dispatchEvent(new CustomEvent("offline:tournament-created", {detail:{data:snapshot}}));
+      timing('Vyslání offline:tournament-created');
       log.textContent = `✅ Nový lokální turnaj uložen: ${raw.length} hráčů, ${groupCount} skupin, ${report.matches} zápasů. Po F5 lze použít „Načíst uložený turnaj“. Na server zatím nic neodesílej.`;
     } catch (err) {
       log.textContent = '❌ ' + (err?.message || String(err));
       console.error(err);
-    } finally { create.disabled = false; }
+    } finally {
+      console.log(`[PWA CREATE] KONEC: ${Math.round(performance.now() - startedAt)} ms`);
+      create.disabled = false;
+    }
   });
 })();
