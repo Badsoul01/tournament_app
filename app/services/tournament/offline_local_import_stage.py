@@ -1,10 +1,11 @@
-"""STAGING ONLY: import a fully finished, locally created PWA tournament.
+"""Import a finished locally-created PWA tournament into staging or production.
 
 Deliberately separate from existing /api/offline/stage/<tid>/sync.
 Uses a complete snapshot + operation preview, not an untrusted client-side SQL dump.
 The importer copies approved data fields through ORM; never executes uploaded SQL.
 """
 import hashlib
+import hmac
 import json
 import os
 import sqlite3
@@ -19,12 +20,13 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
 from app.models.models import (
-    db, Tournament, Group, Player, Bracket, Match, MatchResults,
+    db, Organizer, Tournament, Group, Player, Bracket, Match, MatchResults,
     GroupStats, PlayoffStats, ConsolationStats,
 )
 from app.services.tournament.tournament import Tournament as TournamentOrchestrator
 
 local_import_bp = Blueprint('offline_local_import_stage', __name__, url_prefix='/api/offline/stage/local')
+prod_local_import_bp = Blueprint('offline_local_import_prod', __name__, url_prefix='/api/offline')
 MAX_SQLITE = 2 * 1024 * 1024
 MAX_OPERATIONS = 300
 
@@ -39,6 +41,8 @@ def _error(e):
     return jsonify(status='ERROR', code=e.code, message=str(e)), e.status
 
 
+prod_local_import_bp.register_error_handler(LocalImportError, _error)
+
 def _staging_only():
     url = make_url(current_app.config['SQLALCHEMY_DATABASE_URI'])
     if (os.environ.get('OFFLINE_SYNC_STAGING') != '1' or
@@ -51,6 +55,31 @@ def _staging_only():
     if db.session.execute(text('select current_database()')).scalar_one() != url.database:
         raise LocalImportError('Chybná databáze.', 503, 'WRONG_DATABASE')
 
+
+
+def _production_only():
+    """Require explicit production enablement, matching database, and a secret header."""
+    url = make_url(current_app.config['SQLALCHEMY_DATABASE_URI'])
+    if (os.environ.get('OFFLINE_SYNC_ENABLED') != '1' or
+            not url.drivername.startswith('postgresql') or
+            not url.database or url.database.startswith('offline_')):
+        raise LocalImportError('Produkční import není povolen.', 503, 'DISABLED')
+    if db.session.execute(text('SELECT current_database()')).scalar_one() != url.database:
+        raise LocalImportError('Nesouhlasí databáze.', 503, 'WRONG_DATABASE')
+    secret = os.environ.get('OFFLINE_SYNC_TOKEN', '')
+    provided = request.headers.get('X-Offline-Token', '')
+    if len(secret) < 24:
+        raise LocalImportError('Není nakonfigurován synchronizační klíč.', 503, 'MISSING_SECRET')
+    if not hmac.compare_digest(provided, secret):
+        raise LocalImportError('Neplatný synchronizační klíč.', 403, 'FORBIDDEN')
+    uid_raw = os.environ.get('OFFLINE_SYNC_ORGANIZER_ID', '')
+    try:
+        uid = int(uid_raw)
+    except ValueError:
+        raise LocalImportError('Není nastaven organizátor importu.', 503, 'MISSING_ORGANIZER')
+    if uid <= 0 or db.session.get(Organizer, uid) is None:
+        raise LocalImportError('Organizátor importu neexistuje.', 503, 'MISSING_ORGANIZER')
+    return uid
 
 def _rows(conn, table):
     return [dict(r) for r in conn.execute('select * from ' + table)]
@@ -251,11 +280,15 @@ def _copy(tables, t, uid, uuid, digest):
 
 
 @local_import_bp.post('/finish')
+@prod_local_import_bp.post('/local/finish')
 def import_finished():
-    _staging_only()
-    # Newly created local tournaments have no server-side owner before import.
-    # Only this staging endpoint accepts imports without an account.
-    uid = None
+    # The staging URL remains isolated and unchanged. The production URL needs
+    # a server-configured token and attaches the import to an existing organizer.
+    if request.blueprint == 'offline_local_import_prod':
+        uid = _production_only()
+    else:
+        _staging_only()
+        uid = None
     origin = request.headers.get('Origin')
     if (request.headers.get('X-Offline-Sync') != '1' or
         (origin and urlsplit(origin).netloc != request.host)):
@@ -276,7 +309,7 @@ def import_finished():
     digest = hashlib.sha256(json.dumps({'snapshot':tables, 'operations':ops}, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode('utf-8')).hexdigest()
     prior = db.session.execute(text('SELECT tournament_id, organizer_id, payload_sha256 FROM offline_local_imports WHERE local_uuid=:uuid'), {'uuid':uuid}).mappings().first()
     if prior:
-        if prior['organizer_id'] is not None or prior['payload_sha256'] != digest:
+        if prior['organizer_id'] != uid or prior['payload_sha256'] != digest:
             raise LocalImportError('UUID již existuje s jiným obsahem či vlastníkem.',409,'UUID_CONFLICT')
         existing = db.session.get(Tournament, prior['tournament_id'])
         if existing and existing.is_finished:

@@ -1,9 +1,11 @@
 "use strict";
-// STAGING ONLY. End a NEW tournament created fully offline.
+// Finish a new local-only tournament; isolated staging and protected production endpoint.
 // Never calls the existing /<tid>/sync for server-owned tournaments.
 (() => {
   const button = document.getElementById('finishLocalTournament');
   const status = document.getElementById('finishLocalStatus');
+  const isProduction = ['spravaturnaje.cz', 'www.spravaturnaje.cz'].includes(location.hostname);
+  const destination = isProduction ? 'hlavní' : 'TESTOVACÍ';
   if (!button || !status) return;
 
   // Keep this feature visually separate from the old staging-result batch button.
@@ -15,7 +17,7 @@
       if (copy?.localImportedTournamentId) {
         button.disabled = false;
         button.textContent = 'Vyčistit již synchronizovaný turnaj';
-        status.textContent = `✅ Turnaj již byl převeden na TESTOVACÍ server jako #${copy.localImportedTournamentId}. Místní data lze nyní bezpečně odstranit.`;
+        status.textContent = `✅ Turnaj již byl převeden na ${destination} server jako #${copy.localImportedTournamentId}. Místní data lze nyní bezpečně odstranit.`;
       } else {
         button.textContent = 'Ukončit turnaj';
       }
@@ -195,31 +197,41 @@
           ops.some(op => !realIds.has(op.match_id) || op.action !== 'submit_result')) {
         throw new Error(`SQLite má ${realMatches.length} skutečných zápasů z ${matches.length} celkem, ale fronta obsahuje ${ops.length} výsledků; nic neodesílám.`);
       }
-      if (copy.bytes.byteLength > 2 * 1024 * 1024) throw new Error('SQLite překračuje staging limit 2 MB.');
+      if (copy.bytes.byteLength > 2 * 1024 * 1024) throw new Error('SQLite překračuje povolený limit 2 MB.');
       const preview = previewFromQueue(copy, ops);
       const queueJSON = JSON.stringify(preview);
-      if (new Blob([queueJSON]).size > 256 * 1024) throw new Error('Fronta překračuje staging limit.');
-      if (!window.confirm(`UKONČIT lokální turnaj a přenést jej na TESTOVACÍ server?\n\n${matches.length} dokončených pozic (z toho ${realMatches.length} skutečných zápasů), ${ops.length} výsledků.\nProdukční databáze se nemění.`)) {
+      if (new Blob([queueJSON]).size > 256 * 1024) throw new Error('Fronta překračuje povolený limit.');
+      if (!window.confirm(`UKONČIT lokální turnaj a přenést jej na ${destination} server?\n\n${matches.length} dokončených pozic (z toho ${realMatches.length} skutečných zápasů), ${ops.length} výsledků.${isProduction ? "\nTurnaj se uloží do hlavní databáze." : "\nProdukční databáze se nemění."}`)) {
         status.textContent = 'Ukončení zrušeno. Lokální data zůstávají uložená.';
         return;
       }
-      status.textContent = `Odesílám ${matches.length} zápasů do testovací databáze a čekám na potvrzení…`;
+      status.textContent = `Odesílám ${matches.length} zápasů do ${isProduction ? "hlavní" : "testovací"} databáze a čekám na potvrzení…`;
       const form = new FormData();
       form.append('sqlite', new Blob([copy.bytes], { type: 'application/vnd.sqlite3' }), 'offline_tournament.sqlite');
       form.append('operations', new Blob([queueJSON], { type: 'application/json' }), 'operations.json');
-      const response = await fetch('/api/offline/stage/local/finish', {
+      // Temporary production authorization: never store the token in JS,
+      // IndexedDB or localStorage. It is requested only when finishing.
+      let token = '';
+      if (isProduction) {
+        token = window.prompt('Zadej synchronizační klíč pro nahrání do hlavní databáze:') || '';
+        if (!token) {
+          status.textContent = 'Synchronizace zrušena. Turnaj zůstává uložený.';
+          return;
+        }
+      }
+      const response = await fetch(isProduction ? '/api/offline/local/finish' : '/api/offline/stage/local/finish', {
         method: 'POST',
         credentials: 'same-origin',
         cache: 'no-store',
         redirect: 'error',
-        headers: { 'X-Offline-Sync': '1' },
+        headers: { 'X-Offline-Sync': '1', ...(isProduction ? { 'X-Offline-Token': token } : {}) },
         body: form,
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || !['COMMITTED', 'ALREADY_IMPORTED'].includes(result?.status) ||
           !result?.tournament_id || (result?.imported_matches != null && result.imported_matches !== matches.length) ||
           (result?.finished === false)) {
-        throw new Error(result?.message || `Server vrátil HTTP ${response.status}. Zkontroluj testovací Flask na portu 5001 a odpověď importního endpointu.`);
+        throw new Error(result?.message || `Server vrátil HTTP ${response.status}. Zkontroluj odpověď importního endpointu.`);
       }
       try {
         await removeConfirmedLocalTournament(copy, ops, Number(result.tournament_id));
