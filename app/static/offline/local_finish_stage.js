@@ -1,5 +1,5 @@
 "use strict";
-// Finish a new local-only tournament; isolated staging and protected production endpoint.
+// Finish a new local-only tournament; isolated staging and temporary public production endpoint.
 // Never calls the existing /<tid>/sync for server-owned tournaments.
 (() => {
   const button = document.getElementById('finishLocalTournament');
@@ -209,22 +209,12 @@
       const form = new FormData();
       form.append('sqlite', new Blob([copy.bytes], { type: 'application/vnd.sqlite3' }), 'offline_tournament.sqlite');
       form.append('operations', new Blob([queueJSON], { type: 'application/json' }), 'operations.json');
-      // Temporary production authorization: never store the token in JS,
-      // IndexedDB or localStorage. It is requested only when finishing.
-      let token = '';
-      if (isProduction) {
-        token = window.prompt('Zadej synchronizační klíč pro nahrání do hlavní databáze:') || '';
-        if (!token) {
-          status.textContent = 'Synchronizace zrušena. Turnaj zůstává uložený.';
-          return;
-        }
-      }
       const response = await fetch(isProduction ? '/api/offline/local/finish' : '/api/offline/stage/local/finish', {
         method: 'POST',
         credentials: 'same-origin',
         cache: 'no-store',
         redirect: 'error',
-        headers: { 'X-Offline-Sync': '1', ...(isProduction ? { 'X-Offline-Token': token } : {}) },
+        headers: { 'X-Offline-Sync': '1' },
         body: form,
       });
       const result = await response.json().catch(() => null);

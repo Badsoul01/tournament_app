@@ -5,7 +5,6 @@ Uses a complete snapshot + operation preview, not an untrusted client-side SQL d
 The importer copies approved data fields through ORM; never executes uploaded SQL.
 """
 import hashlib
-import hmac
 import json
 import os
 import sqlite3
@@ -58,7 +57,7 @@ def _staging_only():
 
 
 def _production_only():
-    """Require explicit production enablement, matching database, and a secret header."""
+    """Temporary public import: require an explicit short-lived opt-in and matching database."""
     url = make_url(current_app.config['SQLALCHEMY_DATABASE_URI'])
     if (os.environ.get('OFFLINE_SYNC_ENABLED') != '1' or
             not url.drivername.startswith('postgresql') or
@@ -66,12 +65,10 @@ def _production_only():
         raise LocalImportError('Produkční import není povolen.', 503, 'DISABLED')
     if db.session.execute(text('SELECT current_database()')).scalar_one() != url.database:
         raise LocalImportError('Nesouhlasí databáze.', 503, 'WRONG_DATABASE')
-    secret = os.environ.get('OFFLINE_SYNC_TOKEN', '')
-    provided = request.headers.get('X-Offline-Token', '')
-    if len(secret) < 24:
-        raise LocalImportError('Není nakonfigurován synchronizační klíč.', 503, 'MISSING_SECRET')
-    if not hmac.compare_digest(provided, secret):
-        raise LocalImportError('Neplatný synchronizační klíč.', 403, 'FORBIDDEN')
+    # Explicit, reversible opt-in for today's unauthenticated import.
+    # Disable after the event by setting OFFLINE_SYNC_PUBLIC_IMPORT=0.
+    if os.environ.get('OFFLINE_SYNC_PUBLIC_IMPORT') != '1':
+        raise LocalImportError('Veřejný import není povolen.', 503, 'PUBLIC_IMPORT_DISABLED')
     uid_raw = os.environ.get('OFFLINE_SYNC_ORGANIZER_ID', '')
     try:
         uid = int(uid_raw)
@@ -283,7 +280,7 @@ def _copy(tables, t, uid, uuid, digest):
 @prod_local_import_bp.post('/local/finish')
 def import_finished():
     # The staging URL remains isolated and unchanged. The production URL needs
-    # a server-configured token and attaches the import to an existing organizer.
+    # explicit temporary public-import opt-in and attaches the import to an existing organizer.
     if request.blueprint == 'offline_local_import_prod':
         uid = _production_only()
     else:
