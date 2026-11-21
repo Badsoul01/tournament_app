@@ -292,7 +292,6 @@ async function updateSavedLabel() {
     ? `Uloženo: ${copy.sourceKind === 'local' ? 'lokální turnaj' : 'turnaj'} ${copy.sourceId} | ${copy.byteLength} B | ${copy.savedAt}`
     : "Žádná uložená kopie") + ` | Neodeslané operace: ${pending.length}`;
 }
-
 async function getRuntime() {
   if (!runtimePromise) {
     runtimePromise = (async () => {
@@ -305,8 +304,21 @@ async function getRuntime() {
           document.head.appendChild(script);
         });
       }
+      const start = performance.now();
       const py = await globalThis.loadPyodide({ indexURL: PYODIDE_BASE });
+
+      console.log(
+        "[PWA] Pyodide:",
+        Math.round(performance.now() - start),
+        "ms"
+      );
+
       await py.loadPackage("sqlite3");
+      console.log(
+        "[PWA] Pyodide + SQLite:",
+        Math.round(performance.now() - start),
+         "ms"
+      );
       return py;
     })().catch((err) => { runtimePromise = null; throw err; });
   }
