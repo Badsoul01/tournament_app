@@ -3,6 +3,14 @@ Run inside browser Pyodide with globals `_offline_config_json` and `_offline_uui
 Never talks to server. /tmp/new_offline.sqlite is created fresh.
 """
 import json, sqlite3, sys, types
+from time import perf_counter
+_timing_start = perf_counter()
+_timing_last = _timing_start
+def _timing_step(label):
+    global _timing_last
+    now = perf_counter()
+    print(f"[PWA PY CREATE] {label}: +{(now-_timing_last)*1000:.0f} ms | celkem {(now-_timing_start)*1000:.0f} ms", flush=True)
+    _timing_last = now
 from datetime import datetime, timezone
 from flask import Flask
 
@@ -23,6 +31,7 @@ if settings.get('group_match_format') not in (2,3,4,5) or settings.get('playoff_
 if not isinstance(settings.get('name'),str) or not settings['name'].strip(): raise ValueError('Chybi nazev')
 datetime.strptime(settings['date'], '%Y-%m-%d')
 if not isinstance(_offline_uuid, str) or len(_offline_uuid) != 36: raise ValueError('Chybi UUID')
+_timing_step('Validace vstupu')
 
 for name in ('app','app.models','app.services','app.services.utils','app.services.tournament'):
     if name not in sys.modules:
@@ -41,6 +50,7 @@ if module_name not in sys.modules:
 
 from app.models.models import db
 from app.services.tournament.tournament import Tournament
+_timing_step('Import modelu a Tournament')
 
 class OfflineWizard:
     def __init__(self, data):
@@ -66,25 +76,34 @@ app=Flask('offline_create_browser')
 app.config.update(SECRET_KEY='isolated-local-only', SQLALCHEMY_DATABASE_URI='sqlite:////tmp/new_offline.sqlite', SQLALCHEMY_TRACK_MODIFICATIONS=False)
 # db is one shared instance, never attach a second app to an already-bound runtime.
 db.init_app(app)
+_timing_step('Flask a db.init_app')
 try:
     with app.app_context():
         db.create_all()
+        _timing_step('db.create_all (schema)')
         with app.test_request_context('/local-create'):
             made=Tournament(OfflineWizard(settings))
+            _timing_step('Tournament(...) konstruktor a generovani')
             if made.id != 1: raise ValueError('Neocekavane lokalni ID')
         db.session.remove()
         db.engine.dispose()
+        _timing_step('db.session.remove + engine.dispose')
     with sqlite3.connect(path) as conn:
         conn.execute('CREATE TABLE offline_local_identity (local_uuid TEXT PRIMARY KEY NOT NULL, server_tournament_id INTEGER NULL, created_at_utc TEXT NOT NULL)')
         conn.execute('CREATE TABLE offline_source (tournament_id INTEGER PRIMARY KEY, source_kind TEXT NOT NULL, source_tournament_id INTEGER NOT NULL, original_organizer_id INTEGER, export_created_at_utc TEXT NOT NULL, import_version INTEGER NOT NULL)')
         now=datetime.now(timezone.utc).isoformat()
         conn.execute('INSERT INTO offline_local_identity VALUES (?,NULL,?)',(_offline_uuid,now))
         conn.execute("INSERT INTO offline_source VALUES (1,'local',1,NULL,?,1)",(now,))
+        _timing_step('SQLite metadata a identita')
         if conn.execute('PRAGMA integrity_check').fetchone()[0]!='ok': raise ValueError('SQLite poskozena')
+        _timing_step('PRAGMA integrity_check')
         if conn.execute('PRAGMA foreign_key_check').fetchall(): raise ValueError('Neplatne reference SQLite')
+        _timing_step('PRAGMA foreign_key_check')
         report={k:conn.execute('SELECT COUNT(*) FROM '+k).fetchone()[0] for k in ('tournaments','groups','players','matches','brackets')}
         conn.commit()
+        _timing_step('SQL report a commit')
     result_json=json.dumps({'status':'LOCAL_CREATED','local_uuid':_offline_uuid,**report},ensure_ascii=False)
+    _timing_step('KONEC offline_create.py')
 finally:
     pass
 result_json
