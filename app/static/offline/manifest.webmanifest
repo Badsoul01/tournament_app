@@ -2,7 +2,7 @@
 {
   "id": "/offline/",
   "name": "Správa turnajů – Offline",
-  "short_name": "Turnaje",
+  "short_name": "Správa turnajů",
   "description": "Offline správa turnajů",
   "start_url": "/offline/",
   "scope": "/offline/",
