@@ -44,9 +44,11 @@ def create_app():
     if os.environ.get("OFFLINE_SYNC_ENABLED") == "1":
         from app.web.offline_pwa_routes import offline_pwa_bp
         from app.services.tournament.offline_local_import_stage import prod_local_import_bp
+        from app.web.offline_player_catalog_routes import player_catalog_bp
 
         app.register_blueprint(offline_pwa_bp)
         app.register_blueprint(prod_local_import_bp)
+        app.register_blueprint(player_catalog_bp)
 
 
     return app
