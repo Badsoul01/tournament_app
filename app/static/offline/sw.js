@@ -1,5 +1,5 @@
 "use strict";
-const SHELL = "st-offline-flask-shell-pwa-v7";
+const SHELL = "st-offline-flask-shell-pwa-v8";
 const RUNTIME = "st-offline-flask-runtime-v1";
 const CORE = ["./", "./index.html", "./app.js", "./style.css", "./live_style.css", "./live_perchanment.css", "./live_nav.css", "./live_tournament.css", "./offline_live_adapter.css", "./sw.js",
   "./engine_dry_run.js", "./engine_dry_run.py", "./real_match.js", "./real_match.py", './real_match_edit.py',
@@ -49,6 +49,31 @@ self.addEventListener("fetch", (event) => {
       } catch (error) {
         const hit = await cache.match(event.request) || await cache.match("./index.html");
         if (hit) return hit;
+        throw error;
+      }
+    }
+    // Vlastní JavaScript aktualizujeme online,
+    // při výpadku internetu použijeme cache.
+    if (local && url.pathname.endsWith(".js")) {
+      try {
+        const response = await fetch(event.request, {
+          cache: "no-store"
+        });
+
+        if (response.ok) {
+            try {
+                await cache.put(event.request, response.clone());
+            } catch (err) {
+                console.warn("SW: Cache storage failed", err);
+            }
+        }
+
+        return response;
+      } catch (error) {
+        const cached =
+            await cache.match(event.request) ||
+            await cache.match(url.origin + url.pathname);
+        if (cached) return cached;
         throw error;
       }
     }
