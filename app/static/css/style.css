@@ -719,3 +719,30 @@ hr {
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
 }
+/* Domovská stránka: nenápovědné rozbalovací pokyny k offline aplikaci. */
+.home-pwa-help {
+    max-width: 440px;
+    margin: -8px auto 24px;
+    color: var(--text-muted);
+    font-size: .92rem;
+}
+.home-pwa-help summary {
+    cursor: pointer;
+    text-align: center;
+    color: var(--accent-silver);
+    padding: 8px;
+}
+.home-pwa-help summary:focus-visible {
+    outline: 2px solid var(--accent-silver);
+    outline-offset: 2px;
+}
+.home-pwa-help-content {
+    padding: 4px 14px 8px;
+    line-height: 1.6;
+    text-align: left;
+    border: 1px solid rgba(140,175,215,.25);
+    border-radius: 5px;
+    background: rgba(10,18,30,.55);
+}
+.home-pwa-help-content p { margin: 10px 0; }
+.home-pwa-help-content a { color: var(--accent-silver); }
