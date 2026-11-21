@@ -1,0 +1,78 @@
+/* ==========================================
+   JEDNOTNÁ NAVIGACE (nav.css)
+   ========================================== */
+.unified-nav {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 10px 20px 15px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 40px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.unified-nav-left { justify-self: start; }
+.unified-nav-center {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-self: center;
+}
+.unified-nav-right { justify-self: end; }
+
+.nav-separator { color: var(--text-muted); }
+.nav-auth-inline { display: inline-flex; align-items: center; margin-left: 8px; }
+.active-nav-link { font-weight: bold; color: var(--accent-silver-glow) !important; text-decoration: underline !important; }
+
+.nav-reset-btn {
+    background: none;
+    border: none;
+    color: var(--accent-silver);
+    cursor: pointer;
+    font-size: 0.95em;
+    padding: 0;
+}
+.nav-reset-btn:hover {
+    color: var(--accent-silver-glow);
+    text-decoration: underline;
+    background: none;
+    border: none;
+}
+
+/* Víceřádková navigace pro turnaje (s nadpisem nahoře) */
+.tournament-nav-stacked {
+    display: grid !important;
+    grid-template-columns: 1fr auto 1fr !important;
+    grid-template-rows: auto auto !important;
+    row-gap: 12px;
+}
+
+.unified-nav-title {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--accent-silver);
+    font-size: clamp(1.8rem, 4vw, 2.7rem) !important;
+    font-weight: bold;
+
+    padding-bottom: 10px;
+    margin-bottom: 5px;
+    letter-spacing: 0.5px;
+}
+
+/* Responzivita pro mobily */
+@media (max-width: 850px) {
+    .unified-nav {
+        grid-template-columns: 1fr;
+        row-gap: 15px;
+        justify-items: center;
+    }
+    .unified-nav-left, .unified-nav-right {
+        justify-self: center;
+    }
+    .tournament-nav-stacked {
+        grid-template-columns: 1fr;
+    }
+}

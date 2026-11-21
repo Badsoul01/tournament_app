@@ -1,0 +1,152 @@
+"use strict";
+(() => {
+  const $local = (id) => document.getElementById(id);
+  const create = $local('createOfflineTournament');
+  if (!create) return;
+  const log = $local('createOfflineStatus');
+
+  // Připrav Python jednou, jakmile organizátor začne pracovat s formulářem.
+  // Nevytváří žádný turnaj ani SQLite soubor.
+  let preparedPromise = null;
+  async function prepareCreateRuntime() {
+    if (preparedPromise) return preparedPromise;
+    preparedPromise = (async () => {
+      const start = performance.now();
+      const py = await getRuntime();
+      await py.loadPackage(['sqlalchemy', 'micropip']);
+      try {
+        py.runPython('import flask, flask_sqlalchemy');
+      } catch (error) {
+        await py.runPythonAsync(
+          "import micropip\nawait micropip.install(['flask', 'flask-sqlalchemy'])"
+        );
+      }
+      await ensureEngineFiles(py);
+      // Zdroje načteme dopředu, aby při kliknutí nezdržovalo jejich vyhledávání.
+      const code = await cachedPythonSource('real_tournament/offline_create.py');
+      // Stejný importní kontext jako v offline_create.py, ale bez vytváření turnaje.
+      await py.runPythonAsync(`
+import sys, types
+for name in ('app', 'app.models', 'app.services', 'app.services.utils', 'app.services.tournament'):
+    if name not in sys.modules:
+        module = types.ModuleType(name)
+        module.__path__ = ['/home/pyodide/' + name.replace('.', '/')]
+        sys.modules[name] = module
+module_name = 'app.services.tournament.setupwizard'
+if module_name not in sys.modules:
+    module = types.ModuleType(module_name)
+    module.SetupWizard = type('SetupWizard', (), {})
+    sys.modules[module_name] = module
+from app.models.models import db
+from app.services.tournament.tournament import Tournament
+`);
+      console.log(`[PWA PREWARM] Python připraven: ${Math.round(performance.now() - start)} ms`);
+      return {py, code};
+    })().catch(err => {
+      preparedPromise = null; // po chybě lze přípravu při kliknutí zkusit znovu
+      throw err;
+    });
+    return preparedPromise;
+  }
+
+  const startPrewarm = () => {
+    // Předejdeme unhandled rejection: při selhání se vytvoření může pokusit znovu.
+    void prepareCreateRuntime().catch(err => console.warn('[PWA PREWARM] Nepodařilo se připravit prostředí:', err));
+  };
+  // Viditelný formulář nebo první práce s jeho poli; žádný warm-up na každém
+  // startu PWA, kdy může být organizátor uprostřed rozehraného turnaje.
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        observer.disconnect();
+        startPrewarm();
+      }
+    });
+    observer.observe(create);
+  }
+  const createFieldIds = new Set([
+    'newTournamentName', 'newTournamentDate', 'newTournamentLocation',
+    'newTournamentGroups', 'newTournamentAdvance', 'newTournamentPlayers',
+    'newGroupFormat', 'newPlayoffFormat', 'newConsolation'
+  ]);
+  document.addEventListener('focusin', event => {
+    if (createFieldIds.has(event.target?.id)) startPrewarm();
+  });
+  create.addEventListener('click', async () => {
+    create.disabled = true;
+    const startedAt = performance.now();
+    let checkpoint = startedAt;
+    const timing = (phase) => {
+      const now = performance.now();
+      console.log(`[PWA CREATE] ${phase}: +${Math.round(now - checkpoint)} ms | celkem ${Math.round(now - startedAt)} ms`);
+      checkpoint = now;
+    };
+    try {
+      // The existing single-copy prototype must never silently overwrite a tournament.
+      const current = await getCopy();
+      if (current) throw new Error(`V prohlížeči je stále turnaj ${current.sourceId}. Nejdřív ho zálohuj a bezpečně odstraň původním tlačítkem „Smazat uloženou kopii“.`);
+      await ensureNoPendingOperations();
+      timing('Kontrola uloženého turnaje a čekajících operací');
+      if (!globalThis.crypto?.randomUUID) throw new Error('Je nutné HTTPS nebo localhost.');
+      const name = $local('newTournamentName').value.trim();
+      const date = $local('newTournamentDate').value;
+      const groupCount = Number($local('newTournamentGroups').value);
+      const advance = Number($local('newTournamentAdvance').value);
+      const raw = $local('newTournamentPlayers').value.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+      if (!name || !date) throw new Error('Vyplň název a datum.');
+      if (!Number.isInteger(groupCount) || groupCount < 2 || groupCount > 8) throw new Error('Zadej 2–8 skupin.');
+      if (raw.length < groupCount * 2) throw new Error(`Pro ${groupCount} skupin potřebujeme alespoň ${groupCount*2} hráčů.`);
+      if (raw.length > groupCount * 8) throw new Error('Příliš mnoho hráčů pro zvolený počet skupin.');
+      if (new Set(raw.map(s => s.toLocaleLowerCase('cs'))).size !== raw.length) throw new Error('Některá jména se opakují.');
+      // Group preparation is a separate, editable step. No implicit draw on Create.
+      if (!window.offlineGroupDraft) throw new Error('Příprava skupin není načtená. Obnov stránku a zkontroluj offline_group_draft.js.');
+      const groups = window.offlineGroupDraft.getGroupsForCreation();
+      if (Object.values(groups).some(g => g.length <= advance)) throw new Error('V každé skupině musí zůstat více hráčů než postupujících.');
+      const config = {
+        name,date,location:$local('newTournamentLocation').value.trim(),
+        include_in_global_stats:false,
+        group_match_format: Number($local('newGroupFormat').value),
+        playoff_match_format: Number($local('newPlayoffFormat').value),
+        advance_per_group:advance,
+        group_elimination_action:$local('newConsolation').checked?'playoff_b':'KO',
+        playoff_elimination_action:'consolation',groups
+      };
+      timing('Validace formuláře a příprava skupin');
+      const localUuid = crypto.randomUUID();
+      log.textContent = 'Vytvářím skupiny a pavouky původním Python enginem…';
+      // Použij stejnou přípravu, která mohla proběhnout už během vyplňování.
+      // Když uživatel klikne dřív, počkáme na ni; nikdy nespouštíme dvě kopie.
+      const {py, code} = await prepareCreateRuntime();
+      timing('Připravený Python runtime + importy (čekání)');
+      py.globals.set('_offline_config_json',JSON.stringify(config));
+      py.globals.set('_offline_uuid',localUuid);
+      let rawReport;
+      try { rawReport = await py.runPythonAsync(code); }
+      finally { py.globals.delete('_offline_config_json'); py.globals.delete('_offline_uuid'); }
+      timing('Python vytvoření turnaje + SQLite');
+      const report = JSON.parse(rawReport);
+      if (report.status !== 'LOCAL_CREATED' || report.local_uuid !== localUuid) throw new Error('Python nepotvrdil vytvoření turnaje.');
+      const sqliteBytes = py.FS.readFile('/tmp/new_offline.sqlite');
+      if (sqliteBytes.length < 1000 || sqliteBytes.length > 25*1024*1024) throw new Error('Neplatná velikost SQLite.');
+      const bytes = sqliteBytes.slice().buffer;
+      // Validate BEFORE saving, then recheck existing copy before committing.
+      const snapshot = await readAndDisplay(bytes);
+      timing('readAndDisplay (obnova a vykreslení)');
+      if (snapshot.source.source_kind !== 'local' || snapshot.tournaments.length !== 1 || snapshot.players.length !== raw.length) throw new Error('Nový turnaj neprošel ověřením.');
+      if (await getCopy()) throw new Error('Mezitím byl načten jiný turnaj. Nic nepřepisuji.');
+      await saveCopy({bytes,sourceId:1,sourceKind:'local',localUuid,byteLength:bytes.byteLength,savedAt:new Date().toISOString()});
+      timing('saveCopy (IndexedDB)');
+      await updateSavedLabel();
+      timing('updateSavedLabel');
+      window.dispatchEvent(new CustomEvent("offline:tournament-created", {detail:{data:snapshot}}));
+      timing('Vyslání offline:tournament-created');
+      log.textContent = `✅ Nový lokální turnaj uložen: ${raw.length} hráčů, ${groupCount} skupin, ${report.matches} zápasů. Po F5 lze použít „Načíst uložený turnaj“. Na server zatím nic neodesílej.`;
+    } catch (err) {
+      log.textContent = '❌ ' + (err?.message || String(err));
+      console.error(err);
+    } finally {
+      console.log(`[PWA CREATE] KONEC: ${Math.round(performance.now() - startedAt)} ms`);
+      create.disabled = false;
+    }
+  });
+})();

@@ -1,0 +1,49 @@
+/* Offline adapter: preserve original live CSS and offline component IDs.
+   CSS imports come from user's css.zip; no tournament logic changes. */
+body.offline-live-theme { min-width: 0; }
+body.offline-live-theme .scroll-parchment { width:min(1140px, calc(100vw - 72px)); max-width: 100%; padding: 78px 68px 88px; margin: 22px auto 42px; }
+body.offline-live-theme .offline-main { width:100%; min-width:0; position:relative; z-index:4; }
+body.offline-live-theme .offline-main > h1 { font-family:Georgia, 'Times New Roman', serif; padding-bottom:0; }
+body.offline-live-theme .offline-main > p { margin:14px auto 22px; max-width:790px; }
+/* Offline navigation is inserted by offline_nav.js, styled like the live unified links. */
+body.offline-live-theme nav.offline-nav { background: transparent; border:0; border-bottom:1px solid var(--border-color); border-radius:0; padding:9px 0 18px; margin:3px 0 15px; gap:0; }
+body.offline-live-theme nav.offline-nav a, body.offline-live-theme nav.offline-nav a:link, body.offline-live-theme nav.offline-nav a:visited { background:transparent; border:0; border-radius:0; color:var(--accent-silver); padding:5px 12px; font-family:Georgia, 'Times New Roman', serif; font-size:1rem; }
+body.offline-live-theme nav.offline-nav a + a { border-left:1px solid var(--border-color); }
+body.offline-live-theme nav.offline-nav a[aria-current="page"] { text-decoration:underline !important; font-weight:bold; color:var(--accent-silver-glow) !important; }
+body.offline-live-theme nav.offline-nav a:hover { text-decoration:underline; background:transparent; }
+body.offline-live-theme .offline-nav-note { text-align:center; margin:0 0 22px; color:var(--text-muted); }
+/* Live settings fieldsets and cards; keep existing JS targeting <section>. */
+body.offline-live-theme .offline-main > section { max-width:100%; min-width:0; padding:18px 18px 20px; margin:0 0 22px; background:rgba(12,20,32,.55); border:1px solid var(--border-color); border-radius:6px; box-shadow:inset 0 0 14px rgba(0,0,0,.20); }
+body.offline-live-theme .offline-main > section > h2 { font-family:Georgia,'Times New Roman',serif; text-align:center; color:var(--accent-silver); font-size:1.35rem; margin:0 0 16px; }
+body.offline-live-theme .offline-main section p.small { font-size:.9rem; }
+body.offline-live-theme .offline-setup-fieldset { margin:16px auto; background:var(--bg-card); border-color:var(--border-color); max-width:900px; padding:18px; }
+body.offline-live-theme .offline-setup-fieldset legend { color:var(--accent-silver); }
+body.offline-live-theme .offline-setup-fieldset .form-row { display:grid; grid-template-columns:minmax(150px, 1fr) minmax(0,2fr); gap:20px; align-items:center; margin:0 0 13px; }
+body.offline-live-theme .offline-setup-fieldset .form-row label { margin:0; }
+body.offline-live-theme .offline-setup-fieldset .form-row input, body.offline-live-theme .offline-setup-fieldset .form-row select { width:100%; min-width:0; margin:0; }
+body.offline-live-theme .offline-setup-fieldset textarea { display:block; width:100%; min-height:135px; resize:vertical; margin:10px 0 18px; background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; padding:10px; font:inherit; }
+body.offline-live-theme .offline-setting-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 22px; }
+body.offline-live-theme .offline-setting-grid .form-row { grid-template-columns:minmax(110px, 1fr) minmax(65px, 1fr); }
+body.offline-live-theme .offline-checkline { display:flex; align-items:center; gap:10px; margin-top:12px; }
+body.offline-live-theme input[type="checkbox"] { accent-color:#79cbd0; }
+body.offline-live-theme input[type="file"] { max-width:100%; font-family:inherit; color:var(--accent-silver); }
+body.offline-live-theme input[type="number"], body.offline-live-theme textarea, body.offline-live-theme #matchSelect { background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color); border-radius:4px; font-family:inherit; }
+body.offline-live-theme .controls { display:flex; align-items:center; flex-wrap:wrap; gap:9px; margin:12px 0; }
+body.offline-live-theme button { min-height:36px; }
+body.offline-live-theme #output { width:100%; min-width:0; }
+body.offline-live-theme #output > section { max-width:100%; overflow-x:auto; }
+body.offline-live-theme .score-grid { max-width:100%; }
+body.offline-live-theme .score-grid input { min-width:0; max-width:100%; }
+body.offline-live-theme pre { max-width:100%; overflow:auto; }
+body.offline-live-theme [hidden] { display:none !important; }
+@media(max-width:900px) {
+ body.offline-live-theme .scroll-parchment { width:calc(100vw - 42px); padding:65px 40px 74px; }
+ body.offline-live-theme .offline-setting-grid { grid-template-columns:1fr; }
+}
+@media(max-width:650px) {
+ body.offline-live-theme .scroll-parchment { width:calc(100vw - 18px); padding:60px 23px 66px; }
+ body.offline-live-theme .offline-main > section { padding:14px 11px; }
+ body.offline-live-theme .offline-setup-fieldset .form-row { display:flex; flex-direction:column; align-items:stretch; gap:6px; }
+ body.offline-live-theme nav.offline-nav a { padding:7px 9px; }
+ body.offline-live-theme nav.offline-nav a + a { border-left:0; }
+}

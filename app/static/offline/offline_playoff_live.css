@@ -1,0 +1,70 @@
+/* Offline presenter only; keep the live tournament CSS and frozen engine intact. */
+#output > section.offline-live-playoff {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+.offline-live-playoff .offline-playoff-bracket {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: stretch;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: .75rem .25rem 1.2rem;
+}
+.offline-live-playoff .offline-playoff-bracket > .round {
+  flex: 0 0 clamp(220px, 27vw, 290px);
+  min-width: 220px;
+  box-sizing: border-box;
+}
+.offline-live-playoff .offline-playoff-card { position: relative; margin-bottom: 1rem; }
+.offline-live-playoff .offline-playoff-toggle,
+.offline-live-playoff .offline-playoff-static {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .2rem;
+  color: inherit;
+  text-align: center;
+  padding: .6rem 1rem;
+  box-sizing: border-box;
+  font: inherit;
+  background: transparent;
+  border: 0;
+}
+.offline-live-playoff .offline-playoff-toggle { cursor: pointer; }
+.offline-live-playoff .offline-playoff-toggle:hover { background: rgba(125,160,205,.07); }
+.offline-live-playoff .offline-playoff-toggle:focus-visible { outline: 2px solid #8db9ea; outline-offset: 1px; }
+.offline-live-playoff .offline-playoff-indicator { position: absolute; right: .35rem; top: .25rem; }
+.offline-live-playoff .offline-playoff-finished { text-align: center; font-size: .8rem; opacity: .72; padding-bottom: .5rem; }
+.offline-live-playoff .offline-playoff-form { padding: .5rem; }
+.offline-live-playoff .offline-playoff-set-row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0,1fr) auto minmax(0,1fr);
+  align-items: center;
+  gap: .35rem;
+  margin: .35rem 0;
+}
+.offline-live-playoff .offline-playoff-set-row input { width: 100%; min-width: 0; box-sizing: border-box; }
+.offline-live-playoff .offline-playoff-save { width: 100%; margin-top: .65rem; }
+.offline-live-playoff .offline-playoff-feedback { text-align: center; overflow-wrap: anywhere; }
+.offline-live-playoff .placement-section { margin-top: 1.6rem; }
+.offline-live-playoff .winner-alert { text-align: center; }
+@media (max-width: 780px) {
+  .offline-live-playoff .offline-playoff-bracket > .round { flex-basis: 230px; }
+  .offline-live-playoff .offline-playoff-card { max-width: 100%; }
+}
+
+/* Odstranění vnějšího šedého rámečku playoff a útěchy */
+#output > section.offline-live-playoff {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}

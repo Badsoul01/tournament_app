@@ -1,11 +1,22 @@
 from urllib.parse import quote
-from flask import render_template, session, request, redirect, send_file, make_response
+from flask import render_template, session, request, redirect, send_file, make_response, jsonify
 from app.services.tournament.tournament import Tournament as TournamentOrchestrator
 from app.web.webmanager import WebManager
+from app.services.tournament.offline_sync_lab229 import submit_online
 from . import main_bp
 from app.services.utils.export import TournamentExportService
 from app.models.models import  Match as MatchModel
 from app.services.tournament.account_management import AccountManagementService
+#from app.services.tournament.offline_sync_preflight import register_lab216_routes
+
+#register_lab216_routes(main_bp)
+
+#from app.services.tournament.offline_sync_lab228 import register_lab228_routes
+#register_lab228_routes(main_bp)
+
+#from app.services.tournament.offline_sync_lab229b import register_lab229b_routes
+
+#register_lab229b_routes(main_bp)
 
 def can_reconfigure_tournament(tournamnet_id: int) -> bool:
     management = AccountManagementService(
@@ -27,7 +38,7 @@ def groups_view(tournament_id):
     can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
 
     if request.method == "POST" and editable:
-        web_manager.process_match_action(request.form, is_playoff=False)
+        submit_online(web_manager, request.form, is_playoff=False)
 
         if "HX-Request" in request.headers:
             group_name = request.form.get("group_name")
@@ -72,7 +83,7 @@ def playoff_view(tournament_id):
 
 
     if request.method == "POST" and editable:
-        web_manager.process_match_action(request.form, is_playoff=True, is_consolation=False)
+        submit_online(web_manager, request.form, is_playoff=True, is_consolation=False)
 
         if "HX-Request" in request.headers:
             p_data = web_manager.get_playoff_page_data(is_consolation=False)
@@ -115,7 +126,7 @@ def consolation_minigroup_view(tournament_id):
     can_reconfigure = can_reconfigure_tournament(tournamnet_id=tournament_id)
 
     if request.method == "POST" and editable:
-        web_manager.process_match_action(request.form, is_playoff=False)
+        submit_online(web_manager, request.form, is_playoff=False)
 
         if "HX-Request" in request.headers:
             group_name = request.form.get("group_name")
@@ -163,7 +174,7 @@ def consolation_playoff_view(tournament_id):
 
 
     if request.method == "POST" and editable:
-        web_manager.process_match_action(request.form, is_playoff=True, is_consolation=True)
+        submit_online(web_manager, request.form, is_playoff=True, is_consolation=True)
 
         if "HX-Request" in request.headers:
             p_data = web_manager.get_playoff_page_data(is_consolation=True)

@@ -1,0 +1,17 @@
+/* The results table follows tournament/results.html, without the lab section frame. */
+#output > section.offline-live-results {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+.offline-live-results .results-table { width: 100%; max-width: 760px; margin: 1.25rem auto; border-collapse: collapse; }
+.offline-live-results .results-table th, .offline-live-results .results-table td { padding: 10px; }
+.offline-live-results .results-table th:first-child, .offline-live-results .results-table td:first-child { width: 25%; text-align: center; }
+.offline-live-results .results-table th:last-child, .offline-live-results .results-table td:last-child { width: 75%; text-align: left; }
+.offline-live-results .results-table .offline-first-place { color: var(--winner-color, #eec652); }
+.offline-live-results .results-empty-box, .offline-live-results .results-info { text-align: center; font-style: italic; padding: 1rem; }
+.offline-live-results .results-row td { font-weight: bold; }
+@media (max-width: 680px) {
+ .offline-live-results .results-table th, .offline-live-results .results-table td { padding: .6rem .3rem; }
+}

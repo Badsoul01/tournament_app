@@ -401,3 +401,49 @@ class Bracket(db.Model):
 
     # Relace na zápasy, které do tohoto pavouka patří
     matches = db.relationship("Match", backref="bracket", lazy="dynamic")
+
+class TournamentSyncState(db.Model):
+    __tablename__ = "tournament_sync_state"
+
+    tournament_id = db.Column(
+        db.Integer,
+        db.ForeignKey("tournaments.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    revision = db.Column(db.BigInteger, nullable=False, default=0, server_default="0")
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=db.func.now(),
+    )
+    __table_args__ = (
+        db.CheckConstraint("revision >= 0", name="ck_tournament_sync_state_revision"),
+    )
+
+
+class TournamentSyncRequest(db.Model):
+    __tablename__ = "tournament_sync_requests"
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    tournament_id = db.Column(
+        db.Integer,
+        db.ForeignKey("tournaments.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    request_id = db.Column(db.String(64), nullable=False)
+    payload_sha256 = db.Column(db.String(64), nullable=False)
+    origin = db.Column(db.String(16), nullable=False)  # online / offline
+    revision = db.Column(db.BigInteger, nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=db.func.now(),
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint("tournament_id", "request_id", name="uq_tournament_sync_request_identity"),
+        db.CheckConstraint("revision >= 0", name="ck_tournament_sync_request_revision"),
+        db.CheckConstraint("origin IN ('online', 'offline')", name="ck_tournament_sync_request_origin"),
+        db.CheckConstraint("length(payload_sha256) = 64", name="ck_tournament_sync_request_hash_length"),
+        db.Index("ix_tournament_sync_requests_tournament_revision", "tournament_id", "revision"),
+    )
